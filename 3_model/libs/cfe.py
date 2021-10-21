@@ -8,1121 +8,19 @@ class CFE():
     def __init__(self, cfg_file=None):
         super(CFE, self).__init__()
 
+        # ________________________________________________
+        # GET VALUES FROM CONFIGURATION FILE.                      #
         self.cfg_file = cfg_file
-
-        ############################################################
-        # ________________________________________________________ #
-        # ________________________________________________________ #
-        # GET VALUES FROM CONFIGURATION FILE.                      #
-        #
-        self.config_from_json()  #
-        #
-        # GET VALUES FROM CONFIGURATION FILE.                      #
-        # ________________________________________________________ #
-        # ________________________________________________________ #
-        ############################################################
+        self.config_from_json()                                    #
 
         # ________________________________________________
         # In order to check mass conservation at any time
         self.reset_volume_tracking()
-
+        
         # ________________________________________________
         # initialize simulation constants
         atm_press_Pa = 101325.0
         unit_weight_water_N_per_m3 = 9810.0
-
-        # ________________________________________________
-        # Time control
-        self.time_step_size = 3600
-        self.timestep_h = self.time_step_size / 3600.0
-        self.timestep_d = self.timestep_h / 24.0
-        self.current_time_step = 0
-        self.current_time = pd.Timestamp(year=1970, month=1, day=1, hour=0)
-
-        # ________________________________________________
-        # Inputs
-        self.timestep_rainfall_input_m = 0
-        self.potential_et_m_per_s = 0
-
-        # ________________________________________________
-        # calculated flux variables
-        self.flux_overland_m = 0  # surface runoff that goes through the GIUH convolution process
-        self.flux_perc_m = 0  # flux from soil to deeper groundwater reservoir
-        self.flux_lat_m = 0  # lateral flux in the subsurface to the Nash cascade
-        self.flux_from_deep_gw_to_chan_m = 0  # flux from the deep reservoir into the channels
-        self.gw_reservoir_storage_deficit_m = 0  # the available space in the conceptual groundwater reservoir
-        self.primary_flux = 0  # temporary vars.
-        self.secondary_flux = 0  # temporary vars.
-        self.total_discharge = 0
-
-        # ________________________________________________
-        # Evapotranspiration
-        self.potential_et_m_per_timestep = 0
-        self.actual_et_m_per_timestep = 0
-
-        # ________________________________________________________
-        # Set these values now that we have the information from the configuration file.
-        self.runoff_queue_m_per_timestep = np.zeros(len(self.giuh_ordinates)+1)
-        self.num_giuh_ordinates = len(self.giuh_ordinates)
-        self.num_lateral_flow_nash_reservoirs = len(self.nash_storage)
-
-        # ________________________________________________
-        # Local values to be used in setting up soil reservoir
-        trigger_z_m = 0.5
-
-        field_capacity_atm_press_fraction = 0.33
-
-        H_water_table_m = field_capacity_atm_press_fraction * atm_press_Pa / unit_weight_water_N_per_m3
-
-        soil_water_content_at_field_capacity = self.soil_params['smcmax'] * \
-                                               np.power(H_water_table_m / self.soil_params['satpsi'],
-                                                        (1.0 / self.soil_params['bb']))
-
-        Omega = H_water_table_m - trigger_z_m
-
-        lower_lim = np.power(Omega, (1.0 - 1.0 / self.soil_params['bb'])) / (1.0 - 1.0 / self.soil_params['bb']);
-
-        upper_lim = np.power(Omega + self.soil_params['D'], (1.0 - 1.0 / self.soil_params['bb'])) / (
-                    1.0 - 1.0 / self.soil_params['bb'])
-
-        storage_thresh_pow_term = np.power(1.0 / self.soil_params['satpsi'], (-1.0 / self.soil_params['bb']))
-
-        lim_diff = (upper_lim - lower_lim)
-
-        field_capacity_power = np.power(1.0 / self.soil_params['satpsi'], (-1.0 / self.soil_params['bb']))
-
-        field_capacity_storage_threshold_m = self.soil_params['smcmax'] * field_capacity_power * lim_diff
-
-        # ________________________________________________
-        # lateral flow function parameters
-        assumed_near_channel_water_table_slope = 0.01  # [L/L]
-        lateral_flow_threshold_storage_m = field_capacity_storage_threshold_m
-        #         lateral_flow_linear_reservoir_constant = 2.0 * assumed_near_channel_water_table_slope * \     # Not used
-        #                                                  self.soil_params['mult'] * NWM_soil_params.satdk * \ # Not used
-        #                                                  self.soil_params['D'] * drainage_density_km_per_km2  # Not used
-        #         lateral_flow_linear_reservoir_constant *= 3600.0                                              # Not used
-        self.soil_reservoir_storage_deficit_m = 0
-
-        # ________________________________________________
-        # Subsurface reservoirs
-        self.gw_reservoir = {'is_exponential': True,
-                             'storage_max_m': 1.0,
-                             'coeff_primary': 0.01,
-                             'exponent_primary': 6.0,
-                             'storage_threshold_primary_m': 0.0,
-                             'storage_threshold_secondary_m': 0.0,
-                             'coeff_secondary': 0.0,
-                             'exponent_secondary': 1.0}
-        self.gw_reservoir['storage_m'] = self.gw_reservoir['storage_max_m'] * 0.01
-        self.volstart += self.gw_reservoir['storage_m']
-        self.vol_in_gw_start = self.gw_reservoir['storage_m']
-
-        self.soil_reservoir = {'is_exponential': False,
-                               'storage_max_m': self.soil_params['smcmax'] * self.soil_params['D'],
-                               'coeff_primary': self.soil_params['satdk'] * self.soil_params['slop'] * self.time_step_size,
-                               'exponent_primary': 1.0,
-                               'storage_threshold_primary_m': self.soil_params['smcmax'] * storage_thresh_pow_term *
-                                                              (upper_lim - lower_lim),
-                               'coeff_secondary': 0.01,
-                               'exponent_secondary': 1.0,
-                               'storage_threshold_secondary_m': lateral_flow_threshold_storage_m}
-        self.soil_reservoir['storage_m'] = self.soil_reservoir['storage_max_m'] * 0.667
-        self.volstart += self.soil_reservoir['storage_m']
-        self.vol_soil_start = self.soil_reservoir['storage_m']
-
-        # ________________________________________________
-        # Schaake
-        self.refkdt = 3.0
-        self.Schaake_adjusted_magic_constant_by_soil_type = self.refkdt * self.soil_params['satdk'] / 2.0e-06
-        self.Schaake_output_runoff_m = 0
-        self.infiltration_depth_m = 0
-
-        # ________________________________________________
-        # Nash cascade
-        self.K_nash = 0.03
-
-        # __________________________________________________________________________________________________________
-
-    # MAIN MODEL FUNCTION
-    def run_cfe(self):
-
-        # ________________________________________________
-        self.volin += self.timestep_rainfall_input_m
-
-        # ________________________________________________
-        self.potential_et_m_per_timestep = self.potential_et_m_per_s * self.time_step_size
-
-        # ________________________________________________
-        # timestep_rainfall_input_m = f(timestep_rainfall_input_m, potential_et_m_per_timestep)
-        self.et_from_rainfall()
-
-        # ________________________________________________
-        self.soil_reservoir_storage_deficit_m = (self.soil_params['smcmax'] * \
-                                                 self.soil_params['D'] - \
-                                                 self.soil_reservoir['storage_m'])
-
-        # ________________________________________________
-        # Calculates the value for surface_runoff_depth_m
-        self.Schaake_partitioning_scheme()
-
-        # ________________________________________________
-        self.et_from_soil()
-
-        # ________________________________________________
-        if self.soil_reservoir_storage_deficit_m < self.infiltration_depth_m:
-            # put won't fit back into runoff
-            self.surface_runoff_depth_m += (self.infiltration_depth_m - soil_reservoir_storage_deficit_m)
-            self.infiltration_depth_m = self.soil_reservoir_storage_deficit_m
-            self.soil_reservoir['storage_m'] = self.soil_reservoir['storage_max_m']
-
-        # ________________________________________________
-        self.vol_sch_runoff += self.surface_runoff_depth_m
-        self.vol_sch_infilt += self.infiltration_depth_m
-
-        # ________________________________________________
-        if self.current_time_step == 0:
-            self.previous_flux_perc_m = self.flux_perc_m
-
-        # ________________________________________________
-        if self.previous_flux_perc_m > self.soil_reservoir_storage_deficit_m:
-            diff = self.previous_flux_perc_m - self.soil_reservoir_storage_deficit
-            self.infiltration_depth_m = self.soil_reservoir_storage_deficit_m
-            self.vol_sch_runoff += diff
-            self.vol_sch_infilt -= diff
-            self.surface_runoff_depth_m += diff
-
-        # ________________________________________________
-        self.vol_to_soil += self.infiltration_depth_m
-        self.soil_reservoir['storage_m'] += self.infiltration_depth_m
-
-        # ________________________________________________
-        # primary_flux, secondary_flux = f(reservoir)
-        self.conceptual_reservoir_flux_calc(self.soil_reservoir)
-
-        # ________________________________________________
-        self.flux_perc_m = self.primary_flux
-        self.flux_lat_m = self.secondary_flux
-
-        # ________________________________________________
-        self.gw_reservoir_storage_deficit_m = self.gw_reservoir['storage_max_m'] - self.gw_reservoir['storage_m']
-
-        # ________________________________________________
-        if self.flux_perc_m > self.gw_reservoir_storage_deficit_m:
-            diff = self.flux_perc_m - self.gw_reservoir_storage_deficit_m
-            self.flux_perc_m = self.gw_reservoir_storage_deficit_m
-            self.vol_sch_runoff += diff
-            self.vol_sch_infilt -= diff
-
-            # ________________________________________________
-        self.vol_to_gw += self.flux_perc_m
-        self.vol_soil_to_gw += self.flux_perc_m
-
-        self.gw_reservoir['storage_m'] += self.flux_perc_m
-        self.soil_reservoir['storage_m'] -= self.flux_perc_m
-        self.soil_reservoir['storage_m'] -= self.flux_lat_m
-        self.vol_soil_to_lat_flow += self.flux_lat_m  # TODO add this to nash cascade as input
-        self.volout = self.volout + self.flux_lat_m;
-
-        # ________________________________________________
-        # primary_flux, secondary_flux = f(reservoir)
-        self.conceptual_reservoir_flux_calc(self.gw_reservoir)
-
-        # ________________________________________________
-        self.flux_from_deep_gw_to_chan_m = self.primary_flux
-        self.vol_from_gw += self.flux_from_deep_gw_to_chan_m
-
-        # ________________________________________________
-        if not self.is_fabs_less_than_epsilon(self.secondary_flux, 1.0e-09):
-            print("problem with nonzero flux point 1\n")
-
-        # ________________________________________________
-        self.gw_reservoir['storage_m'] -= self.flux_from_deep_gw_to_chan_m
-
-        # ________________________________________________
-        # giuh_runoff_m = f(Schaake_output, giuh_ordinates, runoff_queue_m_per_timestep)
-        self.convolution_integral()
-
-        # ________________________________________________
-        self.vol_out_giuh += self.flux_giuh_runoff_m
-        self.volout += self.flux_giuh_runoff_m
-        self.volout += self.flux_from_deep_gw_to_chan_m
-
-        # ________________________________________________
-        self.nash_cascade()
-
-        # ________________________________________________
-        self.vol_in_nash += self.flux_lat_m
-        self.vol_out_nash += self.flux_nash_lateral_runoff_m
-
-        # ________________________________________________
-        self.flux_Qout_m = self.flux_giuh_runoff_m + self.flux_nash_lateral_runoff_m + self.flux_from_deep_gw_to_chan_m
-        self.total_discharge = self.flux_Qout_m * self.catchment_area_km2 * 1000000.0 / self.time_step_size
-
-        # ________________________________________________
-        self.current_time_step += 1
-        self.current_time += pd.Timedelta(value=self.time_step_size, unit='s')
-
-        return
-
-    # __________________________________________________________________________________________________________
-    def nash_cascade(self):
-        """
-            Solve for the flow through the Nash cascade to delay the
-            arrival of the lateral flow into the channel
-        """
-        Q = np.zeros(self.num_lateral_flow_nash_reservoirs)
-
-        for i in range(self.num_lateral_flow_nash_reservoirs):
-
-            Q[i] = self.K_nash * self.nash_storage[i]
-
-            self.nash_storage[i] -= Q[i]
-
-            if i == 0:
-
-                self.nash_storage[i] += self.flux_lat_m
-
-            else:
-
-                self.nash_storage[i] += Q[i - 1]
-
-        self.flux_nash_lateral_runoff_m = Q[self.num_lateral_flow_nash_reservoirs - 1]
-
-        return
-
-    # __________________________________________________________________________________________________________
-    def convolution_integral(self):
-        """
-            This function solves the convolution integral involving N
-            GIUH ordinates.
-        """
-
-        for i in range(self.num_giuh_ordinates):
-            self.runoff_queue_m_per_timestep[i] += self.giuh_ordinates[i] * self.surface_runoff_depth_m
-
-        self.flux_giuh_runoff_m = self.runoff_queue_m_per_timestep[0]
-
-        for i in range(self.num_giuh_ordinates):  # shift all the entries in preperation ffor the next timestep
-
-            self.runoff_queue_m_per_timestep[i] = self.runoff_queue_m_per_timestep[i + 1]
-
-        return
-
-    # __________________________________________________________________________________________________________
-    def et_from_rainfall(self):
-
-        """
-            iff it is raining, take PET from rainfall first.  Wet veg. is efficient evaporator.
-        """
-
-        if self.timestep_rainfall_input_m > 0.0:
-
-            if self.timestep_rainfall_input_m > self.potential_et_m_per_timestep:
-
-                self.actual_et_m_per_timestep = self.potential_et_m_per_timestep
-                self.timestep_rainfall_input_m -= self.actual_et_m_per_timestep
-                self.AET_rain_m += self.actual_et_m_per_timestep
-
-            else:
-
-                self.potential_et_m_per_timestep -= self.timestep_rainfall_input_m
-                self.timestep_rainfall_input_m = 0.0
-                self.AET_rain_m += self.timestep_rainfall_input_m
-
-        return
-
-    # __________________________________________________________________________________________________________
-    ########## SINGLE OUTLET EXPONENTIAL RESERVOIR ###############
-    ##########                -or-                 ###############
-    ##########    TWO OUTLET NONLINEAR RESERVOIR   ###############
-    def conceptual_reservoir_flux_calc(self, reservoir):
-        """
-            This function calculates the flux from a linear, or nonlinear
-            conceptual reservoir with one or two outlets, or from an
-            exponential nonlinear conceptual reservoir with only one outlet.
-            In the non-exponential instance, each outlet can have its own
-            activation storage threshold.  Flow from the second outlet is
-            turned off by setting the discharge coeff. to 0.0.
-        """
-
-        if reservoir['is_exponential'] == True:
-            flux_exponential = np.exp(reservoir['exponent_primary'] * \
-                                      reservoir['storage_m'] / \
-                                      reservoir['storage_max_m']) - 1.0
-            self.primary_flux_m = reservoir['coeff_primary'] * flux_exponential
-            self.secondary_flux_m = 0.0
-            return
-
-        self.primary_flux_m = 0.0
-
-        storage_above_threshold_m = reservoir['storage_m'] - reservoir['storage_threshold_primary_m']
-
-        if storage_above_threshold_m > 0.0:
-
-            storage_diff = reservoir['storage_max_m'] - reservoir['storage_threshold_primary_m']
-            storage_ratio = storage_above_threshold_m / storage_diff
-            storage_power = np.power(storage_ratio, reservoir['exponent_primary'])
-
-            self.primary_flux_m = reservoir['coeff_primary'] * storage_power
-
-            if self.primary_flux_m > storage_above_threshold_m:
-                self.primary_flux_m = storage_above_threshold_m
-
-        self.secondary_flux_m = 0.0;
-
-        storage_above_threshold_m = reservoir['storage_m'] - reservoir['storage_threshold_secondary_m']
-
-        if storage_above_threshold_m > 0.0:
-
-            storage_diff = reservoir['storage_max_m'] - reservoir['storage_threshold_secondary_m']
-            storage_ratio = storage_above_threshold_m / storage_diff
-            storage_power = np.power(storage_ratio, reservoir['exponent_secondary'])
-
-            self.secondary_flux_m = reservoir['coeff_secondary'] * storage_power
-
-            if self.secondary_flux_m > (storage_above_threshold_m - self.primary_flux_m):
-                self.secondary_flux_m = storage_above_threshold_m - self.primary_flux_m
-
-        return
-
-    # __________________________________________________________________________________________________________
-    #  SCHAAKE RUNOFF PARTITIONING SCHEME
-    def Schaake_partitioning_scheme(self):
-        """
-            This subtroutine takes water_input_depth_m and partitions it into surface_runoff_depth_m and
-            infiltration_depth_m using the scheme from Schaake et al. 1996.
-            !--------------------------------------------------------------------------------
-            modified by FLO April 2020 to eliminate reference to ice processes,
-            and to de-obfuscate and use descriptive and dimensionally consistent variable names.
-
-            inputs:
-              timestep_d
-              Schaake_adjusted_magic_constant_by_soil_type = C*Ks(soiltype)/Ks_ref, where C=3, and Ks_ref=2.0E-06 m/s
-              column_total_soil_moisture_deficit_m (soil_reservoir_storage_deficit_m)
-              water_input_depth_m (timestep_rainfall_input_m) amount of water input to soil surface this time step [m]
-            outputs:
-              surface_runoff_depth_m      amount of water partitioned to surface water this time step [m]
-              infiltration_depth_m
-        """
-
-        if 0 < self.timestep_rainfall_input_m:
-
-            if 0 > self.soil_reservoir_storage_deficit_m:
-
-                self.surface_runoff_depth_m = self.timestep_rainfall_input_m
-
-                self.infiltration_depth_m = 0.0
-
-            else:
-
-                schaake_exp_term = np.exp(- self.Schaake_adjusted_magic_constant_by_soil_type * self.timestep_d)
-
-                Schaake_parenthetical_term = (1.0 - schaake_exp_term)
-
-                Ic = self.soil_reservoir_storage_deficit_m * Schaake_parenthetical_term
-
-                Px = self.timestep_rainfall_input_m
-
-                self.infiltration_depth_m = (Px * (Ic / (Px + Ic)))
-
-                if 0.0 < (self.timestep_rainfall_input_m - self.infiltration_depth_m):
-
-                    self.surface_runoff_depth_m = self.timestep_rainfall_input_m - self.infiltration_depth_m
-
-                else:
-
-                    self.surface_runoff_depth_m = 0.0
-
-                    self.infiltration_depth_m = self.timestep_rainfall_input_m - self.surface_runoff_depth_m
-
-        else:
-
-            self.surface_runoff_depth_m = 0.0
-
-            self.infiltration_depth_m = 0.0
-
-        return
-
-    # __________________________________________________________________________________________________________
-    def et_from_soil(self):
-        """
-            take AET from soil moisture storage,
-            using Budyko type curve to limit PET if wilting<soilmoist<field_capacity
-        """
-        if self.potential_et_m_per_timestep >= 0:
-
-
-            cond2 = self.soil_reservoir['storage_m'] >= self.soil_reservoir['storage_threshold_primary_m']
-
-            cond3 = ((self.soil_reservoir['storage_m'] > self.soil_params['wltsmc']) and (
-                        self.soil_reservoir['storage_m'] < self.soil_reservoir['storage_threshold_primary_m']))
-
-            if cond2:
-
-
-                self.actual_et_m_per_timestep = np.minimum(self.potential_et_m_per_timestep,
-                                                           self.soil_reservoir['storage_m'])
-
-                self.soil_reservoir['storage_m'] -= self.actual_et_m_per_timestep
-                self.AET_soil_m += self.actual_et_m_per_timestep
-
-            elif cond3:
-
-                Budyko_numerator = self.soil_reservoir['storage_m'] - self.soil_params['wltsmc']
-                Budyko_denominator = self.soil_reservoir['storage_threshold_primary_m'] - \
-                                     self.soil_params['wltsmc']
-                Budyko = Budyko_numerator / Budyko_denominator
-
-                self.actual_et_m_per_timestep = Budyko * self.potential_et_m_per_timestep
-
-                self.soil_reservoir['storage_m'] -= self.actual_et_m_per_timestep
-                self.AET_soil_m += self.actual_et_m_per_timestep
-
-
-        """
-        if self.potential_et_m_per_timestep > 0:
-
-            print("this should not happen yet. Still debugging the other functions.")
-
-            if self.soil_reservoir['storage_m'] >= self.soil_reservoir['storage_threshold_primary_m']:
-
-                self.actual_et_m_per_timestep = np.min(self.potential_et_m_per_timestep,
-                                                       self.soil_reservoir['storage_m'])
-
-                self.soil_reservoir['storage_m'] -= self.actual_et_m_per_timestep
-
-                self.et_struct['potential_et_m_per_timestep'] = 0.0
-
-            elif (self.soil_reservoir['storage_m'] > self.soil_reservoir['wilting_point_m'] and
-                  self.soil_reservoir['storage_m'] < self.soil_reservoir['storage_threshold_primary_m']):
-
-                Budyko_numerator = self.soil_reservoir['storage_m'] - self.soil_reservoir['wilting_point_m']
-                Budyko_denominator = self.soil_reservoir['storage_threshold_primary_m'] - \
-                                     self.soil_reservoir['wilting_point_m']
-                Budyki = Budyko_numerator / Budyko_denominator
-
-                self.actual_et_m_per_timestep = Budyko * self.potential_et_m_per_timestep
-
-                self.soil_reservoir['storage_m'] -= self.actual_et_m_per_timestep
-            """
-        return
-
-    # __________________________________________________________________________________________________________
-    def is_fabs_less_than_epsilon(self, a, epsilon):
-
-        if np.abs(a) < epsilon:
-
-            return True
-
-        else:
-
-            return False
-
-            # ________________________________________________
-
-    # Mass balance tracking
-    def reset_volume_tracking(self):
-        self.volstart = 0
-        self.vol_sch_runoff = 0
-        self.vol_sch_infilt = 0
-        self.vol_out_giuh = 0
-        self.vol_end_giuh = 0
-        self.vol_to_gw = 0
-        self.vol_to_gw_start = 0
-        self.vol_to_gw_end = 0
-        self.vol_from_gw = 0
-        self.vol_in_nash = 0
-        self.vol_in_nash_end = 0
-        self.vol_out_nash = 0
-        self.vol_soil_start = 0
-        self.vol_to_soil = 0
-        self.vol_soil_to_lat_flow = 0
-        self.vol_soil_to_gw = 0
-        self.vol_soil_end = 0
-        self.volin = 0
-        self.volout = 0
-        self.volend = 0
-
-        class CFE():
-            def __init__(self, cfg_file=None):
-                super(CFE, self).__init__()
-
-                self.cfg_file = cfg_file
-
-                ############################################################
-                # ________________________________________________________ #
-                # ________________________________________________________ #
-                # GET VALUES FROM CONFIGURATION FILE.                      #
-                #
-                self.config_from_json()  #
-                #
-                # GET VALUES FROM CONFIGURATION FILE.                      #
-                # ________________________________________________________ #
-                # ________________________________________________________ #
-                ############################################################        
-
-                # ________________________________________________
-                # In order to check mass conservation at any time
-                self.reset_volume_tracking()
-
-                # ________________________________________________
-                # initialize simulation constants
-                atm_press_Pa = 101325.0
-                unit_weight_water_N_per_m3 = 9810.0
-
-                # Priestley-Taylor constants
-                self.alpha = 1
-                self.gamma = 66.8  # Pa/deg C
-
-                # ________________________________________________
-                # Time control
-                self.time_step_size = 60 * 60  # in secconds
-                self.timestep_h = self.time_step_size / 3600.0
-                self.timestep_d = self.timestep_h / 24.0
-                self.current_time_step = 0
-                self.current_time = pd.Timestamp(year=1970, month=1, day=1, hour=0)
-
-                # ________________________________________________
-                # Inputs
-                self.timestep_rainfall_input_m = 0
-                self.potential_et_m_per_s = 0  # int(4.0 / (1000 * 24 * 3600)) # m/s ; 4mm/day pet assume
-
-                # ________________________________________________
-                # calculated flux variables
-                self.flux_overland_m = 0  # surface runoff that goes through the GIUH convolution process
-                self.flux_perc_m = 0  # flux from soil to deeper groundwater reservoir
-                self.flux_lat_m = 0  # lateral flux in the subsurface to the Nash cascade
-                self.flux_from_deep_gw_to_chan_m = 0  # flux from the deep reservoir into the channels
-                self.gw_reservoir_storage_deficit_m = 0  # the available space in the conceptual groundwater reservoir
-                self.primary_flux = 0  # temporary vars.
-                self.secondary_flux = 0  # temporary vars.
-                self.total_discharge = 0
-
-                # ________________________________________________
-                # Evapotranspiration
-                self.potential_et_m_per_timestep = 0
-                self.actual_et_m_per_timestep = 0
-
-                # ________________________________________________________
-                # Set these values now that we have the information from the configuration file.
-                self.runoff_queue_m_per_timestep = np.zeros(
-                    len(self.giuh_ordinates) + 1)  # @@@ padded a zero add the end @@@
-                self.num_giuh_ordinates = len(self.giuh_ordinates)  # @@@@ changed to GIUH @@@@
-                self.num_lateral_flow_nash_reservoirs = len(self.nash_storage)
-
-                # ________________________________________________
-                # Local values to be used in setting up soil reservoir
-                trigger_z_m = 0.5
-
-                field_capacity_atm_press_fraction = 0.33
-
-                H_water_table_m = field_capacity_atm_press_fraction * atm_press_Pa / unit_weight_water_N_per_m3
-
-                soil_water_content_at_field_capacity = self.soil_params['smcmax'] * \
-                                                       np.power(H_water_table_m / self.soil_params['satpsi'],
-                                                                (1.0 / self.soil_params['bb']))
-
-                Omega = H_water_table_m - trigger_z_m
-
-                lower_lim = np.power(Omega, (1.0 - 1.0 / self.soil_params['bb'])) / (
-                            1.0 - 1.0 / self.soil_params['bb']);
-
-                upper_lim = np.power(Omega + self.soil_params['D'], (1.0 - 1.0 / self.soil_params['bb'])) / (
-                            1.0 - 1.0 / self.soil_params['bb'])
-
-                storage_thresh_pow_term = np.power(1.0 / self.soil_params['satpsi'], (-1.0 / self.soil_params['bb']))
-
-                lim_diff = (upper_lim - lower_lim)
-
-                field_capacity_power = np.power(1.0 / self.soil_params['satpsi'], (-1.0 / self.soil_params['bb']))
-
-                field_capacity_storage_threshold_m = self.soil_params['smcmax'] * field_capacity_power * lim_diff
-
-                # ________________________________________________
-                # lateral flow function parameters
-                assumed_near_channel_water_table_slope = 0.01  # [L/L]
-                lateral_flow_threshold_storage_m = field_capacity_storage_threshold_m
-                #         lateral_flow_linear_reservoir_constant = 2.0 * assumed_near_channel_water_table_slope * \     # Not used
-                #                                                  self.soil_params['mult'] * NWM_soil_params.satdk * \ # Not used
-                #                                                  self.soil_params['D'] * drainage_density_km_per_km2  # Not used
-                #         lateral_flow_linear_reservoir_constant *= 3600.0                                              # Not used
-                self.soil_reservoir_storage_deficit_m = 0
-
-                # ________________________________________________
-                # Subsurface reservoirs
-                self.gw_reservoir = {'is_exponential': True,
-                                     'storage_max_m': 1.0,
-                                     'coeff_primary': 0.01,
-                                     'exponent_primary': 6.0,
-                                     'storage_threshold_primary_m': 0.0,
-                                     'storage_threshold_secondary_m': 0.0,
-                                     'coeff_secondary': 0.0,
-                                     'exponent_secondary': 1.0}
-                self.gw_reservoir['storage_m'] = self.gw_reservoir['storage_max_m'] * 0.01
-                self.volstart += self.gw_reservoir['storage_m']
-                self.vol_in_gw_start = self.gw_reservoir['storage_m']
-
-                self.soil_reservoir = {'is_exponential': False,
-                                       'storage_max_m': self.soil_params['smcmax'] * self.soil_params['D'],
-                                       'coeff_primary': self.soil_params['satdk'] * self.soil_params[
-                                           'slop'] * self.time_step_size,  # !!!!!!!!
-                                       'exponent_primary': 1.0,
-                                       'storage_threshold_primary_m': self.soil_params[
-                                                                          'smcmax'] * storage_thresh_pow_term *
-                                                                      (upper_lim - lower_lim),
-                                       'coeff_secondary': 0.01,
-                                       'exponent_secondary': 1.0,
-                                       'storage_threshold_secondary_m': lateral_flow_threshold_storage_m}
-                self.soil_reservoir['storage_m'] = self.soil_reservoir['storage_max_m'] * 0.667
-                self.volstart += self.soil_reservoir['storage_m']
-                self.vol_soil_start = self.soil_reservoir['storage_m']
-
-                # ________________________________________________
-                # Schaake
-                self.refkdt = 3.0
-                self.Schaake_adjusted_magic_constant_by_soil_type = self.refkdt * self.soil_params['satdk'] / 2.0e-06
-                self.Schaake_output_runoff_m = 0
-                self.infiltration_depth_m = 0
-
-                # ________________________________________________
-                # Nash cascade        
-                self.K_nash = 0.03
-
-                # __________________________________________________________________________________________________________
-
-            # MAIN MODEL FUNCTION
-            def run_cfe(self):
-
-                # ________________________________________________
-                self.volin += self.timestep_rainfall_input_m
-                # ________________________________________________
-                self.get_pet()  # %added lines%
-
-                # ________________________________________________
-                self.potential_et_m_per_timestep = self.potential_et_m_per_s * self.time_step_size
-
-                # ________________________________________________
-                # timestep_rainfall_input_m = f(timestep_rainfall_input_m, potential_et_m_per_timestep)
-                self.et_from_rainfall()
-
-                # ________________________________________________        
-                self.soil_reservoir_storage_deficit_m = (self.soil_params['smcmax'] * \
-                                                         self.soil_params['D'] - \
-                                                         self.soil_reservoir['storage_m'])
-
-                # ________________________________________________
-                # Calculates the value for surface_runoff_depth_m
-                self.Schaake_partitioning_scheme()
-
-                # print("PET.: {:6.4e}".format(self.potential_et_m_per_s)) # %added lines%
-                # ________________________________________________
-                self.et_from_soil()
-
-                # ________________________________________________
-                if self.soil_reservoir_storage_deficit_m < self.infiltration_depth_m:
-                    # put won't fit back into runoff
-                    self.surface_runoff_depth_m += (self.infiltration_depth_m - soil_reservoir_storage_deficit_m)
-                    self.infiltration_depth_m = self.soil_reservoir_storage_deficit_m
-                    self.soil_reservoir['storage_m'] = self.soil_reservoir['storage_max_m']
-
-                # ________________________________________________
-                self.vol_sch_runoff += self.surface_runoff_depth_m
-                self.vol_sch_infilt += self.infiltration_depth_m
-
-                # ________________________________________________ @@@ new @@@
-                if self.current_time_step == 0:
-                    self.previous_flux_perc_m = self.flux_perc_m
-
-                # ________________________________________________
-                if self.previous_flux_perc_m > self.soil_reservoir_storage_deficit_m:
-                    diff = self.previous_flux_perc_m - self.soil_reservoir_storage_deficit
-                    self.infiltration_depth_m = self.soil_reservoir_storage_deficit_m
-                    self.vol_sch_runoff += diff
-                    self.vol_sch_infilt -= diff  # correct overprediction of infilt. @@@ edit @@@
-                    self.surface_runoff_depth_m += diff
-
-                # ________________________________________________
-                self.vol_to_soil += self.infiltration_depth_m
-                self.soil_reservoir['storage_m'] += self.infiltration_depth_m
-
-                # ________________________________________________
-                # primary_flux, secondary_flux = f(reservoir)
-                self.conceptual_reservoir_flux_calc(self.soil_reservoir)
-
-                # ________________________________________________
-                self.flux_perc_m = self.primary_flux
-                self.flux_lat_m = self.secondary_flux
-
-                # ________________________________________________
-                self.gw_reservoir_storage_deficit_m = self.gw_reservoir['storage_max_m'] - self.gw_reservoir[
-                    'storage_m']
-
-                # ________________________________________________
-                if self.flux_perc_m > self.gw_reservoir_storage_deficit_m:
-                    diff = self.flux_perc_m - self.gw_reservoir_storage_deficit_m
-                    self.flux_perc_m = self.gw_reservoir_storage_deficit_m
-                    self.vol_sch_runoff += diff
-                    self.vol_sch_infilt -= diff
-
-                    # ________________________________________________
-                self.vol_to_gw += self.flux_perc_m
-                self.vol_soil_to_gw += self.flux_perc_m
-
-                self.gw_reservoir['storage_m'] += self.flux_perc_m
-                self.soil_reservoir['storage_m'] -= self.flux_perc_m
-                self.soil_reservoir['storage_m'] -= self.flux_lat_m
-                self.vol_soil_to_lat_flow += self.flux_lat_m  # TODO add this to nash cascade as input
-                self.volout = self.volout + self.flux_lat_m;
-
-                # ________________________________________________
-                # primary_flux, secondary_flux = f(reservoir)
-                self.conceptual_reservoir_flux_calc(self.gw_reservoir)
-
-                # ________________________________________________
-                self.flux_from_deep_gw_to_chan_m = self.primary_flux
-                self.vol_from_gw += self.flux_from_deep_gw_to_chan_m
-
-                # ________________________________________________        
-                if not self.is_fabs_less_than_epsilon(self.secondary_flux, 1.0e-09):
-                    print("problem with nonzero flux point 1\n")
-
-                # ________________________________________________                               
-                self.gw_reservoir['storage_m'] -= self.flux_from_deep_gw_to_chan_m
-
-                # ________________________________________________
-                # giuh_runoff_m = f(Schaake_output, giuh_ordinates, runoff_queue_m_per_timestep)
-                self.convolution_integral()
-
-                # ________________________________________________
-                self.vol_out_giuh += self.flux_giuh_runoff_m
-                self.volout += self.flux_giuh_runoff_m
-                self.volout += self.flux_from_deep_gw_to_chan_m
-
-                # ________________________________________________
-                self.nash_cascade()
-
-                # ________________________________________________
-                self.vol_in_nash += self.flux_lat_m
-                self.vol_out_nash += self.flux_nash_lateral_runoff_m
-
-                # ________________________________________________
-                self.flux_Qout_m = self.flux_giuh_runoff_m + self.flux_nash_lateral_runoff_m + self.flux_from_deep_gw_to_chan_m
-                self.total_discharge = self.flux_Qout_m * self.catchment_area_km2 * 1000000.0 / self.time_step_size  # !!!!!!!!!!!!
-
-                # ________________________________________________
-                self.current_time_step += 1
-                self.current_time += pd.Timedelta(value=self.time_step_size, unit='s')
-
-                return
-
-            # __________________________________________________________________________________________________________
-            def get_pet(self):  # %added lines%
-                self.eas = 611 * np.exp((17.27 * self.timestep_temp_degC) / (237.3 + self.timestep_temp_degC))  # Pa
-                self.delta = 4098 * self.eas / ((237.3 + self.timestep_temp_degC) ** 2)  # Pa/degC
-                self.Er = 0.0353 * self.timestep_netrad_watt_per_m2  # %added lines% netrad  
-                self.potential_et_m_per_s = (1 / 1000) / (24 * 60 * 60) * self.alpha * self.Er * (
-                            self.delta / (self.delta + self.gamma))  # PET in m/s
-
-                return
-
-            # __________________________________________________________________________________________________________
-            def nash_cascade(self):
-                """
-                    Solve for the flow through the Nash cascade to delay the 
-                    arrival of the lateral flow into the channel
-                """
-                Q = np.zeros(self.num_lateral_flow_nash_reservoirs)
-
-                for i in range(self.num_lateral_flow_nash_reservoirs):
-
-                    Q[i] = self.K_nash * self.nash_storage[i]
-
-                    self.nash_storage[i] -= Q[i]
-
-                    if i == 0:
-
-                        self.nash_storage[i] += self.flux_lat_m
-
-                    else:
-
-                        self.nash_storage[i] += Q[i - 1]
-
-                self.flux_nash_lateral_runoff_m = Q[self.num_lateral_flow_nash_reservoirs - 1]
-
-                return
-
-            # __________________________________________________________________________________________________________ @@@ changed @@@
-            def convolution_integral(self):
-                """
-                    This function solves the convolution integral involving N
-                    GIUH ordinates.
-                """
-                # print('self.runoff_queue_m_per_timestep', self.runoff_queue_m_per_timestep)
-                # print('self.giuh_ordinates', self.giuh_ordinates)
-                # print('self.surface_runoff_depth_m', self.surface_runoff_depth_m)
-                # print('self.flux_giuh_runoff_m', self.flux_giuh_runoff_m)
-                # breakpoint()
-                for i in range(self.num_giuh_ordinates):
-                    self.runoff_queue_m_per_timestep[i] += self.giuh_ordinates[i] * self.surface_runoff_depth_m
-
-                self.flux_giuh_runoff_m = self.runoff_queue_m_per_timestep[0]
-
-                # print('self.runoff_queue_m_per_timestep', self.runoff_queue_m_per_timestep)
-                # print('self.giuh_ordinates', self.giuh_ordinates)
-                # print('self.surface_runoff_depth_m', self.surface_runoff_depth_m)
-                # print('self.flux_giuh_runoff_m', self.flux_giuh_runoff_m)
-                # breakpoint()
-                for i in range(self.num_giuh_ordinates):  # shift all the entries in preperation ffor the next timestep
-
-                    self.runoff_queue_m_per_timestep[i] = self.runoff_queue_m_per_timestep[i + 1]
-
-                # print('self.runoff_queue_m_per_timestep', self.runoff_queue_m_per_timestep)
-                # print('self.giuh_ordinates', self.giuh_ordinates)
-                # print('self.surface_runoff_depth_m', self.surface_runoff_depth_m)
-                # print('self.flux_giuh_runoff_m', self.flux_giuh_runoff_m)    
-                # breakpoint()
-                return
-
-            # __________________________________________________________________________________________________________
-            def et_from_rainfall(self):
-
-                """
-                    iff it is raining, take PET from rainfall first.  Wet veg. is efficient evaporator.
-                """
-
-                if self.timestep_rainfall_input_m > 0.0:
-
-                    if self.timestep_rainfall_input_m > self.potential_et_m_per_timestep:
-
-                        self.actual_et_m_per_timestep = self.potential_et_m_per_timestep
-                        self.timestep_rainfall_input_m -= self.actual_et_m_per_timestep
-                        self.AET_rain_m += self.actual_et_m_per_timestep
-
-                    else:
-
-                        self.potential_et_m_per_timestep -= self.timestep_rainfall_input_m
-                        self.AET_rain_m += self.timestep_rainfall_input_m
-                        self.timestep_rainfall_input_m = 0.0
-                return
-
-            # __________________________________________________________________________________________________________
-            ########## SINGLE OUTLET EXPONENTIAL RESERVOIR ###############
-            ##########                -or-                 ###############
-            ##########    TWO OUTLET NONLINEAR RESERVOIR   ###############                        
-            def conceptual_reservoir_flux_calc(self, reservoir):
-                """
-                    This function calculates the flux from a linear, or nonlinear 
-                    conceptual reservoir with one or two outlets, or from an
-                    exponential nonlinear conceptual reservoir with only one outlet.
-                    In the non-exponential instance, each outlet can have its own
-                    activation storage threshold.  Flow from the second outlet is 
-                    turned off by setting the discharge coeff. to 0.0.
-                """
-
-                if reservoir['is_exponential'] == True:
-                    flux_exponential = np.exp(reservoir['exponent_primary'] * \
-                                              reservoir['storage_m'] / \
-                                              reservoir['storage_max_m']) - 1.0
-                    self.primary_flux_m = reservoir['coeff_primary'] * flux_exponential
-                    self.secondary_flux_m = 0.0
-                    return
-
-                self.primary_flux_m = 0.0
-
-                storage_above_threshold_m = reservoir['storage_m'] - reservoir['storage_threshold_primary_m']
-
-                if storage_above_threshold_m > 0.0:
-
-                    storage_diff = reservoir['storage_max_m'] - reservoir['storage_threshold_primary_m']
-                    storage_ratio = storage_above_threshold_m / storage_diff
-                    storage_power = np.power(storage_ratio, reservoir['exponent_primary'])
-
-                    self.primary_flux_m = reservoir['coeff_primary'] * storage_power
-
-                    if self.primary_flux_m > storage_above_threshold_m:
-                        self.primary_flux_m = storage_above_threshold_m
-
-                self.secondary_flux_m = 0.0;
-
-                storage_above_threshold_m = reservoir['storage_m'] - reservoir['storage_threshold_secondary_m']
-
-                if storage_above_threshold_m > 0.0:
-
-                    storage_diff = reservoir['storage_max_m'] - reservoir['storage_threshold_secondary_m']
-                    storage_ratio = storage_above_threshold_m / storage_diff
-                    storage_power = np.power(storage_ratio, reservoir['exponent_secondary'])
-
-                    self.secondary_flux_m = reservoir['coeff_secondary'] * storage_power
-
-                    if self.secondary_flux_m > (storage_above_threshold_m - self.primary_flux_m):
-                        self.secondary_flux_m = storage_above_threshold_m - self.primary_flux_m
-
-                return
-
-            # __________________________________________________________________________________________________________
-            #  SCHAAKE RUNOFF PARTITIONING SCHEME
-            def Schaake_partitioning_scheme(self):
-                """
-                    This subtroutine takes water_input_depth_m and partitions it into surface_runoff_depth_m and
-                    infiltration_depth_m using the scheme from Schaake et al. 1996. 
-                    !--------------------------------------------------------------------------------
-                    modified by FLO April 2020 to eliminate reference to ice processes, 
-                    and to de-obfuscate and use descriptive and dimensionally consistent variable names.
-
-                    inputs:
-                      timestep_d
-                      Schaake_adjusted_magic_constant_by_soil_type = C*Ks(soiltype)/Ks_ref, where C=3, and Ks_ref=2.0E-06 m/s
-                      column_total_soil_moisture_deficit_m (soil_reservoir_storage_deficit_m)
-                      water_input_depth_m (timestep_rainfall_input_m) amount of water input to soil surface this time step [m]
-                    outputs:
-                      surface_runoff_depth_m      amount of water partitioned to surface water this time step [m]
-                      infiltration_depth_m
-                """
-
-                if 0 < self.timestep_rainfall_input_m:
-
-                    if 0 > self.soil_reservoir_storage_deficit_m:
-
-                        self.surface_runoff_depth_m = self.timestep_rainfall_input_m
-
-                        self.infiltration_depth_m = 0.0
-
-                    else:
-
-                        schaake_exp_term = np.exp(- self.Schaake_adjusted_magic_constant_by_soil_type * self.timestep_d)
-
-                        Schaake_parenthetical_term = (1.0 - schaake_exp_term)
-
-                        Ic = self.soil_reservoir_storage_deficit_m * Schaake_parenthetical_term
-
-                        Px = self.timestep_rainfall_input_m
-
-                        self.infiltration_depth_m = (Px * (Ic / (Px + Ic)))
-
-                        if 0.0 < (self.timestep_rainfall_input_m - self.infiltration_depth_m):
-
-                            self.surface_runoff_depth_m = self.timestep_rainfall_input_m - self.infiltration_depth_m
-
-                        else:
-
-                            self.surface_runoff_depth_m = 0.0
-
-                            self.infiltration_depth_m = self.timestep_rainfall_input_m - self.surface_runoff_depth_m
-
-                else:
-
-                    self.surface_runoff_depth_m = 0.0
-
-                    self.infiltration_depth_m = 0.0
-
-                return
-
-            # __________________________________________________________________________________________________________
-            def et_from_soil(self):
-                """
-                    take AET from soil moisture storage, 
-                    using Budyko type curve to limit PET if wilting<soilmoist<field_capacity
-                """
-                # cond1=self.potential_et_m_per_timestep >= 0
-                # print(' cond : ', cond)
-                if self.potential_et_m_per_timestep >= 0:
-
-                    # print("this should not happen yet. Still debugging the other functions.")
-                    cond2 = self.soil_reservoir['storage_m'] >= self.soil_reservoir['storage_threshold_primary_m']
-                    # print(' cond2 : ', cond2)
-                    cond3 = ((self.soil_reservoir['storage_m'] > self.soil_params['wltsmc']) and (
-                                self.soil_reservoir['storage_m'] < self.soil_reservoir['storage_threshold_primary_m']))
-                    # print(' cond3 : ', cond3)             
-                    if cond2:
-                        # print('potential_et_m_per_timestep', self.potential_et_m_per_timestep)
-                        # print('soil_reservoir storage_m', self.soil_reservoir['storage_m'])
-
-                        self.actual_et_m_per_timestep = np.minimum(self.potential_et_m_per_timestep,
-                                                                   self.soil_reservoir['storage_m'])
-
-                        self.soil_reservoir['storage_m'] -= self.actual_et_m_per_timestep
-                        self.AET_soil_m += self.actual_et_m_per_timestep
-                        # self.et_struct['potential_et_m_per_timestep'] = 0.0
-                        # print(' first if storage_m : ', self.soil_reservoir['storage_m'])   
-
-                    elif cond3:
-
-                        Budyko_numerator = self.soil_reservoir['storage_m'] - self.soil_params['wltsmc']
-                        Budyko_denominator = self.soil_reservoir['storage_threshold_primary_m'] - \
-                                             self.soil_params['wltsmc']
-                        Budyko = Budyko_numerator / Budyko_denominator
-
-                        self.actual_et_m_per_timestep = Budyko * self.potential_et_m_per_timestep
-
-                        self.soil_reservoir['storage_m'] -= self.actual_et_m_per_timestep
-                        self.AET_soil_m += self.actual_et_m_per_timestep
-                        # print(' first elseif storage_m : ', self.soil_reservoir['storage_m']) 
-                return
-
-            # __________________________________________________________________________________________________________
-            def is_fabs_less_than_epsilon(self, a, epsilon):
-
-                if np.abs(a) < epsilon:
-
-                    return True
-
-                else:
-
-                    return False
-
-                    # ________________________________________________
-
-            # Mass balance tracking
-            def reset_volume_tracking(self):
-                self.volstart = 0
-                self.vol_sch_runoff = 0
-                self.vol_sch_infilt = 0
-                self.vol_out_giuh = 0
-                self.vol_end_giuh = 0
-                self.vol_to_gw = 0
-                self.vol_to_gw_start = 0
-                self.vol_to_gw_end = 0
-                self.vol_from_gw = 0
-                self.vol_in_nash = 0
-                self.vol_in_nash_end = 0
-                self.vol_out_nash = 0
-                self.vol_soil_start = 0
-                self.vol_to_soil = 0
-                self.vol_soil_to_lat_flow = 0
-                self.vol_soil_to_gw = 0
-                self.vol_soil_end = 0
-                self.volin = 0
-                self.volout = 0
-                self.volend = 0
-                self.AET_soil_m = 0
-                self.AET_rain_m = 0
-
-class CFE():
-    def __init__(self, cfg_file=None):
-        super(CFE, self).__init__()
-        
-        self.cfg_file = cfg_file
-       
-        ############################################################
-        # ________________________________________________________ #
-        # ________________________________________________________ #
-        # GET VALUES FROM CONFIGURATION FILE.                      #
-                                                                   #
-        self.config_from_json()                                    #
-                                                                   #
-        # GET VALUES FROM CONFIGURATION FILE.                      #
-        # ________________________________________________________ #
-        # ________________________________________________________ #
-        ############################################################        
-
-        # ________________________________________________
-        # In order to check mass conservation at any time
-        self.reset_volume_tracking()
-        
-        # ________________________________________________
-        # initialize simulation constants
-        atm_press_Pa=101325.0
-        unit_weight_water_N_per_m3=9810.0
         
         #Priestley-Taylor constants
         self.alpha = 1
@@ -1171,12 +69,11 @@ class CFE():
         
         H_water_table_m=field_capacity_atm_press_fraction * atm_press_Pa / unit_weight_water_N_per_m3 
         
-        soil_water_content_at_field_capacity = self.soil_params['smcmax'] * \
-                                     np.power(H_water_table_m/self.soil_params['satpsi'],(1.0/self.soil_params['bb']))
+        soil_water_content_at_field_capacity = self.soil_params['smcmax'] * np.power(H_water_table_m/self.soil_params['satpsi'],(1.0/self.soil_params['bb']))
         
         Omega     = H_water_table_m - trigger_z_m
         
-        lower_lim = np.power(Omega , (1.0-1.0/self.soil_params['bb']))/(1.0-1.0/self.soil_params['bb']);
+        lower_lim = np.power(Omega , (1.0-1.0/self.soil_params['bb']))/(1.0-1.0/self.soil_params['bb'])
         
         upper_lim = np.power(Omega+self.soil_params['D'],(1.0-1.0/self.soil_params['bb']))/(1.0-1.0/self.soil_params['bb'])
 
@@ -1222,19 +119,17 @@ class CFE():
                                'coeff_secondary':0.01,
                                'exponent_secondary':1.0,
                                'storage_threshold_secondary_m':lateral_flow_threshold_storage_m}
-        self.soil_reservoir['storage_m'] = self.soil_reservoir['storage_max_m'] * 0.667
+        self.soil_reservoir['storage_m'] = self.soil_reservoir['storage_max_m'] * self.soil_storage
         self.volstart                   += self.soil_reservoir['storage_m']
         self.vol_soil_start              = self.soil_reservoir['storage_m']
-        
-        
+
         # ________________________________________________
         # Schaake
         self.refkdt = 3.0
         self.Schaake_adjusted_magic_constant_by_soil_type = self.refkdt * self.soil_params['satdk'] / 2.0e-06
         self.Schaake_output_runoff_m = 0
         self.infiltration_depth_m = 0
-        
-        
+
         # ________________________________________________
         # Nash cascade        
         self.K_nash = 0.03        
@@ -1256,8 +151,8 @@ class CFE():
         self.et_from_rainfall()
         
         # ________________________________________________        
-        self.soil_reservoir_storage_deficit_m = (self.soil_params['smcmax'] * \
-                                                 self.soil_params['D'] - \
+        self.soil_reservoir_storage_deficit_m = (self.soil_params['smcmax'] *
+                                                 self.soil_params['D'] -
                                                  self.soil_reservoir['storage_m'])
         
         # ________________________________________________
@@ -1320,8 +215,8 @@ class CFE():
         self.gw_reservoir['storage_m']   += self.flux_perc_m
         self.soil_reservoir['storage_m'] -= self.flux_perc_m
         self.soil_reservoir['storage_m'] -= self.flux_lat_m
-        self.vol_soil_to_lat_flow        += self.flux_lat_m  #TODO add this to nash cascade as input
-        self.volout                       = self.volout + self.flux_lat_m;
+        self.vol_soil_to_lat_flow        += self.flux_lat_m  # TODO add this to nash cascade as input
+        self.volout                       = self.volout + self.flux_lat_m
 
             
         # ________________________________________________
@@ -1357,7 +252,7 @@ class CFE():
         
         # ________________________________________________
         self.flux_Qout_m = self.flux_giuh_runoff_m + self.flux_nash_lateral_runoff_m + self.flux_from_deep_gw_to_chan_m
-        self.total_discharge = self.flux_Qout_m * self.catchment_area_km2 * 1000000.0 / self.time_step_size # !!!!!!!!!!!!
+        self.total_discharge = self.flux_Qout_m * self.catchment_area_km2 * 1000000.0 / self.time_step_size
         
         # ________________________________________________
         self.current_time_step += 1
@@ -1405,31 +300,16 @@ class CFE():
             This function solves the convolution integral involving N
             GIUH ordinates.
         """
-        #print('self.runoff_queue_m_per_timestep', self.runoff_queue_m_per_timestep)
-        #print('self.giuh_ordinates', self.giuh_ordinates)
-        #print('self.surface_runoff_depth_m', self.surface_runoff_depth_m)
-        #print('self.flux_giuh_runoff_m', self.flux_giuh_runoff_m)
-        #breakpoint()
         for i in range(self.num_giuh_ordinates): 
         
             self.runoff_queue_m_per_timestep[i] += self.giuh_ordinates[i] * self.surface_runoff_depth_m
             
         self.flux_giuh_runoff_m = self.runoff_queue_m_per_timestep[0]
-        
-        #print('self.runoff_queue_m_per_timestep', self.runoff_queue_m_per_timestep)
-        #print('self.giuh_ordinates', self.giuh_ordinates)
-        #print('self.surface_runoff_depth_m', self.surface_runoff_depth_m)
-        #print('self.flux_giuh_runoff_m', self.flux_giuh_runoff_m)
-        #breakpoint()
+
         for i in range(self.num_giuh_ordinates):  # shift all the entries in preperation ffor the next timestep
             
             self.runoff_queue_m_per_timestep[i] = self.runoff_queue_m_per_timestep[i+1]
-        
-        #print('self.runoff_queue_m_per_timestep', self.runoff_queue_m_per_timestep)
-        #print('self.giuh_ordinates', self.giuh_ordinates)
-        #print('self.surface_runoff_depth_m', self.surface_runoff_depth_m)
-        #print('self.flux_giuh_runoff_m', self.flux_giuh_runoff_m)    
-        #breakpoint()
+
         return
     
     
@@ -1494,7 +374,7 @@ class CFE():
             if self.primary_flux_m > storage_above_threshold_m:
                 self.primary_flux_m = storage_above_threshold_m
                 
-        self.secondary_flux_m = 0.0;
+        self.secondary_flux_m = 0.0
             
         storage_above_threshold_m = reservoir['storage_m'] - reservoir['storage_threshold_secondary_m']
         
@@ -1577,39 +457,26 @@ class CFE():
             take AET from soil moisture storage, 
             using Budyko type curve to limit PET if wilting<soilmoist<field_capacity
         """
-        #cond1=self.potential_et_m_per_timestep >= 0
-        #print(' cond : ', cond)
         if self.potential_et_m_per_timestep >= 0 :
-            
-            #print("this should not happen yet. Still debugging the other functions.")
             cond2=self.soil_reservoir['storage_m'] >= self.soil_reservoir['storage_threshold_primary_m']
-            #print(' cond2 : ', cond2)
             cond3=((self.soil_reservoir['storage_m'] > self.soil_params['wltsmc']) and (self.soil_reservoir['storage_m'] < self.soil_reservoir['storage_threshold_primary_m']))
-           # print(' cond3 : ', cond3)             
             if cond2:
-                #print('potential_et_m_per_timestep', self.potential_et_m_per_timestep)
-                #print('soil_reservoir storage_m', self.soil_reservoir['storage_m'])
-                
                 self.actual_et_m_per_timestep = np.minimum(self.potential_et_m_per_timestep, 
                                                        self.soil_reservoir['storage_m'])
 
                 self.soil_reservoir['storage_m'] -= self.actual_et_m_per_timestep
                 self.AET_soil_m += self.actual_et_m_per_timestep 
-                #self.et_struct['potential_et_m_per_timestep'] = 0.0
-                #print(' first if storage_m : ', self.soil_reservoir['storage_m'])   
-            
+
             elif cond3:
             
                 Budyko_numerator = self.soil_reservoir['storage_m'] - self.soil_params['wltsmc']
-                Budyko_denominator = self.soil_reservoir['storage_threshold_primary_m'] - \
-                                     self.soil_params['wltsmc']
+                Budyko_denominator = self.soil_reservoir['storage_threshold_primary_m'] - self.soil_params['wltsmc']
                 Budyko = Budyko_numerator / Budyko_denominator
                                
                 self.actual_et_m_per_timestep = Budyko * self.potential_et_m_per_timestep
                                
                 self.soil_reservoir['storage_m'] -= self.actual_et_m_per_timestep
                 self.AET_soil_m += self.actual_et_m_per_timestep
-                #print(' first elseif storage_m : ', self.soil_reservoir['storage_m']) 
         return
             
             
@@ -1617,11 +484,8 @@ class CFE():
     def is_fabs_less_than_epsilon(self,a,epsilon):
         
         if np.abs(a) < epsilon:
-            
             return True
-        
         else:
-            
             return False 
     
 
@@ -1661,7 +525,6 @@ class CFE():
         # MANDATORY CONFIGURATIONS
         self.forcing_file = data_loaded['forcing_file']
         self.catchment_area_km2 = data_loaded['catchment_area_km2']
-        self.alpha_fc = data_loaded['alpha_fc']
         self.soil_params = {}
         self.soil_params['bb'] = data_loaded['soil_params']['bb']
         self.soil_params['D'] = data_loaded['soil_params']['D']
@@ -1692,8 +555,20 @@ class CFE():
         if 'unit_test' in data_loaded.keys():
             self.unit_test = data_loaded['unit_test']
             self.compare_results_file = data_loaded['compare_results_file']
+        if 'parameter_bounds_file' in data_loaded.keys():
+            self.parameter_bounds_file = data_loaded['parameter_bounds_file']
+        return
+
+    def sensitivity_config_from_json(self):
+        # ___________________________________________________
+        #OPTIONAL CONFIGURATIONS (parameter search bounds)
+        with open(self.parameter_bounds_file) as data_file:
+            data_loaded = json.load(data_file)
+
+        self.soil_storage_bound = [data_loaded['soil_storage']['lb'], data_loaded['soil_storage']['ub']]
 
         return
+
 
     # ________________________________________________________
     def finalize_mass_balance(self, verbose=True):
@@ -1809,6 +684,12 @@ class CFE():
             plt.close()
 
         print(self.cfe_output_data.head())
+
+    # __________________________________________________________________________________________________________
+    def run_sensitivity_test(self):
+        self.sensitivity_config_from_json()
+        self.run_unit_test()
+        return
 
     # __________________________________________________________________________________________________________
     ########## BMI FUNCTIONS BELOW ###############
