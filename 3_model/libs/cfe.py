@@ -151,9 +151,9 @@ class CFE():
         self.et_from_rainfall()
         
         # ________________________________________________        
-        self.soil_reservoir_storage_deficit_m = (self.soil_params['smcmax'] *
-                                                 self.soil_params['D'] -
-                                                 self.soil_reservoir['storage_m'])
+        self.soil_reservoir_storage_deficit_m = (
+                self.soil_params['smcmax'] * self.soil_params['D'] - self.soil_reservoir['storage_m']
+        )
         
         # ________________________________________________
         # Calculates the value for surface_runoff_depth_m
@@ -166,7 +166,7 @@ class CFE():
         # ________________________________________________
         if self.soil_reservoir_storage_deficit_m < self.infiltration_depth_m:
             # put won't fit back into runoff
-            self.surface_runoff_depth_m += (self.infiltration_depth_m - soil_reservoir_storage_deficit_m)
+            self.surface_runoff_depth_m += self.infiltration_depth_m - soil_reservoir_storage_deficit_m
             self.infiltration_depth_m = self.soil_reservoir_storage_deficit_m
             self.soil_reservoir['storage_m'] = self.soil_reservoir['storage_max_m']
 
@@ -555,17 +555,24 @@ class CFE():
         if 'unit_test' in data_loaded.keys():
             self.unit_test = data_loaded['unit_test']
             self.compare_results_file = data_loaded['compare_results_file']
-        if 'parameter_bounds_file' in data_loaded.keys():
-            self.parameter_bounds_file = data_loaded['parameter_bounds_file']
-        return
 
-    def sensitivity_config_from_json(self):
         # ___________________________________________________
-        #OPTIONAL CONFIGURATIONS (parameter search bounds)
-        with open(self.parameter_bounds_file) as data_file:
-            data_loaded = json.load(data_file)
+        # SENSITIVITY TEST CONFIGURATIONS
+        if data_loaded['sensitivity_test'] == 1:
+            self.sensitivity_test = True
+            self.sensitivity_iteration = data_loaded['sensitivity_iteration']
 
-        self.soil_storage_bound = [data_loaded['soil_storage']['lb'], data_loaded['soil_storage']['ub']]
+            with open(data_loaded['parameter_bounds_file']) as parabound_file:
+                parabound_loaded = json.load(parabound_file)
+
+                if 'soil_storage' in parabound_loaded.keys():
+                    self.soil_storage = np.random.uniform(
+                        low = parabound_loaded['soil_storage']['lb'], high = parabound_loaded['soil_storage']['ub']
+                    )
+                    print(self.soil_storage)
+
+        else:
+            self.sensitivity_iteration = 0
 
         return
 
@@ -590,7 +597,10 @@ class CFE():
                              self.vol_soil_to_lat_flow - self.vol_soil_end - self.vol_to_gw
         self.nash_residual = self.vol_in_nash - self.vol_out_nash - self.vol_in_nash_end
         self.gw_residual = self.vol_in_gw_start + self.vol_to_gw - self.vol_from_gw - self.vol_in_gw_end
+
         if verbose:
+            print("\n======= #{} iteration========".format(self.sensitivity_n_iteration))
+
             print("\nGLOBAL MASS BALANCE")
             print("  initial volume: {:8.4f}".format(self.volstart))
             print("    volume input: {:8.4f}".format(self.volin))
@@ -643,7 +653,17 @@ class CFE():
     # ________________________________________________________
     def load_unit_test_data(self):
         self.unit_test_data = pd.read_csv(self.compare_results_file)
-        self.cfe_output_data = pd.DataFrame().reindex_like(self.unit_test_data)
+
+        cfe_out_df0 = pd.DataFrame().reindex_like(self.unit_test_data)
+        cfe_out_df0["iteration_n"] = 0
+        cfe_out_df = cfe_out_df0
+        if self.sensitivity_iteration >= 1:
+            for i in range(self.sensitivity_iteration+1):
+                if i >= 0:
+                    cfe_out_df0["iteration_n"] = i
+                    cfe_out_df = pd.concat([cfe_out_df, cfe_out_df0])
+        cfe_out_df.set_index(['iteration_n', cfe_out_df.index.values], inplace=True)
+        self.cfe_output_data = cfe_out_df
 
     # ________________________________________________________
     def run_unit_test(self, plot_lims=list(range(490, 550))):
@@ -651,45 +671,49 @@ class CFE():
         self.load_forcing_file()
         self.load_unit_test_data()
 
-        self.current_time = pd.Timestamp(self.forcing_data['time'][0])
+        for i in range(self.sensitivity_iteration+1):
+            self.sensitivity_n_iteration = i
+            self.current_time = pd.Timestamp(self.forcing_data['time'][0])
 
-        for t, precipitation_input in enumerate(self.forcing_data['precip_rate'] * self.time_step_size):
-            self.timestep_rainfall_input_m = precipitation_input
-            self.timestep_temp_degC = self.forcing_data.loc[t, 'TMP_2maboveground']
-            self.timestep_netrad_watt_per_m2 = self.forcing_data.loc[t, 'DLWRF_surface'] + self.forcing_data.loc[t, 'DSWRF_surface']
-            self.cfe_output_data.loc[t, 'Time'] = self.current_time
-            self.cfe_output_data.loc[t, 'Time Step'] = self.current_time_step
-            self.cfe_output_data.loc[t, 'Rainfall'] = self.timestep_rainfall_input_m
+            for t, precipitation_input in enumerate(self.forcing_data['precip_rate'] * self.time_step_size):
+                # overwriting the input
+                self.timestep_rainfall_input_m = precipitation_input
+                self.timestep_temp_degC = self.forcing_data.loc[t, 'TMP_2maboveground']
+                self.timestep_netrad_watt_per_m2 = self.forcing_data.loc[t, 'DLWRF_surface'] + self.forcing_data.loc[t, 'DSWRF_surface']
 
-            self.run_cfe()
+                # recording the output
+                self.cfe_output_data.loc[(i,t)]["Time"] = self.current_time #T is updated inside the CFE model
+                self.cfe_output_data.loc[(i,t)]['Time Step'] = self.current_time_step
+                self.cfe_output_data.loc[(i,t)]['Rainfall'] = self.timestep_rainfall_input_m
 
-            self.cfe_output_data.loc[t, 'Direct Runoff'] = self.surface_runoff_depth_m
-            self.cfe_output_data.loc[t, 'GIUH Runoff'] = self.flux_giuh_runoff_m
-            self.cfe_output_data.loc[t, 'Lateral Flow'] = self.flux_nash_lateral_runoff_m
-            self.cfe_output_data.loc[t, 'Base Flow'] = self.flux_from_deep_gw_to_chan_m
-            self.cfe_output_data.loc[t, 'Total Discharge'] = self.flux_Qout_m
-            self.cfe_output_data.loc[t, 'Flow'] = self.total_discharge
-            self.cfe_output_data.loc[t, 'Soil Moisture Content'] = self.soil_reservoir['storage_m'] / self.soil_params[
-                'D']
+                # run the model
+                self.run_cfe()
 
-        self.finalize_mass_balance()
+                # recording the output
+                self.cfe_output_data.loc[(i,t)]['Direct Runoff'] = self.surface_runoff_depth_m
+                self.cfe_output_data.loc[(i,t)]['GIUH Runoff'] = self.flux_giuh_runoff_m
+                self.cfe_output_data.loc[(i,t)]['Lateral Flow'] = self.flux_nash_lateral_runoff_m
+                self.cfe_output_data.loc[(i,t)]['Base Flow'] = self.flux_from_deep_gw_to_chan_m
+                self.cfe_output_data.loc[(i,t)]['Total Discharge'] = self.flux_Qout_m
+                self.cfe_output_data.loc[(i,t)]['Flow'] = self.total_discharge
+                self.cfe_output_data.loc[(i,t)]['Soil Moisture Content'] = self.soil_reservoir['storage_m'] / self.soil_params['D']
 
+            self.finalize_mass_balance()
+
+        # plot
         for output_type in ['Direct Runoff', 'GIUH Runoff', 'Lateral Flow', 'Base Flow', 'Total Discharge', 'Flow',
                             'Soil Moisture Content']:
-            plt.plot(self.cfe_output_data['Rainfall'][plot_lims], label='precipitation', c='gray', lw=.3)
-            plt.plot(self.cfe_output_data[output_type][plot_lims], label='cfe ' + output_type)
-            plt.plot(self.unit_test_data[output_type][plot_lims], '--', label='t-shirt ' + output_type)
+
+            plt.plot(self.cfe_output_data.loc[0,:]['Rainfall'], label='precipitation', c='gray', lw=.3)
+            plt.plot(self.unit_test_data[output_type], '--', label='t-shirt ' + output_type)
+
+            for i in range(self.sensitivity_iteration+1):
+                plt.plot(self.cfe_output_data.loc[i,:][output_type], label='cfe ' + output_type)
+
             plt.legend()
             plt.show()
             plt.close()
 
-        print(self.cfe_output_data.head())
-
-    # __________________________________________________________________________________________________________
-    def run_sensitivity_test(self):
-        self.sensitivity_config_from_json()
-        self.run_unit_test()
-        return
 
     # __________________________________________________________________________________________________________
     ########## BMI FUNCTIONS BELOW ###############

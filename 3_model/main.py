@@ -17,7 +17,7 @@ def main():
     # ensambles
     cfe1 = cfe.CFE(os.path.join(data_file_path, 'cat_58_config_cfe.json'))
 
-    cfe1.run_sensitivity_test()
+    cfe1.run_unit_test()
     """
     cfe1.initialize()
     cfe1.update()
