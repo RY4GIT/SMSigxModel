@@ -9,7 +9,7 @@ import numpy as np
 # specify current directory create output directory if it does not exist
 os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model")
 os.getcwd()
-out_file_path = '../4_out/test'
+out_file_path = '../4_out/test/'
 if not os.path.exists(out_file_path):
     os.mkdir(out_file_path)
 data_file_path = '../2_data_input/test'
@@ -23,6 +23,7 @@ def main():
     # sensitivity analysis ==================================================
     # Initialize
     spot_setup = spotpy_cfe.spot_setup(cfe=cfe1)
+    out_fn_sa = out_file_path + 'results'
 
     # Select number of maximum repetitions
     # CHeck out https://spotpy.readthedocs.io/en/latest/Sensitivity_analysis_with_FAST/
@@ -30,11 +31,11 @@ def main():
     rep = 5
 
     # Start a sensitivity analysis
-    sampler = spotpy.algorithms.fast(spot_setup, dbname=out_file_path, dbformat='csv', db_precision=np.float32)
+    sampler = spotpy.algorithms.fast(spot_setup, dbname=out_fn_sa, dbformat='csv', db_precision=np.float32, save_sim = False)
     sampler.sample(rep)
 
-    # Load the results gained with the fast sampler, stored in FAST_hymod.csv
-    results = spotpy.analyser.load_csv_results('FAST_hymod')
+    # Load the results gained with the fast sampler
+    results = spotpy.analyser.load_csv_results(out_fn_sa)
 
     # Example plot to show the sensitivity index of each parameter
     spotpy.analyser.plot_fast_sensitivity(results, number_of_sensitiv_pars=3)

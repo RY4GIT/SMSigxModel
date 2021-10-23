@@ -27,7 +27,7 @@ class spot_setup(object):
 
     def simulation(self, x):
         # Here the model is actualy started with a unique parameter combination that it gets from spotpy for each time the model is called
-        data = self.myCFE.run_unit_test()
+        data = self.myCFE.run_unit_test(plot_results=False)
         sim = data[["Time", "Total Discharge"]]
         sim["Time"] = pd.to_datetime(sim["Time"])
         return sim

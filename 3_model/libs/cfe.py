@@ -655,7 +655,7 @@ class CFE():
         return self.unit_test_data
 
     # ________________________________________________________
-    def run_unit_test(self, plot_lims=list(range(490, 550))):
+    def run_unit_test(self, plot_results = True, plot_lims=list(range(490, 550))):
 
         self.load_forcing_file()
         self.load_unit_test_data()
@@ -685,20 +685,24 @@ class CFE():
             self.cfe_output_data.loc[t,'Flow'] = self.total_discharge
             self.cfe_output_data.loc[t,'Soil Moisture Content'] = self.soil_reservoir['storage_m'] / self.soil_params['D']
 
-        self.finalize_mass_balance()
+        if plot_results:
+            self.finalize_mass_balance(verbose=True)
+        else:
+            self.finalize_mass_balance(verbose=False)
 
         # plot
-        for output_type in ['Direct Runoff', 'GIUH Runoff', 'Lateral Flow', 'Base Flow', 'Total Discharge', 'Flow',
-                            'Soil Moisture Content']:
+        if plot_results:
+            for output_type in ['Direct Runoff', 'GIUH Runoff', 'Lateral Flow', 'Base Flow', 'Total Discharge', 'Flow',
+                                'Soil Moisture Content']:
 
-            plt.plot(self.cfe_output_data.loc[:,'Rainfall'], label='precipitation', c='gray', lw=.3)
-            plt.plot(self.unit_test_data[output_type], '--', label='t-shirt ' + output_type)
+                plt.plot(self.cfe_output_data.loc[:,'Rainfall'], label='precipitation', c='gray', lw=.3)
+                plt.plot(self.unit_test_data[output_type], '--', label='t-shirt ' + output_type)
 
-            plt.plot(self.cfe_output_data.loc[:,output_type], label='cfe ' + output_type)
+                plt.plot(self.cfe_output_data.loc[:,output_type], label='cfe ' + output_type)
 
-            plt.legend()
-            plt.show()
-            plt.close()
+                plt.legend()
+                plt.show()
+                plt.close()
 
         return self.cfe_output_data
 
