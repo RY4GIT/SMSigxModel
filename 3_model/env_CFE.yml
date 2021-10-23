@@ -6,25 +6,15 @@ channels:
 dependencies:
   - python=3.8
   - pip
+
   # Core scientific python
   - numpy
-  - pyqt
-  - tqdm
-  - kiwisolver
+  - scipy
+  - pandas
 
   # Plotting
   - matplotlib
   - seaborn
-  - cartopy
 
   # Spatial packages
-  - rioxarray>=0.3.0
-  - rasterio
-  - xarray
-  - pyproj>=3.0
-  - metpy
-  - cfgrib
-  - scipy
-  - fiona
-  - geojson
-  - netcdf4
+  - spotpy

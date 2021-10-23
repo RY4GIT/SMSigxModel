@@ -3,15 +3,16 @@ import numpy as np
 import pandas as pd
 import json
 import matplotlib.pyplot as plt
+from datetime import datetime
 
 class CFE():
     def __init__(self, cfg_file=None):
         super(CFE, self).__init__()
 
         # ________________________________________________
-        # GET VALUES FROM CONFIGURATION FILE.                      #
+        # GET VALUES FROM CONFIGURATION FILE.
         self.cfg_file = cfg_file
-        self.config_from_json()                                    #
+        self.config_from_json()
 
         # ________________________________________________
         # In order to check mass conservation at any time
@@ -63,15 +64,12 @@ class CFE():
         
         # ________________________________________________
         # Local values to be used in setting up soil reservoir
-        trigger_z_m = 0.5
+
+        H_water_table_m = self.field_capacity_atm_press_fraction * atm_press_Pa / unit_weight_water_N_per_m3
         
-        field_capacity_atm_press_fraction = 0.33
+        # soil_water_content_at_field_capacity = self.soil_params['maxsmc'] * np.power(H_water_table_m/self.soil_params['satpsi'],(1.0/self.soil_params['bb']))
         
-        H_water_table_m=field_capacity_atm_press_fraction * atm_press_Pa / unit_weight_water_N_per_m3 
-        
-        soil_water_content_at_field_capacity = self.soil_params['smcmax'] * np.power(H_water_table_m/self.soil_params['satpsi'],(1.0/self.soil_params['bb']))
-        
-        Omega     = H_water_table_m - trigger_z_m
+        Omega     = H_water_table_m - self.trigger_z_m
         
         lower_lim = np.power(Omega , (1.0-1.0/self.soil_params['bb']))/(1.0-1.0/self.soil_params['bb'])
         
@@ -83,13 +81,14 @@ class CFE():
 
         field_capacity_power = np.power(1.0/self.soil_params['satpsi'],(-1.0/self.soil_params['bb']))
 
-        field_capacity_storage_threshold_m = self.soil_params['smcmax'] * field_capacity_power * lim_diff
+        field_capacity_storage_threshold_m = self.soil_params['maxsmc'] * field_capacity_power * lim_diff
         
         
         # ________________________________________________
         # lateral flow function parameters
         assumed_near_channel_water_table_slope = 0.01 # [L/L]
         lateral_flow_threshold_storage_m       = field_capacity_storage_threshold_m
+        # Eq. (9)
 #         lateral_flow_linear_reservoir_constant = 2.0 * assumed_near_channel_water_table_slope * \     # Not used
 #                                                  self.soil_params['mult'] * NWM_soil_params.satdk * \ # Not used
 #                                                  self.soil_params['D'] * drainage_density_km_per_km2  # Not used
@@ -98,28 +97,29 @@ class CFE():
 
         # ________________________________________________
         # Subsurface reservoirs
-        self.gw_reservoir = {'is_exponential':True,
-                              'storage_max_m':1.0,
-                              'coeff_primary':0.01,
-                              'exponent_primary':6.0,
-                              'storage_threshold_primary_m':0.0,
+        self.gw_reservoir = {'is_exponential': True,
+                              'storage_max_m': self.max_gw_storage,
+                              'coeff_primary': self.Cgw,
+                              'exponent_primary': self.expon,
+                              'storage_threshold_primary_m': 0.0,
                               'storage_threshold_secondary_m':0.0,
                               'coeff_secondary':0.0,
                               'exponent_secondary':1.0}
-        self.gw_reservoir['storage_m'] = self.gw_reservoir['storage_max_m'] * 0.01
+        self.gw_reservoir['storage_m'] = self.gw_reservoir['storage_max_m'] * 0.01  # assume 10% exist at the beginning ???
         self.volstart                 += self.gw_reservoir['storage_m']
         self.vol_in_gw_start           = self.gw_reservoir['storage_m']
 
         self.soil_reservoir = {'is_exponential':False,
-                               'storage_max_m':self.soil_params['smcmax'] * self.soil_params['D'],
+                               'storage_max_m':self.soil_params['maxsmc'] * self.soil_params['D'],
                                'coeff_primary':self.soil_params['satdk'] * self.soil_params['slop'] * self.time_step_size, # !!!!!!!!
-                               'exponent_primary':1.0,
-                               'storage_threshold_primary_m':self.soil_params['smcmax'] * storage_thresh_pow_term*
+                               'exponent_primary':self.soil_params['expon_primary'],
+                               'storage_threshold_primary_m':self.soil_params['maxsmc'] * storage_thresh_pow_term*
                                                              (upper_lim-lower_lim),
                                'coeff_secondary':0.01,
                                'exponent_secondary':1.0,
                                'storage_threshold_secondary_m':lateral_flow_threshold_storage_m}
-        self.soil_reservoir['storage_m'] = self.soil_reservoir['storage_max_m'] * self.soil_storage
+        # initial condition
+        self.soil_reservoir['storage_m'] = self.soil_reservoir['storage_max_m'] * self.init_soil_storage
         self.volstart                   += self.soil_reservoir['storage_m']
         self.vol_soil_start              = self.soil_reservoir['storage_m']
 
@@ -152,14 +152,13 @@ class CFE():
         
         # ________________________________________________        
         self.soil_reservoir_storage_deficit_m = (
-                self.soil_params['smcmax'] * self.soil_params['D'] - self.soil_reservoir['storage_m']
+                self.soil_params['maxsmc'] * self.soil_params['D'] - self.soil_reservoir['storage_m']
         )
         
         # ________________________________________________
         # Calculates the value for surface_runoff_depth_m
         self.Schaake_partitioning_scheme()
-         
-        #print("PET.: {:6.4e}".format(self.potential_et_m_per_s)) # %added lines%
+
         # ________________________________________________
         self.et_from_soil()
         
@@ -525,21 +524,26 @@ class CFE():
         # MANDATORY CONFIGURATIONS
         self.forcing_file = data_loaded['forcing_file']
         self.catchment_area_km2 = data_loaded['catchment_area_km2']
+
         self.soil_params = {}
-        self.soil_params['bb'] = data_loaded['soil_params']['bb']
-        self.soil_params['D'] = data_loaded['soil_params']['D']
-        self.soil_params['depth'] = data_loaded['soil_params']['depth']
-        self.soil_params['mult'] = data_loaded['soil_params']['mult']
+        self.soil_params['maxsmc'] = data_loaded['soil_params']['maxsmc']
+        self.soil_params['wltsmc'] = data_loaded['soil_params']['wltsmc']
         self.soil_params['satdk'] = data_loaded['soil_params']['satdk']
         self.soil_params['satpsi'] = data_loaded['soil_params']['satpsi']
+        self.soil_params['bb'] = data_loaded['soil_params']['bb']
+        self.soil_params['D'] = data_loaded['soil_params']['D']
         self.soil_params['slop'] = data_loaded['soil_params']['slop']
-        self.soil_params['smcmax'] = data_loaded['soil_params']['smcmax']
-        self.soil_params['wltsmc'] = data_loaded['soil_params']['wltsmc']
-        self.max_gw_storage = data_loaded['max_gw_storage']
-        self.Cgw = data_loaded['Cgw']
-        self.expon = data_loaded['expon']
-        self.gw_storage = data_loaded['gw_storage']
-        self.soil_storage = data_loaded['soil_storage']
+        self.soil_params['mult'] = data_loaded['soil_params']['mult']
+        self.init_soil_storage = data_loaded['soil_params']['init_soil_storage']
+        self.trigger_z_m = data_loaded['soil_params']['trigger_z_m']
+        self.field_capacity_atm_press_fraction = data_loaded['soil_params']['field_capacity_atm_press_fraction']
+        self.soil_params['expon_primary'] = data_loaded['soil_params']['expon_primary']
+
+        self.gw_params = {}
+        self.max_gw_storage = data_loaded['gw_params']['max_gw_storage']
+        self.Cgw = data_loaded['gw_params']['Cgw']
+        self.expon = data_loaded['gw_params']['expon']
+
         self.K_lf = data_loaded['K_lf']
         self.K_nash = data_loaded['K_nash']
         self.nash_storage = data_loaded['nash_storage']
@@ -555,27 +559,6 @@ class CFE():
         if 'unit_test' in data_loaded.keys():
             self.unit_test = data_loaded['unit_test']
             self.compare_results_file = data_loaded['compare_results_file']
-
-        # ___________________________________________________
-        # SENSITIVITY TEST CONFIGURATIONS
-        if data_loaded['sensitivity_test'] == 1:
-            self.sensitivity_test = True
-            self.sensitivity_iteration = data_loaded['sensitivity_iteration']
-
-            with open(data_loaded['parameter_bounds_file']) as parabound_file:
-                parabound_loaded = json.load(parabound_file)
-
-                if 'soil_storage' in parabound_loaded.keys():
-                    self.soil_storage = np.random.uniform(
-                        low = parabound_loaded['soil_storage']['lb'], high = parabound_loaded['soil_storage']['ub']
-                    )
-                    print(self.soil_storage)
-
-        else:
-            self.sensitivity_iteration = 0
-
-        return
-
 
     # ________________________________________________________
     def finalize_mass_balance(self, verbose=True):
@@ -593,27 +576,26 @@ class CFE():
         self.global_residual = self.volstart + self.volin - self.volout - self.volend - self.AET_rain_m - self.AET_soil_m
         self.schaake_residual = self.volin - self.vol_sch_runoff - self.vol_sch_infilt - self.AET_rain_m
         self.giuh_residual = self.vol_sch_runoff - self.vol_out_giuh - self.vol_end_giuh
-        self.soil_residual = self.vol_soil_start + self.vol_sch_infilt - \
-                             self.vol_soil_to_lat_flow - self.vol_soil_end - self.vol_to_gw
+        self.soil_residual = self.vol_soil_start + self.vol_sch_infilt - self.AET_soil_m \
+                             - self.vol_soil_to_lat_flow - self.vol_to_gw - self.vol_soil_end
         self.nash_residual = self.vol_in_nash - self.vol_out_nash - self.vol_in_nash_end
         self.gw_residual = self.vol_in_gw_start + self.vol_to_gw - self.vol_from_gw - self.vol_in_gw_end
 
         if verbose:
-            print("\n======= #{} iteration========".format(self.sensitivity_n_iteration))
 
             print("\nGLOBAL MASS BALANCE")
             print("  initial volume: {:8.4f}".format(self.volstart))
             print("    volume input: {:8.4f}".format(self.volin))
             print("   volume output: {:8.4f}".format(self.volout))
             print("    final volume: {:8.4f}".format(self.volend))
-            print("    AET soil    : {:9.6e}".format(-self.AET_soil_m))
-            print("    AET rain    : {:9.6e}".format(-self.AET_rain_m))
+            print("    AET soil    : {:8.4f}".format(-self.AET_soil_m))
+            print("    AET rain    : {:8.4f}".format(-self.AET_rain_m))
             print("        residual: {:6.4e}".format(self.global_residual))
 
             print("\nSCHAAKE MASS BALANCE")
             print("  surface runoff: {:8.4f}".format(self.vol_sch_runoff))
             print("    infiltration: {:8.4f}".format(self.vol_sch_infilt))
-            print("    AET rain    : {:9.6e}".format(-self.AET_rain_m))
+            print("    AET rain    : {:8.4f}".format(-self.AET_rain_m))
             print("schaake residual: {:6.4e}".format(self.schaake_residual))
 
             print("\nGIUH MASS BALANCE")
@@ -627,8 +609,8 @@ class CFE():
             print("  vol. into soil: {:8.4f}".format(self.vol_sch_infilt))
             print("vol.soil2latflow: {:8.4f}".format(self.vol_soil_to_lat_flow))
             print(" vol. soil to gw: {:8.4f}".format(self.vol_soil_to_gw))
-            print(" final vol. soil: {:8.4f}".format(self.vol_soil_end))
-            print("    AET soil    : {:9.6e}".format(-self.AET_soil_m))
+            print("  final soil vol: {:8.4f}".format(self.vol_soil_end))
+            print("    AET soil    : {:8.4f}".format(-self.AET_soil_m))
             print("vol. soil resid.: {:6.4e}".format(self.soil_residual))
 
             print("\nNASH CASCADE CONCEPTUAL RESERVOIR MASS BALANCE")
@@ -653,8 +635,13 @@ class CFE():
     # ________________________________________________________
     def load_unit_test_data(self):
         self.unit_test_data = pd.read_csv(self.compare_results_file)
-
         cfe_out_df0 = pd.DataFrame().reindex_like(self.unit_test_data)
+        cfe_out_df0["Time"] = pd.to_datetime(cfe_out_df0["Time"])
+        self.cfe_output_data = cfe_out_df0
+        """
+        # create a dataframe to store the results
+        
+        cfe_out_df0["Time"] = pd.to_datetime(cfe_out_df0["Time"])
         cfe_out_df0["iteration_n"] = 0
         cfe_out_df = cfe_out_df0
         if self.sensitivity_iteration >= 1:
@@ -664,6 +651,8 @@ class CFE():
                     cfe_out_df = pd.concat([cfe_out_df, cfe_out_df0])
         cfe_out_df.set_index(['iteration_n', cfe_out_df.index.values], inplace=True)
         self.cfe_output_data = cfe_out_df
+        """
+        return self.unit_test_data
 
     # ________________________________________________________
     def run_unit_test(self, plot_lims=list(range(490, 550))):
@@ -671,49 +660,47 @@ class CFE():
         self.load_forcing_file()
         self.load_unit_test_data()
 
-        for i in range(self.sensitivity_iteration+1):
-            self.sensitivity_n_iteration = i
-            self.current_time = pd.Timestamp(self.forcing_data['time'][0])
+        self.current_time = pd.Timestamp(self.forcing_data['time'][0])
 
-            for t, precipitation_input in enumerate(self.forcing_data['precip_rate'] * self.time_step_size):
-                # overwriting the input
-                self.timestep_rainfall_input_m = precipitation_input
-                self.timestep_temp_degC = self.forcing_data.loc[t, 'TMP_2maboveground']
-                self.timestep_netrad_watt_per_m2 = self.forcing_data.loc[t, 'DLWRF_surface'] + self.forcing_data.loc[t, 'DSWRF_surface']
+        for t, precipitation_input in enumerate(self.forcing_data['precip_rate'] * self.time_step_size):
+            # overwriting the input
+            self.timestep_rainfall_input_m = precipitation_input
+            self.timestep_temp_degC = self.forcing_data.loc[t, 'TMP_2maboveground']
+            self.timestep_netrad_watt_per_m2 = self.forcing_data.loc[t, 'DLWRF_surface'] + self.forcing_data.loc[t, 'DSWRF_surface']
 
-                # recording the output
-                self.cfe_output_data.loc[(i,t)]["Time"] = self.current_time #T is updated inside the CFE model
-                self.cfe_output_data.loc[(i,t)]['Time Step'] = self.current_time_step
-                self.cfe_output_data.loc[(i,t)]['Rainfall'] = self.timestep_rainfall_input_m
+            # recording the output
+            self.cfe_output_data.loc[t,"Time"] = self.current_time #T is updated inside the CFE model
+            self.cfe_output_data.loc[t,'Time Step'] = self.current_time_step
+            self.cfe_output_data.loc[t,'Rainfall'] = self.timestep_rainfall_input_m
 
-                # run the model
-                self.run_cfe()
+            # run the model
+            self.run_cfe()
 
-                # recording the output
-                self.cfe_output_data.loc[(i,t)]['Direct Runoff'] = self.surface_runoff_depth_m
-                self.cfe_output_data.loc[(i,t)]['GIUH Runoff'] = self.flux_giuh_runoff_m
-                self.cfe_output_data.loc[(i,t)]['Lateral Flow'] = self.flux_nash_lateral_runoff_m
-                self.cfe_output_data.loc[(i,t)]['Base Flow'] = self.flux_from_deep_gw_to_chan_m
-                self.cfe_output_data.loc[(i,t)]['Total Discharge'] = self.flux_Qout_m
-                self.cfe_output_data.loc[(i,t)]['Flow'] = self.total_discharge
-                self.cfe_output_data.loc[(i,t)]['Soil Moisture Content'] = self.soil_reservoir['storage_m'] / self.soil_params['D']
+            # recording the output
+            self.cfe_output_data.loc[t,'Direct Runoff'] = self.surface_runoff_depth_m
+            self.cfe_output_data.loc[t,'GIUH Runoff'] = self.flux_giuh_runoff_m
+            self.cfe_output_data.loc[t,'Lateral Flow'] = self.flux_nash_lateral_runoff_m
+            self.cfe_output_data.loc[t,'Base Flow'] = self.flux_from_deep_gw_to_chan_m
+            self.cfe_output_data.loc[t,'Total Discharge'] = self.flux_Qout_m
+            self.cfe_output_data.loc[t,'Flow'] = self.total_discharge
+            self.cfe_output_data.loc[t,'Soil Moisture Content'] = self.soil_reservoir['storage_m'] / self.soil_params['D']
 
-            self.finalize_mass_balance()
+        self.finalize_mass_balance()
 
         # plot
         for output_type in ['Direct Runoff', 'GIUH Runoff', 'Lateral Flow', 'Base Flow', 'Total Discharge', 'Flow',
                             'Soil Moisture Content']:
 
-            plt.plot(self.cfe_output_data.loc[0,:]['Rainfall'], label='precipitation', c='gray', lw=.3)
+            plt.plot(self.cfe_output_data.loc[:,'Rainfall'], label='precipitation', c='gray', lw=.3)
             plt.plot(self.unit_test_data[output_type], '--', label='t-shirt ' + output_type)
 
-            for i in range(self.sensitivity_iteration+1):
-                plt.plot(self.cfe_output_data.loc[i,:][output_type], label='cfe ' + output_type)
+            plt.plot(self.cfe_output_data.loc[:,output_type], label='cfe ' + output_type)
 
             plt.legend()
             plt.show()
             plt.close()
 
+        return self.cfe_output_data
 
     # __________________________________________________________________________________________________________
     ########## BMI FUNCTIONS BELOW ###############
