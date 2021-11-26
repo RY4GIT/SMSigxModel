@@ -5,27 +5,41 @@ import cfe
 import os
 import pandas as pd
 import numpy as np
+import json
 
 class spot_setup(object):
-    def __init__(self, cfe, obj_func=None):
+    def __init__(self, cfe_input, obj_func=None):
 
         # Find Path to CFE on users system
         self.obj_func = False
 
         # Model
-        self.myCFE = cfe
-
-        # read from json later
+        self.myCFE = cfe_input
 
         # define parameter bounds
-        self.params = [spotpy.parameter.Uniform('maxsmc', low=0.1, high=0.7)]
-
-        # write the parameters out to the json file
+        self.params = [
+            spotpy.parameter.Uniform('maxsmc', low=0.1, high=0.7),
+            spotpy.parameter.Uniform('wltsmc', low=0.0, high=0.6)
+            ]
+        #     spotpy.parameter.Uniform('satdk', low=1e-07, high=1e-05)
+        # ]
 
     def parameters(self):
         return spotpy.parameter.generate(self.params)
 
     def simulation(self, x):
+
+        # write the randomly-generated parameters to the config json file
+        with open(self.myCFE.cfg_file) as data_file:
+            self.cfe_cfg = json.load(data_file)
+
+        self.cfe_cfg["soil_params"]['maxsmc'] = x['maxsmc']
+        self.cfe_cfg["soil_params"]['wltsmc'] = x['wltsmc']
+        # self.cfe_cfg["soil_params"]['satdk'] = x['satdk']
+
+        with open(self.myCFE.cfg_file, 'w') as out_file:
+            json.dump(self.cfe_cfg, out_file)
+
         # Here the model is actualy started with a unique parameter combination that it gets from spotpy for each time the model is called
         data = self.myCFE.run_unit_test(plot_results=False)
         sim = data[["Time", "Total Discharge"]]

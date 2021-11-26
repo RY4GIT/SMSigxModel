@@ -1,10 +1,16 @@
 import os
 import sys
 sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs")
-import cfe
-import spotpy_cfe
-import spotpy
 import numpy as np
+
+import cfe
+from spotpy_cfe import spot_setup
+import spotpy
+from salib_cfe import salib_cfe
+
+from SALib.sample import morris as morris_s
+from SALib.analyze import morris as morris_a
+from SALib.test_functions import Ishigami
 
 # specify current directory create output directory if it does not exist
 os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model")
@@ -14,41 +20,57 @@ if not os.path.exists(out_file_path):
     os.mkdir(out_file_path)
 data_file_path = '../2_data_input/test'
 
-def main():
+def main(runtype):
 
-    # ensambles ==================================================
-    cfe1 = cfe.CFE(os.path.join(data_file_path, 'cat_58_config_cfe.json'))
-    # cfe1.run_unit_test()
+    if runtype == "SALib":
+        # test
+        cfe1 = cfe.CFE(os.path.join(data_file_path, 'cat_58_config_cfe.json'))
+        problem = {
+            'num_vars':3,
+            'names': ['maxsmc', 'wltsmc', 'init_soil_storage'],
+            'bounds': [[0, 1.0],
+                       [0, 1.0],
+                       [0, 1.0]]
+        }
+        param_values = morris_s.sample(problem, 1)
 
-    # sensitivity analysis ==================================================
-    # Initialize
-    spot_setup = spotpy_cfe.spot_setup(cfe=cfe1)
-    out_fn_sa = out_file_path + 'results'
+        Y = np.zeros([param_values.shape[0]])
+        for i, X in enumerate(param_values):
+            Y[i] = salib_cfe(X, problem['names'], cfe1)
 
-    # Select number of maximum repetitions
-    # CHeck out https://spotpy.readthedocs.io/en/latest/Sensitivity_analysis_with_FAST/
-    # How to determine an appropriate number of repetitions
-    rep = 5
+        Si = morris_a.analyze(problem, param_values, Y, print_to_console=True)
+        print(Si['mu'])
 
-    # Start a sensitivity analysis
-    sampler = spotpy.algorithms.fast(spot_setup, dbname=out_fn_sa, dbformat='csv', db_precision=np.float32, save_sim = False)
-    sampler.sample(rep)
+    if runtype == "SPOTPy":
+        # Initialize
+        cfe1 = cfe.CFE(os.path.join(data_file_path, 'cat_58_config_cfe.json'))
+        out_fn_sa = out_file_path + 'results'
 
-    # Load the results gained with the fast sampler
-    results = spotpy.analyser.load_csv_results(out_fn_sa)
+        # Select number of maximum repetitions
+        # Check out https://spotpy.readthedocs.io/en/latest/Sensitivity_analysis_with_FAST/ to determine an appropriate number of repetitions
+        rep = 7
 
-    # Example plot to show the sensitivity index of each parameter
-    spotpy.analyser.plot_fast_sensitivity(results, number_of_sensitiv_pars=3)
+        # Start a sensitivity analysis
+        sampler = spotpy.algorithms.fast(spot_setup(cfe_input=cfe1), dbname=out_fn_sa, dbformat='csv', save_sim = False)
+        sampler.sample(rep)
 
-    # Example to get the sensitivity index of each parameter
-    SI = spotpy.analyser.get_sensitivity_of_fast(results)
+        # Load the results gained with the fast sampler
+        results = spotpy.analyser.load_csv_results(out_fn_sa)
 
-    """
-    cfe1.initialize()
-    cfe1.update()
-    cfe1.update_until(4)
-    cfe1.finalize()
-    """
+        # Example plot to show the sensitivity index of each parameter
+        spotpy.analyser.plot_fast_sensitivity(results, number_of_sensitiv_pars=2)
+
+        # Example to get the sensitivity index of each parameter
+        SI = spotpy.analyser.get_sensitivity_of_fast(results)
 
 if __name__ == '__main__':
-    main()
+    main(runtype = "SALib")
+
+
+
+"""
+cfe1.initialize()
+cfe1.update()
+cfe1.update_until(4)
+cfe1.finalize()
+"""

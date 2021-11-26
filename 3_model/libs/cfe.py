@@ -638,20 +638,6 @@ class CFE():
         cfe_out_df0 = pd.DataFrame().reindex_like(self.unit_test_data)
         cfe_out_df0["Time"] = pd.to_datetime(cfe_out_df0["Time"])
         self.cfe_output_data = cfe_out_df0
-        """
-        # create a dataframe to store the results
-        
-        cfe_out_df0["Time"] = pd.to_datetime(cfe_out_df0["Time"])
-        cfe_out_df0["iteration_n"] = 0
-        cfe_out_df = cfe_out_df0
-        if self.sensitivity_iteration >= 1:
-            for i in range(self.sensitivity_iteration+1):
-                if i >= 0:
-                    cfe_out_df0["iteration_n"] = i
-                    cfe_out_df = pd.concat([cfe_out_df, cfe_out_df0])
-        cfe_out_df.set_index(['iteration_n', cfe_out_df.index.values], inplace=True)
-        self.cfe_output_data = cfe_out_df
-        """
         return self.unit_test_data
 
     # ________________________________________________________
