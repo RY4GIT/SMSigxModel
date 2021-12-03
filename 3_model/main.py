@@ -1,43 +1,65 @@
+# A main module to run various analysis with CFE model
+
 import os
 import sys
-sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs")
 import numpy as np
+import sys
+if not sys.warnoptions:
+    import warnings
+    warnings.simplefilter("ignore")
 
-import cfe
-from spotpy_cfe import spot_setup
 import spotpy
-from salib_cfe import salib_cfe
-
 from SALib.sample import morris as morris_s
 from SALib.analyze import morris as morris_a
 from SALib.test_functions import Ishigami
 
+sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs/cfe/py_cfe")
+import cfe
+import bmi_cfe
+
+sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs")
+from spotpy_cfe import spot_setup
+from salib_cfe import salib_cfe
+
 # specify current directory create output directory if it does not exist
 os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model")
 os.getcwd()
-out_file_path = '../4_out/test/'
+out_file_path = '../4_out/test_NOAA_CFE/'
 if not os.path.exists(out_file_path):
     os.mkdir(out_file_path)
-data_file_path = '../2_data_input/test'
+data_file_path = '../2_data_input/test_NOAA_CFE'
 
 def main(runtype):
 
+    if runtype == "NOAA_CFE":
+        cfe_instance = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'cat_58_config_cfe.json'))
+        cfe_instance.initialize()
+        cfe_instance.run_unit_test(plot=True, print_fluxes=False)
+        cfe_instance.finalize()
+
     if runtype == "SALib":
-        # test
-        cfe1 = cfe.CFE(os.path.join(data_file_path, 'cat_58_config_cfe.json'))
+        print('Start sensitivity analysis')
+
+        # preparation & sampling parameters
+        cfe_instance = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'cat_58_config_cfe.json'))
         problem = {
             'num_vars':3,
-            'names': ['maxsmc', 'wltsmc', 'init_soil_storage'],
+            'names': ['smcmax', 'wltsmc', 'soil_storage'],
             'bounds': [[0, 1.0],
                        [0, 1.0],
                        [0, 1.0]]
         }
-        param_values = morris_s.sample(problem, 1)
+        itration = 10
+        n_levels = 4
+        param_values = morris_s.sample(problem, itration, num_levels=n_levels)
 
+        # run models
         Y = np.zeros([param_values.shape[0]])
         for i, X in enumerate(param_values):
-            Y[i] = salib_cfe(X, problem['names'], cfe1)
+            print('{} of {}}'.format(i, itration*n_levels))
+            Y[i] = salib_cfe(X, problem['names'], cfe_instance)
 
+        # evaluation
         Si = morris_a.analyze(problem, param_values, Y, print_to_console=True)
         print(Si['mu'])
 
@@ -63,14 +85,14 @@ def main(runtype):
         # Example to get the sensitivity index of each parameter
         SI = spotpy.analyser.get_sensitivity_of_fast(results)
 
+    """
+    if runtype == "cfe_CUAHSI":
+        cfe1 = cfe.CFE(os.path.join(data_file_path, 'cat_58_config_cfe.json'))
+        cfe1.initialize()
+        cfe1.update()
+        cfe1.update_until(4)
+        cfe1.finalize()
+    """
+
 if __name__ == '__main__':
     main(runtype = "SALib")
-
-
-
-"""
-cfe1.initialize()
-cfe1.update()
-cfe1.update_until(4)
-cfe1.finalize()
-"""
