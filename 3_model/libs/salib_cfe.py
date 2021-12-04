@@ -1,9 +1,72 @@
 import spotpy
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 import json
 
+from SALib.sample import saltelli
+from SALib.analyze import sobol
+from SALib.sample import morris as morris_s
+from SALib.analyze import morris as morris_a
 
-def salib_cfe(X, param_names, myCFE):
+
+class SALib_CFE():
+
+    def __init__(self, cfe_instance=None, problem=None, SAmethod=None):
+        self.cfe_instance = cfe_instance
+        self.problem = problem
+        self.SAmethod = SAmethod
+
+    def run(self):
+        if self.SAmethod == "Sobol":
+            # sample
+            n = 10
+            param_values = saltelli.sample(self.problem, n, calc_second_order=True)
+
+            # run a model
+            Y = run_cfes(
+                problem = self.problem,
+                cfe_instance = self.cfe_instance,
+                param_values=param_values,
+                nrun = n*(2*self.problem['num_vars']+2)
+            )
+
+            Si = sobol.analyze(self.problem, param_values, Y, calc_second_order=True, print_to_console=False)
+            # TypeError: analyze() got multiple values for argument 'calc_second_order'
+            print(Si)
+
+        if self.SAmethod == "Morris":
+            # sample
+            iteration = 10
+            n_levels = 4
+            param_values = morris_s.sample(self.problem, iteration, num_levels=n_levels)
+
+            # run a model
+            Y = run_cfes(
+                problem = self.problem,
+                cfe_instance = self.cfe_instance,
+                param_values=param_values,
+                nrun = iteration * n_levels
+            )
+
+            # evaluation
+            Si = morris_a.analyze(self.problem, param_values, Y, print_to_console=True)
+            print(Si['mu'])
+
+    def plot(self):
+        None
+
+
+def run_cfes(problem, cfe_instance, param_values, nrun):
+    Y = np.zeros([param_values.shape[0]])
+    for i, X in enumerate(param_values):
+        print('{} of {}'.format(i, nrun))
+        Y[i] = salib_cfe_interface(X, problem['names'], cfe_instance)
+    return Y
+
+
+def salib_cfe_interface(X, param_names, myCFE):
 
     # write the randomly-generated parameters to the config json file
     with open(myCFE.cfg_file) as data_file:

@@ -9,9 +9,6 @@ if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
 import spotpy
-from SALib.sample import morris as morris_s
-from SALib.analyze import morris as morris_a
-from SALib.test_functions import Ishigami
 
 sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs/cfe/py_cfe")
 import cfe
@@ -19,7 +16,7 @@ import bmi_cfe
 
 sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs")
 from spotpy_cfe import spot_setup
-from salib_cfe import salib_cfe
+from salib_cfe import SALib_CFE
 
 # specify current directory create output directory if it does not exist
 os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model")
@@ -49,19 +46,13 @@ def main(runtype):
                        [0, 1.0],
                        [0, 1.0]]
         }
-        itration = 10
-        n_levels = 4
-        param_values = morris_s.sample(problem, itration, num_levels=n_levels)
 
-        # run models
-        Y = np.zeros([param_values.shape[0]])
-        for i, X in enumerate(param_values):
-            print('{} of {}}'.format(i, itration*n_levels))
-            Y[i] = salib_cfe(X, problem['names'], cfe_instance)
+        salib_experiment = SALib_CFE(
+            cfe_instance=cfe_instance, problem=problem, SAmethod='Sobol'
+        )
+        salib_experiment.run()
+        salib_experiment.plot()
 
-        # evaluation
-        Si = morris_a.analyze(problem, param_values, Y, print_to_console=True)
-        print(Si['mu'])
 
     if runtype == "SPOTPy":
         # Initialize
