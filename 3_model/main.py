@@ -40,18 +40,21 @@ def main(runtype):
         # preparation & sampling parameters
         cfe_instance = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'cat_58_config_cfe.json'))
         problem = {
-            'num_vars':3,
-            'names': ['smcmax', 'wltsmc', 'soil_storage'],
+            'num_vars':6,
+            'names': ['smcmax', 'wltsmc', 'K_lf', 'K_nash', 'D', 'bb'],
             'bounds': [[0, 1.0],
                        [0, 1.0],
-                       [0, 1.0]]
+                       [0.000001, 100],
+                       [0.00001,30],
+                       [1,10],
+                       [1,6]]
         }
 
         salib_experiment = SALib_CFE(
-            cfe_instance=cfe_instance, problem=problem, SAmethod='Sobol'
+            cfe_instance=cfe_instance, problem=problem, SAmethod='Sobol', out_path=out_file_path
         )
         salib_experiment.run()
-        salib_experiment.plot()
+        salib_experiment.plot(plot_type='radial')
 
 
     if runtype == "SPOTPy":
