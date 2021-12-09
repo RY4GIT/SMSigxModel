@@ -12,6 +12,8 @@ from SALib.sample import saltelli
 from SALib.analyze import sobol
 from SALib.sample import morris as morris_s
 from SALib.analyze import morris as morris_a
+from SALib.sample import fast_sampler
+from SALib.analyze import fast
 
 # %matplotlib inline
 import itertools
@@ -44,6 +46,24 @@ class SALib_CFE():
 
             # evaluation
             self.Si = sobol.analyze(self.problem, self.Y, calc_second_order=True, print_to_console=False)
+            print(self.Si)
+
+        if self.SAmethod == "FAST":
+            # sample
+            n = 8
+            m = 1
+            self.param_values = fast_sampler.sample(self.problem, N=n, M=m)
+
+            # run a model
+            self.Y = run_cfes(
+                problem=self.problem,
+                cfe_instance=self.cfe_instance,
+                param_values=self.param_values,
+                nrun=n * (2 * self.problem['num_vars'] + 2)
+            )
+
+            # evaluation
+            self.Si = fast.analyze(self.problem, self.Y, M=4, num_resamples=10, conf_level=0.95, print_to_console=False, seed=None)
             print(self.Si)
 
         if self.SAmethod == "Morris":
@@ -126,13 +146,19 @@ class SALib_CFE():
 
         if plot_type == "STS1":
             # Bar plots for Sobol analysis (total order & 1st order indices)
-            Si_filter = {k: self.Si[k] for k in ['ST', 'ST_conf', 'S1', 'S1_conf']}
+            if self.SAmethod == 'Sobol':
+                Si_filter = {k: self.Si[k] for k in ['ST', 'ST_conf', 'S1', 'S1_conf']}
+            elif self.SAmethod == 'FAST':
+                Si_filter = {k: self.Si[k] for k in ['ST', 'S1']}
             Si_df = pd.DataFrame(Si_filter, index=self.problem['names'])
 
             fig, ax = plt.subplots(1)
             indices = Si_df[['S1', 'ST']]
-            err = Si_df[['S1_conf', 'ST_conf']]
-            indices.plot.bar(yerr=err.values.T, ax=ax)
+            if self.SAmethod == 'Sobol':
+                err = Si_df[['S1_conf', 'ST_conf']]
+                indices.plot.bar(yerr=err.values.T, ax=ax)
+            elif self.SAmethod == 'FAST':
+                indices.plot.bar(ax=ax)
             fig.set_size_inches(8, 4)
 
             out_fn = 'test_STS1.png'
