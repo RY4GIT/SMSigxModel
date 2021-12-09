@@ -51,10 +51,10 @@ def main(runtype):
         }
 
         salib_experiment = SALib_CFE(
-            cfe_instance=cfe_instance, problem=problem, SAmethod='Sobol', out_path=out_file_path
+            cfe_instance=cfe_instance, problem=problem, SAmethod='Morris', out_path=out_file_path
         )
         salib_experiment.run()
-        salib_experiment.plot(plot_type='radial')
+        salib_experiment.plot(plot_type='EET')
 
 
     if runtype == "SPOTPy":

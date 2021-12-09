@@ -2,6 +2,7 @@ import os
 import spotpy
 import pandas as pd
 import numpy as np
+from numpy import matlib as mb
 import scipy
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -47,8 +48,8 @@ class SALib_CFE():
 
         if self.SAmethod == "Morris":
             # sample
-            iteration = 10
-            n_levels = 4
+            iteration = 3
+            n_levels = 2
             self.param_values = morris_s.sample(self.problem, iteration, num_levels=n_levels)
 
             # run a model
@@ -56,7 +57,7 @@ class SALib_CFE():
                 problem = self.problem,
                 cfe_instance = self.cfe_instance,
                 param_values=self.param_values,
-                nrun = iteration * n_levels
+                nrun = iteration * (self.problem['num_vars']+1)
             )
 
             # evaluation
@@ -66,7 +67,41 @@ class SALib_CFE():
     def plot(self, plot_type=None):
         # Add dotty plot module. Either here or in the above method
         # https://pynetlogo.readthedocs.io/en/latest/_docs/SALib_ipyparallel.html
+
+        if plot_type == "EET":
+            # Options for the graphic
+            pltfont = {'fontname': 'DejaVu Sans', 'fontsize': 15}  # font for axes
+            pltfont_leg = {'family': 'DejaVu Sans', 'size': 15}  # font for legend
+            ms = 10  # Marker size
+            col = np.array([[228, 26, 28], [55, 126, 184], [77, 175, 74],
+                            [152, 78, 163], [255, 127, 0]]) / 256
+            A = len(col)
+            L = int(np.ceil(self.problem['num_vars'] / A))
+            clrs = mb.repmat(col, L, 1)
+
+            # Plot elementary effects and std's for Morris analysis
+            fig = plt.figure()
+
+            # First plot EEs mean & std as circles:
+            for i in range(len(self.Si['mu_star'])):
+                plt.plot(
+                    self.Si['mu_star'][i], self.Si['sigma'][i], 'ok', markerfacecolor=clrs[i],
+                    markersize=ms, markeredgecolor='k'
+                )
+
+            # Create legend:
+            plt.legend(self.Si['names'], loc='best', prop=pltfont_leg)
+
+            plt.xlabel('Mean of EEs', **pltfont)
+            plt.ylabel('Standard deviation of EEs', **pltfont)
+            plt.grid(linestyle='--')
+            plt.xticks(**pltfont)
+            plt.yticks(**pltfont)
+            fig.set_size_inches(7, 7)
+
+
         if plot_type == "dotty":
+            # Dotty plots for any types of sampled parameters
             nrow = 1
             ncol = 3
             fig, ax = plt.subplots(nrow, ncol, sharey=True)
@@ -90,6 +125,7 @@ class SALib_CFE():
             out_fn = 'test_dotty.png'
 
         if plot_type == "STS1":
+            # Bar plots for Sobol analysis (total order & 1st order indices)
             Si_filter = {k: self.Si[k] for k in ['ST', 'ST_conf', 'S1', 'S1_conf']}
             Si_df = pd.DataFrame(Si_filter, index=self.problem['names'])
 
@@ -103,6 +139,7 @@ class SALib_CFE():
 
         if plot_type == "radial":
             # TODO: need a debug
+            # Radial plot for Sobol analysis
             # IndexError: index 5 is out of bounds for axis 0 with size 5
             # https://pynetlogo.readthedocs.io/en/latest/_docs/SALib_ipyparallel.html
 
@@ -168,8 +205,6 @@ class SALib_CFE():
 
         out_fn = 'test_radial.png'
         sns.set_style('whitegrid')
-        fig.set_size_inches(7, 7)
-
 
         out_path_plot = os.path.join(self.out_path, 'plot')
         if not os.path.exists(out_path_plot):
