@@ -21,15 +21,15 @@ from salib_cfe import SALib_CFE
 # specify current directory create output directory if it does not exist
 os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model")
 os.getcwd()
-out_file_path = '../4_out/test_NOAA_CFE/'
+out_file_path = '../4_out/Mahurangi/'
 if not os.path.exists(out_file_path):
     os.mkdir(out_file_path)
-data_file_path = '../2_data_input/test_NOAA_CFE'
+data_file_path = '../2_data_input/Mahurangi'
 
 def main(runtype):
 
     if runtype == "NOAA_CFE":
-        cfe_instance = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'cat_58_config_cfe.json'))
+        cfe_instance = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'config_cfe.json'))
         cfe_instance.initialize()
         cfe_instance.run_unit_test(plot=True, print_fluxes=False)
         cfe_instance.finalize()
@@ -89,4 +89,4 @@ def main(runtype):
     """
 
 if __name__ == '__main__':
-    main(runtype = "SALib")
+    main(runtype = "NOAA_CFE")
