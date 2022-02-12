@@ -18,6 +18,9 @@ sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model
 from spotpy_cfe import spot_setup
 from salib_cfe import SALib_CFE
 
+# sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs/glue")
+from glue_cfe import MyGLUE
+
 # specify current directory create output directory if it does not exist
 os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model")
 os.getcwd()
@@ -38,7 +41,7 @@ def main(runtype):
         print('Start sensitivity analysis')
 
         # preparation & sampling parameters
-        cfe_instance = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'cat_58_config_cfe.json'))
+        cfe_instance = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'config_cfe.json'))
         problem = {
             'num_vars':6,
             'names': ['smcmax', 'wltsmc', 'K_lf', 'K_nash', 'D', 'bb'],
@@ -59,7 +62,8 @@ def main(runtype):
 
     if runtype == "SPOTPy":
         # Initialize
-        cfe1 = cfe.CFE(os.path.join(data_file_path, 'cat_58_config_cfe.json'))
+        cfe1 = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'config_cfe.json'))
+        cfe1.initialize()
         out_fn_sa = out_file_path + 'results'
 
         # Select number of maximum repetitions
@@ -79,6 +83,32 @@ def main(runtype):
         # Example to get the sensitivity index of each parameter
         SI = spotpy.analyser.get_sensitivity_of_fast(results)
 
+    if runtype == "GLUE":
+        # Initialize
+        cfe1 = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'config_cfe.json'))
+        cfe1.initialize()
+        out_fn_sa = out_file_path + 'results'
+
+        # Start GLUE
+        rep = 10
+        glue1 = MyGLUE(cfe_input = cfe1) #
+        glue1.simulation()
+        glue1.to_csv()
+        glue1.plot()
+
+        # print(post_rid, post_paras, resulted_totalflow)
+        # fast = spotpy.algorithms.fast(glue_setup(cfe_input=cfe1), dbname=out_fn_sa, dbformat='csv', save_sim = False)
+
+        # Load the results
+        # results = spotpy.analyser.load_csv_results(out_fn_sa)
+
+        # Example plot to show the PDF of prior & posterior parameter distributions
+        # spotpy.analyser.plot_fast_sensitivity(results)
+
+        # Example plot to show the prediction range
+        # spotpy.analyser.plot_fast_sensitivity(results)
+
+
     """
     if runtype == "cfe_CUAHSI":
         cfe1 = cfe.CFE(os.path.join(data_file_path, 'cat_58_config_cfe.json'))
@@ -89,4 +119,4 @@ def main(runtype):
     """
 
 if __name__ == '__main__':
-    main(runtype = "NOAA_CFE")
+    main(runtype = "GLUE")

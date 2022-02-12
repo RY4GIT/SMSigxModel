@@ -28,7 +28,6 @@ class spot_setup(object):
         return spotpy.parameter.generate(self.params)
 
     def simulation(self, x):
-
         # write the randomly-generated parameters to the config json file
         with open(self.myCFE.cfg_file) as data_file:
             self.cfe_cfg = json.load(data_file)
@@ -41,7 +40,7 @@ class spot_setup(object):
             json.dump(self.cfe_cfg, out_file)
 
         # Here the model is actualy started with a unique parameter combination that it gets from spotpy for each time the model is called
-        data = self.myCFE.run_unit_test(plot_results=False)
+        data = self.myCFE.run_unit_test(plot=False)
         sim = data[["Time", "Total Discharge"]]
         sim["Time"] = pd.to_datetime(sim["Time"])
         return sim
@@ -62,7 +61,7 @@ class spot_setup(object):
         # that define the performance of the model run
         if not self.obj_func:
             # This is used if not overwritten by user
-            like = spotpy.objectivefunctions.nashsutcliffe(obs_synced, sim_synced)
+            like = spotpy.objectivefunctions.kge_non_parametric(obs_synced, sim_synced)
         else:
             # Way to ensure flexible spot setup class
             like = self.obj_func(obs_synced, sim_synced)
