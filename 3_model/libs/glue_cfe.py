@@ -13,7 +13,6 @@ out_file_path = '../4_out/Mahurangi/'
 class MyGLUE(object):
     def __init__(self, cfe_input, obj_func=None):
 
-        # Find Path to CFE on users system
         self.obj_func = False
 
         # Model
@@ -24,10 +23,10 @@ class MyGLUE(object):
             spotpy.parameter.Uniform('smcmax', low=0.1, high=0.7),
             spotpy.parameter.Uniform('wltsmc', low=0.0, high=0.6)
         ]
-        #     spotpy.parameter.Uniform('satdk', low=1e-07, high=1e-05)
-        # ]
 
         self.nrun = 3
+
+        # initialization
         self.post_rid = []
         self.pri_paras = []
         self.post_paras = []
@@ -59,7 +58,7 @@ class MyGLUE(object):
                 json.dump(self.cfe_cfg, out_file)
 
             # ===============================================================
-            # Actual model run
+            # Actual model run & get the simulated discharge
             # ===============================================================
             data = self.myCFE.run_unit_test(plot=False)
             sim = data[["Time", "Total Discharge"]]
@@ -67,7 +66,7 @@ class MyGLUE(object):
             # return sim
 
             # ===============================================================
-            # Evaluation
+            # Get the observed discharge & evaluate
             # ===============================================================
             # Get the comparison data
             data = self.myCFE.load_unit_test_data()
@@ -87,7 +86,7 @@ class MyGLUE(object):
 
             # Choose a behavioral threshold and store the good parameters
             self.pri_paras.append(self.sampled)
-            if like1 > 0:
+            if like1 > 0: # This is the threshold conditions
                 self.post_rid.append(n)
                 self.post_paras.append(self.sampled)
                 if n == 0:
@@ -101,6 +100,7 @@ class MyGLUE(object):
         # ===============================================================
         # Save results in Dataframe
         # ===============================================================
+        # Get the number of behavioral runs
         n_behavioral = len(self.post_rid)
 
         # Posterior paramters
@@ -115,7 +115,7 @@ class MyGLUE(object):
                 param_values[j][i] = self.post_paras[j][i][0]
         self.df_post_paras = pd.DataFrame(param_values, index=self.post_rid, columns=param_names)
 
-        # Prior parmaeters
+        # Prior parameters
         param_names = []
         for i in range(len(self.params)):
             param_names.append(self.pri_paras[0][i][1])
@@ -141,6 +141,11 @@ class MyGLUE(object):
                 eval_values[j][i] = self.eval[j][i]
         self.df_post_eval = pd.DataFrame(eval_values, index=self.post_rid, columns=eval_names)
 
+    def post_process(self):
+        # Get weighted quantile
+        None
+
+
     def to_csv(self):
         self.df_post_paras.to_csv(os.path.join(out_file_path, 'posterio_parameter.csv'))
         self.df_pri_paras.to_csv(os.path.join(out_file_path, 'priori_parameter.csv'))
@@ -160,6 +165,8 @@ class MyGLUE(object):
             ax1.legend()
             if i !=0:
                 ax1.yaxis.set_visible(False)
+        f.savefig(os.path.join(out_file_path, 'param_dist.png'), dpi=600)
+
 
         # Total flow
         # ax2 = plt.figure(figsize=(10,10))
@@ -170,6 +177,7 @@ class MyGLUE(object):
         ax2.set_ylabel('Total Flow [mm/hour]')
         ax2.set_title('Total Flow for behavioral runs')
         ax2.get_legend().remove()
+        f2.savefig(os.path.join(out_file_path, 'flow_range.png'), dpi=600)
 
 
 
