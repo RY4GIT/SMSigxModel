@@ -10,6 +10,43 @@ import matplotlib.pyplot as plt
 
 out_file_path = '../4_out/Mahurangi/'
 
+
+
+def weighted_quantile(values, quantiles, sample_weight=None,
+                      values_sorted=False, old_style=False):
+    # Code from https://stackoverflow.com/questions/21844024/weighted-percentile-using-numpy/32216049
+    """ Very close to numpy.percentile, but supports weights.
+    NOTE: quantiles should be in [0, 1]!
+    :param values: numpy.array with data
+    :param quantiles: array-like with many quantiles needed
+    :param sample_weight: array-like of the same length as `array`
+    :param values_sorted: bool, if True, then will avoid sorting of
+        initial array
+    :param old_style: if True, will correct output to be consistent
+        with numpy.percentile.
+    :return: numpy.array with computed quantiles.
+    """
+    values = np.array(values)
+    quantiles = np.array(quantiles)
+    if sample_weight is None:
+        sample_weight = np.ones(len(values))
+    sample_weight = np.array(sample_weight)
+    assert np.all(quantiles >= 0) and np.all(quantiles <= 1), 'quantiles should be in [0, 1]'
+
+    if not values_sorted:
+        sorter = np.argsort(values)
+        values = values[sorter]
+        sample_weight = sample_weight[sorter]
+
+    weighted_quantiles = np.cumsum(sample_weight) - 0.5 * sample_weight
+    if old_style:
+        # To be convenient with numpy.percentile
+        weighted_quantiles -= weighted_quantiles[0]
+        weighted_quantiles /= weighted_quantiles[-1]
+    else:
+        weighted_quantiles /= np.sum(sample_weight)
+    return np.interp(quantiles, weighted_quantiles, values)
+
 class MyGLUE(object):
     def __init__(self, cfe_input, obj_func=None):
 
@@ -97,6 +134,7 @@ class MyGLUE(object):
             else:
                 None
 
+
         # ===============================================================
         # Save results in Dataframe
         # ===============================================================
@@ -141,16 +179,37 @@ class MyGLUE(object):
                 eval_values[j][i] = self.eval[j][i]
         self.df_post_eval = pd.DataFrame(eval_values, index=self.post_rid, columns=eval_names)
 
-    def post_process(self):
-        # Get weighted quantile
-        None
+        # Observed flow
+        self.df_flow_obs = pd.DataFrame(obs_synced, index=self.df_post_flow.index)
 
+    def post_process(self):
+        # Settings
+        quantiles = [0.05, 0.5, 0.95]
+
+        # Initialize
+        t_len = len(self.df_post_flow)
+        wq_result = np.empty((t_len, len(quantiles)))
+        wq_result[:] = np.nan
+
+        # Get weight
+        # According to streamflow KGE
+        KGE_thresh = 0.1
+        KGE_weight = (self.df_post_eval["KGE"] - KGE_thresh)/sum( (self.df_post_eval["KGE"] - KGE_thresh))
+
+        # Get weighted quantile
+        for t in range(t_len):
+            values = self.df_post_flow.iloc[[t]].values.flatten()
+            wq_result[t, :] = weighted_quantile(values=values, quantiles=quantiles, sample_weight=KGE_weight.values,
+                              values_sorted=False, old_style=False)
+
+        self.wq_result = pd.DataFrame(wq_result, index=self.df_post_flow.index, columns=['lowerlim', 'median', 'upperlim'])
 
     def to_csv(self):
         self.df_post_paras.to_csv(os.path.join(out_file_path, 'posterio_parameter.csv'))
         self.df_pri_paras.to_csv(os.path.join(out_file_path, 'priori_parameter.csv'))
         self.df_post_flow.to_csv(os.path.join(out_file_path, 'posterior_flows.csv'))
         self.df_post_eval.to_csv(os.path.join(out_file_path, 'evaluations.csv'))
+        self.wq_result.to_csv(os.path.join(out_file_path, 'quantiles.csv'))
 
     def plot(self):
         # Prior vs. posterior parameter distributions
@@ -167,18 +226,19 @@ class MyGLUE(object):
                 ax1.yaxis.set_visible(False)
         f.savefig(os.path.join(out_file_path, 'param_dist.png'), dpi=600)
 
-
         # Total flow
         # ax2 = plt.figure(figsize=(10,10))
         f2 = plt.figure(figsize=(8,6))
         ax2 = f2.add_subplot()
-        self.df_post_flow.plot(color='black',alpha=0.2, ax= ax2)
+        self.wq_result['lowerlim'].plot(color='black',alpha=0.2, ax= ax2,  label='_Hidden')
+        self.wq_result['upperlim'].plot(color='black', alpha=0.2, ax=ax2,  label='_Hidden')
+        self.df_flow_obs.plot(color='black', alpha=1, ax=ax2, label='Observed discharge')
+        plt.fill_between(self.wq_result.index, self.wq_result['upperlim'], self.wq_result['lowerlim'],
+                         facecolor='green', alpha=0.2, interpolate=True, label='Predicted range')
         ax2.set_xlabel('Time')
         ax2.set_ylabel('Total Flow [mm/hour]')
         ax2.set_title('Total Flow for behavioral runs')
-        ax2.get_legend().remove()
+        ax2.legend()
         f2.savefig(os.path.join(out_file_path, 'flow_range.png'), dpi=600)
-
-
 
 
