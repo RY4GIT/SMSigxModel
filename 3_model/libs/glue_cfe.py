@@ -125,11 +125,11 @@ class MyGLUE(object):
             for var_name in var_names:
                 # Get the simulated data
                 sim = sim0[["Time", var_name]]
-                sim["Time"] = pd.to_datetime(sim["Time"])
+                sim["Time"] = pd.to_datetime(sim["Time"], format="%Y-%m-%d %H:%M:%S") # Works specifically for CFE
 
                 # Get the comparison data
                 obs = obs0[["Time", var_name]]
-                obs["Time"] = pd.to_datetime(obs["Time"])
+                obs["Time"] = pd.to_datetime(obs["Time"], format="%d-%b-%Y %H:%M:%S") # Works specifically for Mahurangi data
 
                 # Merge observed and simulated timeseries
                 df = pd.merge_asof(sim, obs, on="Time")
@@ -247,11 +247,13 @@ class MyGLUE(object):
                 df_behavioral = self.df_Q_behavioral
             elif var_name == "Soil Moisture Content":
                 df_behavioral = self.df_SM_behavioral
+            np_behavioral = df_behavioral.to_numpy(copy=True)
+
             # Get weighted quantile
             quantile = np.empty((t_len, len(quantiles)))
             quantile[:] = np.nan
             for t in range(t_len):
-                values = df_behavioral.iloc[[t]].values.flatten()
+                values = np_behavioral[t,:] # df_behavioral.iloc[[t]].values.flatten()
                 quantile[t, :] = weighted_quantile(values=values, quantiles=quantiles, sample_weight=weight,
                                   values_sorted=False, old_style=False)
             df_simrange = pd.DataFrame(quantile, index=self.df_Q_behavioral.index, columns=['lowerlim', 'median', 'upperlim'])
@@ -264,13 +266,11 @@ class MyGLUE(object):
         print('--- Saving data into csv file ---')
 
         # save the results to csv
-        self.df_post_paras.to_csv(os.path.join(self.out_path, 'parameter_posterior.csv'))
-        self.df_pri_paras.to_csv(os.path.join(self.out_path, 'paramter_priori.csv'))
-        # self.df_Q_behavioral.to_csv(os.path.join(self.out_path, 'posterior_ts_Q.csv'))
-        # self.df_SM_behavioral.to_csv(os.path.join(self.out_path, 'posterior_ts_SM.csv'))
-        self.df_post_eval.to_csv(os.path.join(self.out_path, 'evaluations.csv'))
-        self.df_Q_simrange.to_csv(os.path.join(self.out_path, 'quantiles_Q.csv'))
-        self.df_SM_simrange.to_csv(os.path.join(self.out_path, 'quantiles_SM.csv'))
+        self.df_post_paras.to_csv(os.path.join(self.out_path, 'parameter_posterior.csv'), sep=',', header=True, index=False, encoding='utf-8')
+        self.df_pri_paras.to_csv(os.path.join(self.out_path, 'paramter_priori.csv'), sep=',', header=True, index=False, encoding='utf-8')
+        self.df_post_eval.to_csv(os.path.join(self.out_path, 'evaluations.csv'), sep=',', header=True, index=False, encoding='utf-8')
+        self.df_Q_simrange.to_csv(os.path.join(self.out_path, 'quantiles_Q.csv'), sep=',', header=True, index=False, encoding='utf-8')
+        self.df_SM_simrange.to_csv(os.path.join(self.out_path, 'quantiles_SM.csv'), sep=',', header=True, index=False, encoding='utf-8')
 
     def plot(self):
         # Plot the results

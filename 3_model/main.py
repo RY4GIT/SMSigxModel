@@ -9,6 +9,9 @@ if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
 import spotpy
+import cProfile, pstats, io
+from pstats import SortKey
+# https://docs.python.org/3/library/profile.html#module-cProfile
 
 sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs/cfe/py_cfe")
 import cfe
@@ -24,9 +27,9 @@ from glue_cfe import MyGLUE
 # specify current directory create output directory if it does not exist
 os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model")
 os.getcwd()
-out_file_path = '../4_out/Mahurangi/'
-if not os.path.exists(out_file_path):
-    os.mkdir(out_file_path)
+out_path = '../4_out/Mahurangi/'
+if not os.path.exists(out_path):
+    os.mkdir(out_path)
 data_file_path = '../2_data_input/Mahurangi'
 
 def main(runtype):
@@ -54,7 +57,7 @@ def main(runtype):
         }
 
         salib_experiment = SALib_CFE(
-            cfe_instance=cfe_instance, problem=problem, SAmethod='FAST', out_path=out_file_path
+            cfe_instance=cfe_instance, problem=problem, SAmethod='FAST', out_path=out_path
         )
         salib_experiment.run()
         salib_experiment.plot(plot_type='STS1')
@@ -64,7 +67,7 @@ def main(runtype):
         # Initialize
         cfe1 = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'config_cfe.json'))
         cfe1.initialize()
-        out_fn_sa = out_file_path + 'results'
+        out_fn_sa = out_path + 'results'
 
         # Select number of maximum repetitions
         # Check out https://spotpy.readthedocs.io/en/latest/Sensitivity_analysis_with_FAST/ to determine an appropriate number of repetitions
@@ -87,27 +90,15 @@ def main(runtype):
         # Initialize
         cfe1 = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'config_cfe.json'))
         cfe1.initialize()
-        out_fn_sa = out_file_path + 'results'
+        out_fn_sa = out_path + 'results'
 
         # Start GLUE
         rep = 10
-        glue1 = MyGLUE(cfe_input = cfe1) #
+        glue1 = MyGLUE(cfe_input = cfe1, out_path=out_path) #
         glue1.simulation()
+        glue1.post_process()
         glue1.to_csv()
-        glue1.plot()
-
-        # print(post_rid, post_paras, resulted_totalflow)
-        # fast = spotpy.algorithms.fast(glue_setup(cfe_input=cfe1), dbname=out_fn_sa, dbformat='csv', save_sim = False)
-
-        # Load the results
-        # results = spotpy.analyser.load_csv_results(out_fn_sa)
-
-        # Example plot to show the PDF of prior & posterior parameter distributions
-        # spotpy.analyser.plot_fast_sensitivity(results)
-
-        # Example plot to show the prediction range
-        # spotpy.analyser.plot_fast_sensitivity(results)
-
+        # glue1.plot()
 
     """
     if runtype == "cfe_CUAHSI":
@@ -119,4 +110,21 @@ def main(runtype):
     """
 
 if __name__ == '__main__':
+
+    # measure the time
+    pr = cProfile.Profile()
+    pr.enable()
+
     main(runtype = "GLUE")
+
+    # measure the time
+    pr.disable()
+    s = io.StringIO()
+    sortby = SortKey.CUMULATIVE
+    ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+    ps.print_stats()
+    print(s.getvalue())
+    ps.dump_stats('runtime.txt')
+
+# snakeviz "G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\3_model\runtime.txt"
+# visualize to type the above in terminal
