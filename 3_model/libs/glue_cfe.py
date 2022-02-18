@@ -51,6 +51,19 @@ def weighted_quantile(values, quantiles, sample_weight=None,
         weighted_quantiles /= np.sum(sample_weight)
     return np.interp(quantiles, weighted_quantiles, values)
 
+def triangle_weight(x, a, b, c):
+    # a: lowerlim, c:upperlim, b:midpoint
+    y = np.full((len(x),), np.nan)
+    #for i in range(len(x)):
+    y = np.where((x<=a) | (x>=c), 0, y)
+    y = np.where((a<=x) & (x<=b), (x-a)/(b-a), y)
+    y = np.where((b<=x) & (x<=c), (b-x)/(c-b), y)
+    return y
+
+x = np.array([-15, -10, -5, 0, 5, 10, 15])
+y = triangle_weight(x=x, a=-10, b=0, c=10)
+print(y)
+
 # GLUE object
 class MyGLUE(object):
     def __init__(self, cfe_input, out_path='./', obj_func=None):
@@ -129,7 +142,6 @@ class MyGLUE(object):
 
                 # Model evaluators
                 KGE = spotpy.objectivefunctions.kge_non_parametric(obs_synced, sim_synced)
-                # TODO: add soil moisture, as well as seasonal transition
 
                 if var_name == "Total Discharge":
                     KGE_Q = KGE
@@ -212,22 +224,25 @@ class MyGLUE(object):
         self.df_Q_obs = pd.DataFrame(obs_Q_synced, index=self.df_Q_behavioral.index)
         # Soil moisture
         self.df_SM_obs = pd.DataFrame(obs_SM_synced, index=self.df_SM_behavioral.index)
+        # TODO: Check observed values
 
     def post_process(self):
         # post-process the results
         print('--- Post-processing the simulated results ---')
 
-        # Settings
-
-
         # Initialize
         t_len = len(self.df_Q_behavioral)
 
-        # Get weight
+        # Get empirical weight
         KGE_Q_weight = (self.df_post_eval["KGE_Q"] - KGE_Q_thresh)/sum( (self.df_post_eval["KGE_Q"] - KGE_Q_thresh))
         KGE_SM_weight = (self.df_post_eval["KGE_SM"] - KGE_SM_thresh) / sum((self.df_post_eval["KGE_SM"] - KGE_SM_thresh))
+        # Get triangular weight
+        # TODO: Get triangular weight
+
+        # Get composite weight
         weight = KGE_Q_weight.values + KGE_SM_weight.values
 
+        # Calculate weighted quantile
         for var_name in var_names:
             if var_name == "Total Discharge":
                 df_behavioral = self.df_Q_behavioral
