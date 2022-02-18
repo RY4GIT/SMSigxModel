@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 # Global variables
 var_names = ["Total Discharge", "Soil Moisture Content"] # variables of interst
 eval_names = ['KGE_Q', 'KGE_SM'] # evaluators
-KGE_Q_thresh = 0.1 # threshold value
-KGE_SM_thresh = 0.1 # threshold value
+KGE_Q_thresh = -10 # threshold value
+KGE_SM_thresh = -10 # threshold value
 quantiles = [0.05, 0.5, 0.95] # quantiles
 
 # Global function
@@ -59,10 +59,6 @@ def triangle_weight(x, a, b, c):
     y = np.where((a<=x) & (x<=b), (x-a)/(b-a), y)
     y = np.where((b<=x) & (x<=c), (b-x)/(c-b), y)
     return y
-
-x = np.array([-15, -10, -5, 0, 5, 10, 15])
-y = triangle_weight(x=x, a=-10, b=0, c=10)
-print(y)
 
 # GLUE object
 class MyGLUE(object):
@@ -121,6 +117,7 @@ class MyGLUE(object):
             # Actual model run
             # ===============================================================
             sim0 = self.myCFE.run_unit_test(plot=False)
+            obs0 = self.myCFE.load_unit_test_data()
 
             # ===============================================================
             # Get the simulated and observed data & evaluate
@@ -131,7 +128,6 @@ class MyGLUE(object):
                 sim["Time"] = pd.to_datetime(sim["Time"])
 
                 # Get the comparison data
-                obs0 = self.myCFE.load_unit_test_data()
                 obs = obs0[["Time", var_name]]
                 obs["Time"] = pd.to_datetime(obs["Time"])
 
@@ -157,7 +153,7 @@ class MyGLUE(object):
             # ===============================================================
             # Store all the prior parameters
             self.pri_paras.append(self.sampled)
-            if KGE_Q > 0 and KGE_SM > 0: # This is the threshold conditions
+            if KGE_Q > KGE_Q_thresh and KGE_SM > KGE_SM_thresh: # This is the threshold conditions
                 # Store the behavioral runs
                 self.post_rid.append(n) #runid
                 self.post_paras.append(self.sampled) #parameters
@@ -221,9 +217,12 @@ class MyGLUE(object):
 
         # Observed
         # Total flow
-        self.df_Q_obs = pd.DataFrame(obs_Q_synced, index=self.df_Q_behavioral.index)
+        self.df_Q_obs = pd.DataFrame(obs_Q_synced)
+        self.df_Q_obs.set_axis(df["Time"], axis=0, inplace=True)
+
         # Soil moisture
-        self.df_SM_obs = pd.DataFrame(obs_SM_synced, index=self.df_SM_behavioral.index)
+        self.df_SM_obs = pd.DataFrame(obs_SM_synced)
+        self.df_SM_obs.set_axis(df["Time"], axis=0, inplace=True)
         # TODO: Check observed values
 
     def post_process(self):
