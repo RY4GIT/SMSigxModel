@@ -113,7 +113,7 @@ def main(runtype):
         obs = obs0[["Time", "Soil Moisture Content"]]
         obs["Time"] = pd.to_datetime(obs["Time"], format="%d-%b-%Y %H:%M:%S")  # Works specifically for Mahurangi data
 
-        sig = SMSig(time=obs["Time"].to_numpy(), timeseries=obs["Soil Moisture Content"].to_numpy())
+        sig = SMSig(ts_time=obs["Time"].to_numpy(), ts_value=obs["Soil Moisture Content"].to_numpy())
         # sig.detrend()
         sig.calc_sinecurve()
 
