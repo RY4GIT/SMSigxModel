@@ -3,6 +3,7 @@
 import os
 import sys
 import numpy as np
+import pandas as pd
 import sys
 if not sys.warnoptions:
     import warnings
@@ -16,6 +17,9 @@ from pstats import SortKey
 sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs/cfe/py_cfe")
 import cfe
 import bmi_cfe
+
+sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs/SMSig")
+from sig_seasontrans import SMSig
 
 sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs")
 from spotpy_cfe import spot_setup
@@ -100,6 +104,19 @@ def main(runtype):
         glue1.to_csv()
         # glue1.plot()
 
+    if runtype == "Seasonsig":
+
+        # Get the comparison data
+        cfe1 = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'full', 'config_cfe.json'))
+        cfe1.initialize()
+        obs0 = cfe1.load_unit_test_data()
+        obs = obs0[["Time", "Soil Moisture Content"]]
+        obs["Time"] = pd.to_datetime(obs["Time"], format="%d-%b-%Y %H:%M:%S")  # Works specifically for Mahurangi data
+
+        sig = SMSig(time=obs["Time"].to_numpy(), timeseries=obs["Soil Moisture Content"].to_numpy())
+        # sig.detrend()
+        sig.calc_sinecurve()
+
     """
     if runtype == "cfe_CUAHSI":
         cfe1 = cfe.CFE(os.path.join(data_file_path, 'cat_58_config_cfe.json'))
@@ -111,20 +128,23 @@ def main(runtype):
 
 if __name__ == '__main__':
 
+    measuretime = False
     # measure the time
-    pr = cProfile.Profile()
-    pr.enable()
+    if measuretime:
+        pr = cProfile.Profile()
+        pr.enable()
 
-    main(runtype = "GLUE")
+    main(runtype = "Seasonsig")
 
     # measure the time
-    pr.disable()
-    s = io.StringIO()
-    sortby = SortKey.CUMULATIVE
-    ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-    ps.print_stats()
-    print(s.getvalue())
-    ps.dump_stats('runtime.txt')
+    if measuretime:
+        pr.disable()
+        s = io.StringIO()
+        sortby = SortKey.CUMULATIVE
+        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        ps.print_stats()
+        print(s.getvalue())
+        ps.dump_stats('runtime.txt')
 
 # snakeviz "G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\3_model\runtime.txt"
 # visualize to type the above in terminal
