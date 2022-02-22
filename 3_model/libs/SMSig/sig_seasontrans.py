@@ -31,7 +31,7 @@ class SMSig():
         ts_timestamp_s = ts_timestamp_ns.astype('timedelta64[D]')
         self.ts_timestamp = ts_timestamp_s.astype('int')
 
-        print(time, self.ts_value)
+        # print(time, self.ts_value)
         # self.timestep = hourly # TODO: make it flexible later
 
     def regular(self):
@@ -76,18 +76,19 @@ class SMSig():
         phi = params[1]
 
         # Get the transition valley
-        # 微妙にPhaseずれてる　なぜ？
+        # note that phi sign is opposite from MATLAB code
         sine_n = int(np.round(len(self.ts_timestamp)/365))
-        sine_start0 = np.floor(self.ts_timestamp[0]/365 + phi/2/np.pi)
-        sine_start_v = 365/2/np.pi * (2*sine_start0*np.pi - np.pi/2 - phi)
+        sine_start0 = np.floor(self.ts_timestamp[0]/365 - phi/2/np.pi)
+        sine_start_v = 365/2/np.pi * (2*sine_start0*np.pi + np.pi/2 + phi)
         valley = np.arange(start=sine_start_v, step=365, stop = sine_start_v+ 365* (sine_n+1))
         self.t_valley = np.full((len(valley),), np.datetime64('1970-01-01T00:00:00Z')) + np.full((len(valley),), np.timedelta64(1,'D')) * valley
 
+        # Plot and confirm
         plt.figure(figsize=(6, 4))
         plt.scatter(self.ts_timestamp, self.ts_value, label='Data')
         plt.plot(self.ts_timestamp, sine_func(self.ts_timestamp, params[0], params[1], params[2]),
                  label='Fitted function', color='k')
-        plt.scatter(valley, [0.4]* len(valley), color='k')
+        plt.scatter(valley, sine_func(valley, params[0], params[1], params[2]), color='k')
         plt.legend(loc='best')
         plt.show()
 
