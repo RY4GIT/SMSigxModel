@@ -25,6 +25,8 @@ class SMSig():
         # read time series of data
         self.time = ts_avg.index.to_numpy()
         self.ts_value = ts_avg.to_numpy()
+        self.tt = pd.DataFrame(self.ts_value, index=self.time)
+        self.tt.index.name = 'Time'
 
         # Timestamp in seconds
         ts_timestamp_ns = self.time - np.full((len(self.time),), np.datetime64('1970-01-01T00:00:00Z'))
@@ -82,8 +84,9 @@ class SMSig():
         sine_start_v = 365/2/np.pi * (2*sine_start0*np.pi + np.pi/2 + phi)
         valley = np.arange(start=sine_start_v, step=365, stop = sine_start_v+ 365* (sine_n+1))
         self.t_valley = np.full((len(valley),), np.datetime64('1970-01-01T00:00:00Z')) + np.full((len(valley),), np.timedelta64(1,'D')) * valley
-
+        self.t_valley = pd.Series(self.t_valley)
         # Plot and confirm
+        """
         plt.figure(figsize=(6, 4))
         plt.scatter(self.ts_timestamp, self.ts_value, label='Data')
         plt.plot(self.ts_timestamp, sine_func(self.ts_timestamp, params[0], params[1], params[2]),
@@ -91,7 +94,7 @@ class SMSig():
         plt.scatter(valley, sine_func(valley, params[0], params[1], params[2]), color='k')
         plt.legend(loc='best')
         plt.show()
-
+        """
         # return the dates
 
     def calc_fcwp(self):
@@ -99,6 +102,41 @@ class SMSig():
         None
 
     def calc_seasontrans(self):
+        # initialization
+        P0_d2w = [0, 0.001, 10, 100, 0.4, 0.7]
+        P0_w2d = [0.5, 0.001, 10, 100, 0.7, 0.4]
+        trans_type = ["dry2wet", "wet2dry"]
+
+        seasontrans_date = np.empty((len(self.t_valley), 4))
+        seasontrans_date[:] = np.nan
+
+        # Take n-days average of the data (n=5)
+
+        ## Main execusion
+        for trans in range(len(trans_type)):
+            # Loop for water years
+            for i in range(len(self.t_valley)-1):
+                """
+                Crop the timeseries
+                """
+
+                # Get the base start/end days
+                if trans_type[trans] == "dry2wet":
+                    trans_start0 = self.t_valley[i]
+                    trans_end0 = trans_start0 + datetime.timedelta(days=365/2)
+                elif trans_type[trans] == "wet2dry":
+                    trans_start0 = self.t_valley[i] + datetime.timedelta(days=365/2)
+                    trans_end0 = self.t_valley[i+1]
+                print(trans_start0, trans_end0)
+
+                # Crop the season with 1 month buffer
+                mask = (self.tt.index >= trans_start0) & (self.tt.index <= trans_end0)
+                seasonsm = self.tt.loc[mask]
+                seasonsm_value = seasonsm.to_numpy()
+
+
+
+
         None
         # return signatures
 
