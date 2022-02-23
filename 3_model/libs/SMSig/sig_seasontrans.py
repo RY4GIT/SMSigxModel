@@ -5,6 +5,27 @@ import matplotlib.pyplot as plt
 from scipy import optimize
 import datetime
 
+
+y = np.array([0,0,0,0,0,1,2,3,4,5,6,7,7,7,7,7])
+x = np.arange(start=1,step=1, stop=len(y)+1)
+
+plus = plus_func(x)
+P = [0, 1, 10, 100, 0, 10]
+y2 = piecewise_linear(x,P)
+plt.plot(x,y2)
+plt.plot(x,y)
+
+def plus_func(x):
+    x2 = np.full((len(x),), 0)
+    for idx, num in enumerate(x):
+        if x[idx] > 0:
+            x2[idx] = num
+    return x2
+
+def piecewise_linear(x,P):
+    return P[0] + P[1]*x + P[1]*plus_func(P[2]-x) + -1*P[1]*plus_func(x-(P[2]+P[3]))
+
+
 def sine_func(x, A, phi, k):
     w = 2*np.pi/365
     return A * np.sin(w * x - phi) + k
@@ -17,23 +38,23 @@ class SMSig():
             # The data is likely to be in percentage. Convert to VSMC
             ts_value = ts_value/100
 
-        # Get daily average of timeseries of data
+        # Aggregate the timeseries of data into daily
         dti = pd.to_datetime(ts_time)
-        ts = pd.Series(ts_value, index=dti)
-        ts_avg = ts.resample('D').mean()
+        tt = pd.Series(ts_value, index=dti)
+        tt_avg = tt.resample('D').mean()
 
-        # read time series of data
-        self.time = ts_avg.index.to_numpy()
-        self.ts_value = ts_avg.to_numpy()
-        self.tt = pd.DataFrame(self.ts_value, index=self.time)
-        self.tt.index.name = 'Time'
+        # Define variables
+        self.tt                 = tt_avg # Timetable
+        self.ts_time_datetime   = tt_avg.index.to_numpy() # Timestamp array in datetime
+        self.ts_value           = tt_avg.to_numpy()   # Soil moisture value array
 
-        # Timestamp in seconds
-        ts_timestamp_ns = self.time - np.full((len(self.time),), np.datetime64('1970-01-01T00:00:00Z'))
+        # Convert timestamp in seconds
+        ts_timestamp_ns = self.ts_time_datetime - np.full((len(self.ts_time_datetime),), np.datetime64('1970-01-01T00:00:00Z'))
         ts_timestamp_s = ts_timestamp_ns.astype('timedelta64[D]')
-        self.ts_timestamp = ts_timestamp_s.astype('int')
 
-        # print(time, self.ts_value)
+        # Define a vairable
+        self.ts_time_s = ts_timestamp_s.astype('int')  # Timestamp array in seconds
+
         # self.timestep = hourly # TODO: make it flexible later
 
     def regular(self):
@@ -60,6 +81,7 @@ class SMSig():
         ts_dtr = ts_dtr0 + 0.5
 
         self.ts_value = ts_dtr
+
         # plot
         # print(self.ts_value.shape, self.time.shape)
         # plt.plot(self.ts_value, label='original')
@@ -73,28 +95,28 @@ class SMSig():
         # Get the sine curve information from insitu data
         pseudo_idx = np.arange(start=0, step=1, stop=len(self.ts_value))
         # pseudo_idx = list(range(0, len(self.ts_value), 1))
-        params, params_covariance = optimize.curve_fit(sine_func, xdata=self.ts_timestamp, ydata=self.ts_value,
+        params, params_covariance = optimize.curve_fit(sine_func, xdata=self.ts_time_s, ydata=self.ts_value,
                                                        p0=[1, 0, 0.5])
         phi = params[1]
 
         # Get the transition valley
         # note that phi sign is opposite from MATLAB code
-        sine_n = int(np.round(len(self.ts_timestamp)/365))
-        sine_start0 = np.floor(self.ts_timestamp[0]/365 - phi/2/np.pi)
+        sine_n = int(np.round(len(self.ts_time_s)/365))
+        sine_start0 = np.floor(self.ts_time_s[0]/365 - phi/2/np.pi)
         sine_start_v = 365/2/np.pi * (2*sine_start0*np.pi + np.pi/2 + phi)
         valley = np.arange(start=sine_start_v, step=365, stop = sine_start_v+ 365* (sine_n+1))
         self.t_valley = np.full((len(valley),), np.datetime64('1970-01-01T00:00:00Z')) + np.full((len(valley),), np.timedelta64(1,'D')) * valley
         self.t_valley = pd.Series(self.t_valley)
+
         # Plot and confirm
-        """
         plt.figure(figsize=(6, 4))
-        plt.scatter(self.ts_timestamp, self.ts_value, label='Data')
-        plt.plot(self.ts_timestamp, sine_func(self.ts_timestamp, params[0], params[1], params[2]),
+        plt.scatter(self.ts_time_s, self.ts_value, label='Data')
+        plt.plot(self.ts_time_s, sine_func(self.ts_time_s, params[0], params[1], params[2]),
                  label='Fitted function', color='k')
         plt.scatter(valley, sine_func(valley, params[0], params[1], params[2]), color='k')
         plt.legend(loc='best')
         plt.show()
-        """
+
         # return the dates
 
     def calc_fcwp(self):
@@ -110,10 +132,9 @@ class SMSig():
         seasontrans_date = np.empty((len(self.t_valley), 4))
         seasontrans_date[:] = np.nan
 
-        # Take n-days average of the data (n=5)
-
         ## Main execusion
         for trans in range(len(trans_type)):
+
             # Loop for water years
             for i in range(len(self.t_valley)-1):
                 """
@@ -127,17 +148,24 @@ class SMSig():
                 elif trans_type[trans] == "wet2dry":
                     trans_start0 = self.t_valley[i] + datetime.timedelta(days=365/2)
                     trans_end0 = self.t_valley[i+1]
-                print(trans_start0, trans_end0)
+                # print(trans_start0, trans_end0)
 
                 # Crop the season with 1 month buffer
                 mask = (self.tt.index >= trans_start0) & (self.tt.index <= trans_end0)
                 seasonsm = self.tt.loc[mask]
                 seasonsm_value = seasonsm.to_numpy()
 
+                # If the data has too much NaN, skip the analysis
+                if np.count_nonzero(np.isnan(seasonsm_value))/len(seasonsm_value) > 0.3 \
+                        or seasonsm_value.size == 0\
+                        or len(seasonsm_value) < 90:
+                    print('data is not good')
+                    seasontrans_date[i,:] = np.nan
+                else:
+                # IF the data looks good, exesute the analysis
+                    print('data is good')
 
 
-
-        None
         # return signatures
 
     def compare_results(self, sim, obs):
