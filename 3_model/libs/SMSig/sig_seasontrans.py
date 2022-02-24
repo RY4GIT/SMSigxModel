@@ -4,42 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy import optimize
 import datetime
-from scipy.optimize import minimize, NonlinearConstraint, Bounds, least_squares
-
-# tests
-y = np.array([0,0,0,0,0,1,2,3,4,5,6,7,7,7,7,7])
-x = np.arange(start=1,step=1, stop=len(y)+1)
-bounds = Bounds([-10,-1,-10,-10,0,0], [10,3,10,10,10,10])
-P0 = np.array([-2, 1, 7, 10, 0, 10])
-plus = plus_func(x)
-
-constraints = [
-    {"type": "eq", "fun": lambda x: x[0] + x[1]*x[2] - x[4]},
-    {"type": "eq", "fun": lambda x: x[0] + x[1]*(x[2]+x[3]) - x[5]}
-]
-nlc1 = NonlinearConstraint(lambda x: x[0] + x[1]*x[2] - x[4], 0, 0)
-nlc2 = NonlinearConstraint(lambda x: x[0] + x[1]*(x[2]+x[3]) - x[5], 0, 0)
-
-# https://realpython.com/python-scipy-cluster-optimize/#using-the-optimize-module-in-scipy
-# https://scipy.github.io/devdocs/tutorial/optimize.html
-res = minimize(
-    piecewise_linear_residuals,
-    x0 = P0,
-    args = (x,y),
-    constraints= (nlc1, nlc2),
-    bounds = bounds
-)
-
-res = least_squares(
-    piecewise_linear2,
-    x0 = P0,
-    args = (x,y)
-)
-
-plt.plot(x,piecewise_linear(res.x, x))
-plt.plot(x,y)
-
-piecewise_linear_residuals(P0, x, y)
+from scipy.optimize import minimize, NonlinearConstraint, Bounds, least_squares, basinhopping
 
 def plus_func(x):
     x2 = np.full((len(x),), 0)
@@ -51,9 +16,6 @@ def plus_func(x):
 def piecewise_linear(P, x):
     return P[0] + P[1]*x + P[1]*plus_func(P[2]-x) + -1*P[1]*plus_func(x-(P[2]+P[3]))
 
-def piecewise_linear2(P, x, y):
-    return y - (P[0] + P[1]*x + P[1]*plus_func(P[2]-x) + -1*P[1]*plus_func(x-(P[2]+P[3])))
-
 def piecewise_linear_residuals(P, x, y):
     I = np.full((len(x),), 1)
     return np.sum(np.power((( P[0] + I*P[1]*x + I*P[1]*plus_func(I*P[2] - x) + -1*I*P[1]*plus_func(x-(I*P[2]+I*P[3])) ) -y), 2))
@@ -61,6 +23,26 @@ def piecewise_linear_residuals(P, x, y):
 def sine_func(x, A, phi, k):
     w = 2*np.pi/365
     return A * np.sin(w * x - phi) + k
+
+# tests
+# y = np.array([0,0,0,0,0,1,2,3,4,5,6,7,7,7,7,7])
+# x = np.arange(start=1,step=1, stop=len(y)+1)
+# bounds = Bounds([-10,-1,-10,-10,0,0], [10,3,10,10,10,10])
+# P0 = np.array([-2, 1, 7, 8, 0, 10])
+
+# nlc1 = NonlinearConstraint(lambda x: x[0] + x[1]*x[2] - x[4], 0, 0)
+# nlc2 = NonlinearConstraint(lambda x: x[0] + x[1]*(x[2]+x[3]) - x[5], 0, 0)
+
+# use method L-BFGS-B because the problem is smooth and bounded
+# https://stackoverflow.com/questions/21670080/how-to-find-global-minimum-in-python-optimization-with-bounds
+# https://realpython.com/python-scipy-cluster-optimize/#using-the-optimize-module-in-scipy
+# https://scipy.github.io/devdocs/tutorial/optimize.html
+minimizer_kwargs = dict(method="L-BFGS-B", bounds=bounds, args=(x,y), constraints= (nlc1, nlc2))
+res = basinhopping(piecewise_linear_residuals, P0, minimizer_kwargs=minimizer_kwargs)
+
+# plt.plot(x,piecewise_linear(res.x, x))
+# plt.plot(x,y)
+
 
 class SMSig():
 
