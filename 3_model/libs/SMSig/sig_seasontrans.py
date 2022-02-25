@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy import optimize
 import datetime
-from scipy.optimize import minimize, NonlinearConstraint, Bounds, least_squares, basinhopping
+from scipy.optimize import NonlinearConstraint, Bounds, basinhopping
 
 def plus_func(x):
     x2 = np.full((len(x),), 0)
@@ -24,25 +24,14 @@ def sine_func(x, A, phi, k):
     w = 2*np.pi/365
     return A * np.sin(w * x - phi) + k
 
-# tests
-# y = np.array([0,0,0,0,0,1,2,3,4,5,6,7,7,7,7,7])
-# x = np.arange(start=1,step=1, stop=len(y)+1)
-# bounds = Bounds([-10,-1,-10,-10,0,0], [10,3,10,10,10,10])
-# P0 = np.array([-2, 1, 7, 8, 0, 10])
+def datetime_to_timestamp(ts_datetime):
+    ts_timestamp_ns = ts_datetime - np.full((len(ts_datetime),),
+                                                      np.datetime64('1970-01-01T00:00:00Z'))
+    ts_timestamp_d = ts_timestamp_ns.astype('timedelta64[D]')
+    return ts_timestamp_d
 
-# nlc1 = NonlinearConstraint(lambda x: x[0] + x[1]*x[2] - x[4], 0, 0)
-# nlc2 = NonlinearConstraint(lambda x: x[0] + x[1]*(x[2]+x[3]) - x[5], 0, 0)
-
-# use method L-BFGS-B because the problem is smooth and bounded
-# https://stackoverflow.com/questions/21670080/how-to-find-global-minimum-in-python-optimization-with-bounds
-# https://realpython.com/python-scipy-cluster-optimize/#using-the-optimize-module-in-scipy
-# https://scipy.github.io/devdocs/tutorial/optimize.html
-minimizer_kwargs = dict(method="L-BFGS-B", bounds=bounds, args=(x,y), constraints= (nlc1, nlc2))
-res = basinhopping(piecewise_linear_residuals, P0, minimizer_kwargs=minimizer_kwargs)
-
-# plt.plot(x,piecewise_linear(res.x, x))
-# plt.plot(x,y)
-
+    # Define a vairable
+    self.ts_time_d = ts_timestamp_d.astype('int')  # Timestamp array in seconds
 
 class SMSig():
 
@@ -64,12 +53,13 @@ class SMSig():
 
         # Convert timestamp in seconds
         ts_timestamp_ns = self.ts_time_datetime - np.full((len(self.ts_time_datetime),), np.datetime64('1970-01-01T00:00:00Z'))
-        ts_timestamp_s = ts_timestamp_ns.astype('timedelta64[D]')
+        ts_timestamp_d = ts_timestamp_ns.astype('timedelta64[D]')
 
         # Define a vairable
-        self.ts_time_s = ts_timestamp_s.astype('int')  # Timestamp array in seconds
+        self.ts_time_d = ts_timestamp_d.astype('int')  # Timestamp array in seconds
 
         # self.timestep = hourly # TODO: make it flexible later
+        # TODO: Moving average for 7days or 30days
 
     def regular(self):
         # make sure the ts_value is in regular interval
@@ -109,14 +99,14 @@ class SMSig():
         # Get the sine curve information from insitu data
         pseudo_idx = np.arange(start=0, step=1, stop=len(self.ts_value))
         # pseudo_idx = list(range(0, len(self.ts_value), 1))
-        params, params_covariance = optimize.curve_fit(sine_func, xdata=self.ts_time_s, ydata=self.ts_value,
+        params, params_covariance = optimize.curve_fit(sine_func, xdata=self.ts_time_d, ydata=self.ts_value,
                                                        p0=[1, 0, 0.5])
         phi = params[1]
 
         # Get the transition valley
         # note that phi sign is opposite from MATLAB code
-        sine_n = int(np.round(len(self.ts_time_s)/365))
-        sine_start0 = np.floor(self.ts_time_s[0]/365 - phi/2/np.pi)
+        sine_n = int(np.round(len(self.ts_time_d)/365))
+        sine_start0 = np.floor(self.ts_time_d[0]/365 - phi/2/np.pi)
         sine_start_v = 365/2/np.pi * (2*sine_start0*np.pi + np.pi/2 + phi)
         valley = np.arange(start=sine_start_v, step=365, stop = sine_start_v+ 365* (sine_n+1))
         self.t_valley = np.full((len(valley),), np.datetime64('1970-01-01T00:00:00Z')) + np.full((len(valley),), np.timedelta64(1,'D')) * valley
@@ -124,14 +114,16 @@ class SMSig():
 
         # Plot and confirm
         plt.figure(figsize=(6, 4))
-        plt.scatter(self.ts_time_s, self.ts_value, label='Data')
-        plt.plot(self.ts_time_s, sine_func(self.ts_time_s, params[0], params[1], params[2]),
+        plt.scatter(self.ts_time_d, self.ts_value, label='Data')
+        plt.plot(self.ts_time_d, sine_func(self.ts_time_d, params[0], params[1], params[2]),
                  label='Fitted function', color='k')
         plt.scatter(valley, sine_func(valley, params[0], params[1], params[2]), color='k')
         plt.legend(loc='best')
         plt.show()
 
         # return the dates
+        return self.t_valley
+        # TODO: Change so that calc_seasontrans takes t_valley from outside
 
     def calc_fcwp(self):
         # TODO: Calculate fc and wp to constrain the SM ts_value better
@@ -139,7 +131,7 @@ class SMSig():
 
     def calc_seasontrans(self):
         # initialization
-        P0_d2w = [0, 0.001, 10, 100, 0.4, 0.7]
+        P0_d2w = [0, -0.001, 10, 100, 0.4, 0.7]
         P0_w2d = [0.5, 0.001, 10, 100, 0.7, 0.4]
         trans_type = ["dry2wet", "wet2dry"]
 
@@ -165,10 +157,13 @@ class SMSig():
                 # print(trans_start0, trans_end0)
 
                 # Crop the season with 1 month buffer
-                mask = (self.tt.index >= trans_start0) & (self.tt.index <= trans_end0)
+                mask = (self.tt.index >= trans_start0 - datetime.timedelta(days=30)) & (self.tt.index <= trans_end0 + datetime.timedelta(days=30))
                 seasonsm = self.tt.loc[mask]
                 seasonsm_value = seasonsm.to_numpy()
 
+                # TODO: Add more cropping treatment
+
+                plt.plot(seasonsm)
                 # If the data has too much NaN, skip the analysis
                 if np.count_nonzero(np.isnan(seasonsm_value))/len(seasonsm_value) > 0.3 \
                         or seasonsm_value.size == 0\
@@ -179,8 +174,49 @@ class SMSig():
                 # IF the data looks good, exesute the analysis
                     print('data is good')
 
+                    x = np.arange(start=1, step=1, stop=len(seasonsm_value)+1)
+                    y = seasonsm_value
+                    if trans_type[trans] == "dry2wet":
+                        P0 = P0_d2w
+                        Plb = [-5, 0, 0, 1, 0, 0]
+                        Pub = [1.5, 0.1, 150, 150, 1, 1]
+                    elif trans_type[trans] == "wet2dry":
+                        P0 = P0_w2d
+                        Plb =  [0, -0.1, 0, 1, 0, 0]
+                        Pub =  [2.0, 0, 150, 150, 1, 1]
+                    bounds = Bounds(lb = Plb, ub = Pub)
+                    nlc1 = NonlinearConstraint(lambda x: x[0] + x[1]*x[2] - x[4], 0, 0)
+                    nlc2 = NonlinearConstraint(lambda x: x[0] + x[1]*(x[2]+x[3]) - x[5], 0, 0)
+
+                    minimizer_kwargs = dict(method="L-BFGS-B", bounds=bounds, args=(x,y), constraints= (nlc1, nlc2))
+                    res = basinhopping(piecewise_linear_residuals, P0, minimizer_kwargs=minimizer_kwargs)
+                    Pfit = res.x
+                    print(Pfit)
+
+                    # If the wp and fc coincides, or transition is shorter than 7 days, reject it (optimization is likely to have failed)
+                    if abs(Pfit[5]-Pfit[4])<1.0e-03 or Pfit[3] < 7:
+                        if abs(Pfit[5]-Pfit[4])<1.0e-03:
+                            print('FC and WP coincides')
+                        elif Pfit[3] < 7:
+                            print('Duration too short')
+                        Pfit[:] = np.nan
+                    else:
+                        # Get signatures
+                        trans_start_result = seasonsm.axes[0][0] + datetime.timedelta(days=Pfit[2])
+                        trans_end_result = seasonsm.axes[0][0] + datetime.timedelta(days=Pfit[2]+Pfit[3])
+
+                        # Save in the array
+                        seasontrans_date[i,2*trans] = trans_start_result.to_julian_date()
+                        seasontrans_date[i,1+2*trans] = trans_end_result.to_julian_date()
+
+                        plt.figure(figsize=(6, 4))
+                        plt.plot(x, piecewise_linear(res.x, x))
+                        plt.plot(x,y)
+
+        print(seasontrans_date)
 
         # return signatures
+        return seasontrans_date
 
     def compare_results(self, sim, obs):
         None
