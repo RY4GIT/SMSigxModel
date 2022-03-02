@@ -141,7 +141,7 @@ if __name__ == '__main__':
         pr = cProfile.Profile()
         pr.enable()
 
-    main(runtype = "Seasonsig")
+    main(runtype = "GLUE")
 
     # measure the time
     if measuretime:

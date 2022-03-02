@@ -13,7 +13,11 @@ var_names = ["Total Discharge", "Soil Moisture Content"] # variables of interst
 eval_names = ['KGE_Q', 'KGE_SM'] # evaluators
 KGE_Q_thresh = -10 # threshold value
 KGE_SM_thresh = -10 # threshold value
+seasontrans_thresh = 30 # seasonal transition threshold
 quantiles = [0.05, 0.5, 0.95] # quantiles
+
+sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs/SMSig")
+from sig_seasontrans import SMSig
 
 # Global function
 def weighted_quantile(values, quantiles, sample_weight=None,
@@ -137,11 +141,26 @@ class MyGLUE(object):
                 obs_synced = df[var_name + "_y"]
 
                 # Model evaluators
+                # KGE for both streamflow and SM data
                 KGE = spotpy.objectivefunctions.kge_non_parametric(obs_synced, sim_synced)
 
+                # Seasonsig for SM data
                 if var_name == "Soil Moisture Content":
-                    None
-                    # TODO: add seasonsig signature
+
+                    # Observed
+                    sig_obs = SMSig(ts_time=df["Time"].to_numpy(), ts_value=obs_synced.to_numpy())
+                    # sig_obs.detrend() # TODO:debug
+                    sig_obs.movmean()
+                    t_valley = sig_obs.calc_sinecurve()
+                    season_trans_obs = sig_obs.calc_seasontrans(t_valley=t_valley)
+
+                    # simulated
+                    sig_sim = SMSig(ts_time=df["Time"].to_numpy(), ts_value=obs_synced.to_numpy())
+                    sig_sim.movmean()
+                    season_trans_sim = sig_sim.calc_seasontrans(t_valley=t_valley)
+
+                    diff = season_trans_sim - season_trans_obs
+                    diff_avg = abs(np.nanmean(diff, axis=0))
 
                 # Get the variables
                 if var_name == "Total Discharge":
@@ -158,7 +177,12 @@ class MyGLUE(object):
             # ===============================================================
             # Store all the prior parameters
             self.pri_paras.append(self.sampled)
-            if KGE_Q > KGE_Q_thresh and KGE_SM > KGE_SM_thresh: # This is the threshold conditions
+
+
+            if KGE_Q > KGE_Q_thresh and KGE_SM > KGE_SM_thresh and all(diff_avg < seasontrans_thresh):
+                # This is the threshold conditions
+                    # KGE must be above thresholds
+                    # Average transition dates are less than threshold
                 # Store the behavioral runs
                 self.post_rid.append(n) #runid
                 self.post_paras.append(self.sampled) #parameters
@@ -169,6 +193,7 @@ class MyGLUE(object):
                     self.df_Q_behavioral = pd.concat([self.df_Q_behavioral, sim_Q_synced], axis=1)
                     self.df_SM_behavioral = pd.concat([self.df_SM_behavioral, sim_SM_synced], axis=1)
                 self.eval.append([KGE_Q, KGE_SM])
+                # TODO: change eval matrix to accomodate seasonsig values ...
             else:
                 # Discard non-behavioral runs
                 None
@@ -240,8 +265,7 @@ class MyGLUE(object):
         # Get empirical weight
         KGE_Q_weight = (self.df_post_eval["KGE_Q"] - KGE_Q_thresh)/sum( (self.df_post_eval["KGE_Q"] - KGE_Q_thresh))
         KGE_SM_weight = (self.df_post_eval["KGE_SM"] - KGE_SM_thresh) / sum((self.df_post_eval["KGE_SM"] - KGE_SM_thresh))
-        # Get triangular weight
-        # TODO: Get triangular weight
+        # TODO: Get triangular weight for seasontrans
 
         # Get composite weight
         weight = KGE_Q_weight.values + KGE_SM_weight.values
