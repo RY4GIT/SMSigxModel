@@ -114,8 +114,15 @@ def main(runtype):
         obs["Time"] = pd.to_datetime(obs["Time"], format="%d-%b-%Y %H:%M:%S")  # Works specifically for Mahurangi data
 
         sig = SMSig(ts_time=obs["Time"].to_numpy(), ts_value=obs["Soil Moisture Content"].to_numpy())
-        # sig.detrend()
-        sig.calc_sinecurve()
+        sig.movmean()
+        sig.detrend()
+        t_valley = sig.calc_sinecurve()
+        season_trans1 = sig.calc_seasontrans(t_valley=t_valley)
+        season_trans2 = season_trans1 + np.random.randint(1,50,size=season_trans1.shape)
+        diff = season_trans2 - season_trans1
+        diff_avg = np.nanmean(diff, axis=0)
+        # all array has average less than 30 days differences in seasonal transition
+        all(diff_avg < 30)
 
     """
     if runtype == "cfe_CUAHSI":

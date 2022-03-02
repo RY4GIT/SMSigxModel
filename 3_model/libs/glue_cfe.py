@@ -139,6 +139,11 @@ class MyGLUE(object):
                 # Model evaluators
                 KGE = spotpy.objectivefunctions.kge_non_parametric(obs_synced, sim_synced)
 
+                if var_name == "Soil Moisture Content":
+                    None
+                    # TODO: add seasonsig signature
+
+                # Get the variables
                 if var_name == "Total Discharge":
                     KGE_Q = KGE
                     sim_Q_synced = sim_synced

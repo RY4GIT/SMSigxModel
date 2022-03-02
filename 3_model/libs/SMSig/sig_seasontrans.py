@@ -37,8 +37,8 @@ class SMSig():
 
     def __init__(self, ts_time, ts_value):
 
+        # If the data is likely to be in percentage. Convert to VSMC
         if sum(ts_value)/len(ts_value) > 1.5:
-            # The data is likely to be in percentage. Convert to VSMC
             ts_value = ts_value/100
 
         # Aggregate the timeseries of data into daily
@@ -94,6 +94,28 @@ class SMSig():
         # plt.show()
         # plt.legend()
 
+    def movmean(self):
+        # detrend the ts_value using moving average using 1-year window
+        windowsize = 7  # 1wk just for now
+        halfwindow = int(np.rint(windowsize / 2))
+        ts_value_movmean = np.convolve(self.ts_value, np.ones(windowsize) / (windowsize), mode='same')
+
+        # repeat the first and last observaions to prevent data loss
+        ts_value_movmean[0:halfwindow] = ts_value_movmean[halfwindow]
+        ts_value_movmean[len(ts_value_movmean) - halfwindow:-1] = ts_value_movmean[len(ts_value_movmean) - halfwindow]
+        ts_value_movmean[-1] = ts_value_movmean[len(ts_value_movmean) - halfwindow]
+
+        self.ts_value = ts_value_movmean
+        self.tt = pd.Series(self.ts_value, index=self.ts_time_datetime)
+
+        """
+        # plot
+        plt.plot(self.ts_value, label='original')
+        plt.plot(ts_value_movmean, label='movmean')
+        plt.show()
+        plt.legend()
+        """
+
     def calc_sinecurve(self):
         # https://scipy-lectures.org/intro/scipy/auto_examples/plot_curve_fit.html
         # Get the sine curve information from insitu data
@@ -109,8 +131,8 @@ class SMSig():
         sine_start0 = np.floor(self.ts_time_d[0]/365 - phi/2/np.pi)
         sine_start_v = 365/2/np.pi * (2*sine_start0*np.pi + np.pi/2 + phi)
         valley = np.arange(start=sine_start_v, step=365, stop = sine_start_v+ 365* (sine_n+1))
-        self.t_valley = np.full((len(valley),), np.datetime64('1970-01-01T00:00:00Z')) + np.full((len(valley),), np.timedelta64(1,'D')) * valley
-        self.t_valley = pd.Series(self.t_valley)
+        t_valley = np.full((len(valley),), np.datetime64('1970-01-01T00:00:00Z')) + np.full((len(valley),), np.timedelta64(1,'D')) * valley
+        t_valley = pd.Series(t_valley)
 
         # Plot and confirm
         plt.figure(figsize=(6, 4))
@@ -122,17 +144,17 @@ class SMSig():
         plt.show()
 
         # return the dates
-        return self.t_valley
-        # TODO: Change so that calc_seasontrans takes t_valley from outside
+        return t_valley
 
     def calc_fcwp(self):
         # TODO: Calculate fc and wp to constrain the SM ts_value better
         None
 
-    def calc_seasontrans(self):
+    def calc_seasontrans(self, t_valley):
+        self.t_valley = t_valley
         # initialization
-        P0_d2w = [0, -0.001, 10, 100, 0.4, 0.7]
-        P0_w2d = [0.5, 0.001, 10, 100, 0.7, 0.4]
+        P0_d2w = [0, -0.001, 50, 100, 0.4, 0.7]
+        P0_w2d = [0.5, 0.001, 50, 100, 0.7, 0.4]
         trans_type = ["dry2wet", "wet2dry"]
 
         seasontrans_date = np.empty((len(self.t_valley), 4))
@@ -161,9 +183,40 @@ class SMSig():
                 seasonsm = self.tt.loc[mask]
                 seasonsm_value = seasonsm.to_numpy()
 
-                # TODO: Add more cropping treatment
+                """
+                # TODO: Add more cropping treatment ... maybe not needed for this data. seasontrans is quite stable. 
+                # If data has too much NaN, or timeseires is empty, do nothing
+                if np.count_nonzero(np.isnan(seasonsm_value))/len(seasonsm_value) > 0.3 \
+                        or seasonsm_value.size == 0:
+                    None
+                else:
+                    # Try finding the actual wettest & driest point and crop based on it
+                    # Get the half length of the timeseries
+                    nhalf = int(np.floor(len(seasonsm)/2))
+                    if trans_type[trans] == "dry2wet":
+                        # the driest point should be happening in the first half of the timeseries
+                        t_start = seasonsm[1:nhalf].idxmin()
+                        # As the dry period is short, do not use the wettest point to crop the timeseries
+                        t_end = trans_end0
+                        # Create the mask
+                        mask = (self.tt.index >= t_start - datetime.timedelta(days=30)) & (
+                                self.tt.index <= t_end + datetime.timedelta(days=30))
+                    elif trans_type[trans] == "wet2dry":
+                        # The wettest point should be happening in the first half of the timeseries
+                        t_start = seasonsm[1:nhalf].idxmax()
+                        # The driest point should be happening in the later half of the timeseries
+                        t_end = seasonsm[nhalf:-1].idxmax()
+                        mask = (self.tt.index >= t_start - datetime.timedelta(days=45)) & (
+                                self.tt.index <= t_end + datetime.timedelta(days=15))
+                    # re-crop the timeseries with buffer
+                    seasonsm = self.tt.loc[mask]
+                    seasonsm_value = seasonsm.to_numpy()
+                """
 
-                plt.plot(seasonsm)
+                """
+                Actual signature calculation
+                """
+
                 # If the data has too much NaN, skip the analysis
                 if np.count_nonzero(np.isnan(seasonsm_value))/len(seasonsm_value) > 0.3 \
                         or seasonsm_value.size == 0\
@@ -191,7 +244,7 @@ class SMSig():
                     minimizer_kwargs = dict(method="L-BFGS-B", bounds=bounds, args=(x,y), constraints= (nlc1, nlc2))
                     res = basinhopping(piecewise_linear_residuals, P0, minimizer_kwargs=minimizer_kwargs)
                     Pfit = res.x
-                    print(Pfit)
+                    # print(Pfit)
 
                     # If the wp and fc coincides, or transition is shorter than 7 days, reject it (optimization is likely to have failed)
                     if abs(Pfit[5]-Pfit[4])<1.0e-03 or Pfit[3] < 7:
@@ -212,6 +265,7 @@ class SMSig():
                         plt.figure(figsize=(6, 4))
                         plt.plot(x, piecewise_linear(res.x, x))
                         plt.plot(x,y)
+                        plt.show()
 
         print(seasontrans_date)
 
