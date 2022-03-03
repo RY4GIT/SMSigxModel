@@ -92,13 +92,13 @@ def main(runtype):
 
     if runtype == "GLUE":
         # Initialize
-        cfe1 = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'config_cfe.json'))
+        cfe1 = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'full', 'config_cfe.json'))
         cfe1.initialize()
         out_fn_sa = out_path + 'results'
 
         # Start GLUE
         rep = 10
-        glue1 = MyGLUE(cfe_input = cfe1, out_path=out_path) #
+        glue1 = MyGLUE(cfe_input = cfe1, out_path=out_path, nrun =1)
         glue1.simulation()
         glue1.post_process()
         glue1.to_csv()
@@ -118,11 +118,6 @@ def main(runtype):
         sig.detrend()
         t_valley = sig.calc_sinecurve()
         season_trans1 = sig.calc_seasontrans(t_valley=t_valley)
-        season_trans2 = season_trans1 + np.random.randint(1,50,size=season_trans1.shape)
-        diff = season_trans2 - season_trans1
-        diff_avg = np.nanmean(diff, axis=0)
-        # all array has average less than 30 days differences in seasonal transition
-        all(diff_avg < 30)
 
     """
     if runtype == "cfe_CUAHSI":
@@ -135,7 +130,7 @@ def main(runtype):
 
 if __name__ == '__main__':
 
-    measuretime = False
+    measuretime = True
     # measure the time
     if measuretime:
         pr = cProfile.Profile()

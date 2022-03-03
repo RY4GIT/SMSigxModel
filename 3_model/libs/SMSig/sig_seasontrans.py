@@ -35,7 +35,9 @@ def datetime_to_timestamp(ts_datetime):
 
 class SMSig():
 
-    def __init__(self, ts_time, ts_value):
+    def __init__(self, ts_time, ts_value, plot_results):
+
+        self.plot_results = plot_results
 
         # If the data is likely to be in percentage. Convert to VSMC
         if sum(ts_value)/len(ts_value) > 1.5:
@@ -135,13 +137,14 @@ class SMSig():
         t_valley = pd.Series(t_valley)
 
         # Plot and confirm
-        plt.figure(figsize=(6, 4))
-        plt.scatter(self.ts_time_d, self.ts_value, label='Data')
-        plt.plot(self.ts_time_d, sine_func(self.ts_time_d, params[0], params[1], params[2]),
-                 label='Fitted function', color='k')
-        plt.scatter(valley, sine_func(valley, params[0], params[1], params[2]), color='k')
-        plt.legend(loc='best')
-        plt.show()
+        if self.plot_results:
+            plt.figure(figsize=(6, 4))
+            plt.scatter(self.ts_time_d, self.ts_value, label='Data')
+            plt.plot(self.ts_time_d, sine_func(self.ts_time_d, params[0], params[1], params[2]),
+                     label='Fitted function', color='k')
+            plt.scatter(valley, sine_func(valley, params[0], params[1], params[2]), color='k')
+            plt.legend(loc='best')
+            plt.show()
 
         # return the dates
         return t_valley
@@ -262,10 +265,11 @@ class SMSig():
                         seasontrans_date[i,2*trans] = trans_start_result.to_julian_date()
                         seasontrans_date[i,1+2*trans] = trans_end_result.to_julian_date()
 
-                        plt.figure(figsize=(6, 4))
-                        plt.plot(x, piecewise_linear(res.x, x))
-                        plt.plot(x,y)
-                        plt.show()
+                        if self.plot_results:
+                            plt.figure(figsize=(6, 4))
+                            plt.plot(x, piecewise_linear(res.x, x))
+                            plt.plot(x,y)
+                            plt.show()
 
         print(seasontrans_date)
 

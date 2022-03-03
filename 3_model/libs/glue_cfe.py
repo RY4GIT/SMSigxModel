@@ -3,6 +3,7 @@ from spotpy.parameter import Uniform
 from spotpy.objectivefunctions import rmse
 import cfe
 import os
+import sys
 import pandas as pd
 import numpy as np
 import json
@@ -10,7 +11,7 @@ import matplotlib.pyplot as plt
 
 # Global variables
 var_names = ["Total Discharge", "Soil Moisture Content"] # variables of interst
-eval_names = ['KGE_Q', 'KGE_SM'] # evaluators
+eval_names = ['KGE_Q', 'KGE_SM', 'd2w_start', 'd2w_end', 'w2d_start', 'w2d_end'] # evaluators except seasontrans
 KGE_Q_thresh = -10 # threshold value
 KGE_SM_thresh = -10 # threshold value
 seasontrans_thresh = 30 # seasonal transition threshold
@@ -66,7 +67,7 @@ def triangle_weight(x, a, b, c):
 
 # GLUE object
 class MyGLUE(object):
-    def __init__(self, cfe_input, out_path='./', obj_func=None):
+    def __init__(self, cfe_input, out_path='./', nrun = 1, obj_func=None):
 
         self.obj_func = False
         self.out_path = out_path
@@ -79,7 +80,7 @@ class MyGLUE(object):
         ]
 
         # define the number of iterations
-        self.nrun = 3
+        self.nrun = nrun
 
         # initialization
         self.post_rid = []
@@ -148,14 +149,14 @@ class MyGLUE(object):
                 if var_name == "Soil Moisture Content":
 
                     # Observed
-                    sig_obs = SMSig(ts_time=df["Time"].to_numpy(), ts_value=obs_synced.to_numpy())
+                    sig_obs = SMSig(ts_time=df["Time"].to_numpy(), ts_value=obs_synced.to_numpy(), plot_results=False)
                     # sig_obs.detrend() # TODO:debug
                     sig_obs.movmean()
                     t_valley = sig_obs.calc_sinecurve()
                     season_trans_obs = sig_obs.calc_seasontrans(t_valley=t_valley)
 
                     # simulated
-                    sig_sim = SMSig(ts_time=df["Time"].to_numpy(), ts_value=obs_synced.to_numpy())
+                    sig_sim = SMSig(ts_time=df["Time"].to_numpy(), ts_value=sim_synced.to_numpy(), plot_results=False)
                     sig_sim.movmean()
                     season_trans_sim = sig_sim.calc_seasontrans(t_valley=t_valley)
 
@@ -178,7 +179,6 @@ class MyGLUE(object):
             # Store all the prior parameters
             self.pri_paras.append(self.sampled)
 
-
             if KGE_Q > KGE_Q_thresh and KGE_SM > KGE_SM_thresh and all(diff_avg < seasontrans_thresh):
                 # This is the threshold conditions
                     # KGE must be above thresholds
@@ -192,8 +192,8 @@ class MyGLUE(object):
                 else:
                     self.df_Q_behavioral = pd.concat([self.df_Q_behavioral, sim_Q_synced], axis=1)
                     self.df_SM_behavioral = pd.concat([self.df_SM_behavioral, sim_SM_synced], axis=1)
-                self.eval.append([KGE_Q, KGE_SM])
-                # TODO: change eval matrix to accomodate seasonsig values ...
+
+                self.eval.append([KGE_Q, KGE_SM, diff_avg[0], diff_avg[1], diff_avg[2], diff_avg[3]])
             else:
                 # Discard non-behavioral runs
                 None
@@ -206,15 +206,16 @@ class MyGLUE(object):
 
         # Posterior paramters
         param_names = []
-        for i in range(len(self.params)):
-            param_names.append(self.post_paras[0][i][1])
+        if len(self.post_paras) !=0:
+            for i in range(len(self.params)):
+                param_names.append(self.post_paras[0][i][1])
 
-        param_values = np.empty((n_behavioral, len(param_names)))
-        param_values[:] = np.nan
-        for i in range(len(param_names)):
-            for j in range(n_behavioral):
-                param_values[j][i] = self.post_paras[j][i][0]
-        self.df_post_paras = pd.DataFrame(param_values, index=self.post_rid, columns=param_names)
+            param_values = np.empty((n_behavioral, len(param_names)))
+            param_values[:] = np.nan
+            for i in range(len(param_names)):
+                for j in range(n_behavioral):
+                    param_values[j][i] = self.post_paras[j][i][0]
+            self.df_post_paras = pd.DataFrame(param_values, index=self.post_rid, columns=param_names)
 
         # Prior parameters
         param_names = []
@@ -230,20 +231,23 @@ class MyGLUE(object):
         self.df_pri_paras = pd.DataFrame(param_values, columns=param_names)
 
         # Evaluation metrics
-        eval_values = np.empty((n_behavioral, len(eval_names)))
-        eval_values[:] = np.nan
-        for i in range(len(eval_names)):
-            for j in range(n_behavioral):
-                eval_values[j][i] = self.eval[j][i]
-        self.df_post_eval = pd.DataFrame(eval_values, index=self.post_rid, columns=eval_names)
+        if len(self.eval) != 0:
+            eval_values = np.empty((n_behavioral, len(eval_names)))
+            eval_values[:] = np.nan
+            for i in range(len(eval_names)):
+                for j in range(n_behavioral):
+                    eval_values[j][i] = self.eval[j][i]
+            self.df_post_eval = pd.DataFrame(eval_values, index=self.post_rid, columns=eval_names)
 
         # Simulated
         # Total flow
-        self.df_Q_behavioral.set_axis(self.post_rid, axis=1, inplace=True)
-        self.df_Q_behavioral.set_axis(df["Time"], axis=0, inplace=True)
+        if 'self.df_Q_behavioral' in locals():
+            self.df_Q_behavioral.set_axis(self.post_rid, axis=1, inplace=True)
+            self.df_Q_behavioral.set_axis(df["Time"], axis=0, inplace=True)
         # Soil moisture
-        self.df_SM_behavioral.set_axis(self.post_rid, axis=1, inplace=True)
-        self.df_SM_behavioral.set_axis(df["Time"], axis=0, inplace=True)
+        if 'self.df_SM_behavioral' in locals():
+            self.df_SM_behavioral.set_axis(self.post_rid, axis=1, inplace=True)
+            self.df_SM_behavioral.set_axis(df["Time"], axis=0, inplace=True)
 
         # Observed
         # Total flow
@@ -259,47 +263,52 @@ class MyGLUE(object):
         # post-process the results
         print('--- Post-processing the simulated results ---')
 
-        # Initialize
-        t_len = len(self.df_Q_behavioral)
+        if 'self.df_Q_behavioral' in locals():
+            # Initialize
+            t_len = len(self.df_Q_behavioral)
 
-        # Get empirical weight
-        KGE_Q_weight = (self.df_post_eval["KGE_Q"] - KGE_Q_thresh)/sum( (self.df_post_eval["KGE_Q"] - KGE_Q_thresh))
-        KGE_SM_weight = (self.df_post_eval["KGE_SM"] - KGE_SM_thresh) / sum((self.df_post_eval["KGE_SM"] - KGE_SM_thresh))
-        # TODO: Get triangular weight for seasontrans
+            # Get empirical weight
+            KGE_Q_weight = (self.df_post_eval["KGE_Q"] - KGE_Q_thresh)/sum( (self.df_post_eval["KGE_Q"] - KGE_Q_thresh))
+            KGE_SM_weight = (self.df_post_eval["KGE_SM"] - KGE_SM_thresh) / sum((self.df_post_eval["KGE_SM"] - KGE_SM_thresh))
+            # TODO: Get triangular weight for seasontrans
 
-        # Get composite weight
-        weight = KGE_Q_weight.values + KGE_SM_weight.values
+            # Get composite weight
+            weight = KGE_Q_weight.values + KGE_SM_weight.values
 
-        # Calculate weighted quantile
-        for var_name in var_names:
-            if var_name == "Total Discharge":
-                df_behavioral = self.df_Q_behavioral
-            elif var_name == "Soil Moisture Content":
-                df_behavioral = self.df_SM_behavioral
-            np_behavioral = df_behavioral.to_numpy(copy=True)
+            # Calculate weighted quantile
+            for var_name in var_names:
+                if var_name == "Total Discharge":
+                    df_behavioral = self.df_Q_behavioral
+                elif var_name == "Soil Moisture Content":
+                    df_behavioral = self.df_SM_behavioral
+                np_behavioral = df_behavioral.to_numpy(copy=True)
 
-            # Get weighted quantile
-            quantile = np.empty((t_len, len(quantiles)))
-            quantile[:] = np.nan
-            for t in range(t_len):
-                values = np_behavioral[t,:] # df_behavioral.iloc[[t]].values.flatten()
-                quantile[t, :] = weighted_quantile(values=values, quantiles=quantiles, sample_weight=weight,
-                                  values_sorted=False, old_style=False)
-            df_simrange = pd.DataFrame(quantile, index=self.df_Q_behavioral.index, columns=['lowerlim', 'median', 'upperlim'])
-            if var_name == "Total Discharge":
-                self.df_Q_simrange = df_simrange
-            elif var_name == "Soil Moisture Content":
-                self.df_SM_simrange = df_simrange
+                # Get weighted quantile
+                quantile = np.empty((t_len, len(quantiles)))
+                quantile[:] = np.nan
+                for t in range(t_len):
+                    values = np_behavioral[t,:] # df_behavioral.iloc[[t]].values.flatten()
+                    quantile[t, :] = weighted_quantile(values=values, quantiles=quantiles, sample_weight=weight,
+                                      values_sorted=False, old_style=False)
+                df_simrange = pd.DataFrame(quantile, index=self.df_Q_behavioral.index, columns=['lowerlim', 'median', 'upperlim'])
+                if var_name == "Total Discharge":
+                    self.df_Q_simrange = df_simrange
+                elif var_name == "Soil Moisture Content":
+                    self.df_SM_simrange = df_simrange
 
     def to_csv(self):
         print('--- Saving data into csv file ---')
 
         # save the results to csv
-        self.df_post_paras.to_csv(os.path.join(self.out_path, 'parameter_posterior.csv'), sep=',', header=True, index=False, encoding='utf-8')
-        self.df_pri_paras.to_csv(os.path.join(self.out_path, 'paramter_priori.csv'), sep=',', header=True, index=False, encoding='utf-8')
-        self.df_post_eval.to_csv(os.path.join(self.out_path, 'evaluations.csv'), sep=',', header=True, index=False, encoding='utf-8')
-        self.df_Q_simrange.to_csv(os.path.join(self.out_path, 'quantiles_Q.csv'), sep=',', header=True, index=False, encoding='utf-8')
-        self.df_SM_simrange.to_csv(os.path.join(self.out_path, 'quantiles_SM.csv'), sep=',', header=True, index=False, encoding='utf-8')
+        if 'self.df_post_paras' in locals():
+            self.df_post_paras.to_csv(os.path.join(self.out_path, 'parameter_posterior.csv'), sep=',', header=True, index=False, encoding='utf-8', na_rep='nan')
+        self.df_pri_paras.to_csv(os.path.join(self.out_path, 'paramter_priori.csv'), sep=',', header=True, index=False, encoding='utf-8', na_rep='nan')
+        if 'self.df_post_eval' in locals():
+            self.df_post_eval.to_csv(os.path.join(self.out_path, 'evaluations.csv'), sep=',', header=True, index=False, encoding='utf-8', na_rep='nan')
+        if 'self.df_Q_simrange' in locals():
+            self.df_Q_simrange.to_csv(os.path.join(self.out_path, 'quantiles_Q.csv'), sep=',', header=True, index=False, encoding='utf-8', na_rep='nan')
+        if 'self.df_SM_simrange' in locals():
+            self.df_SM_simrange.to_csv(os.path.join(self.out_path, 'quantiles_SM.csv'), sep=',', header=True, index=False, encoding='utf-8', na_rep='nan')
 
     def plot(self):
         # Plot the results
@@ -311,8 +320,10 @@ class MyGLUE(object):
         for i in range(nparas):
             target_para = self.df_pri_paras.columns[i]
             ax1 = f.add_subplot(1, nparas, i+1)
+
             self.df_pri_paras[target_para].plot.hist(bins=10, alpha=0.4, ax=ax1, color="#3182bd", label="Prior")
-            self.df_post_paras[target_para].plot.hist(bins=10, alpha=0.8, ax=ax1, color="#3182bd", label="Posterior")
+            if 'self.df_post_paras' in locals():
+                self.df_post_paras[target_para].plot.hist(bins=10, alpha=0.8, ax=ax1, color="#3182bd", label="Posterior")
             ax1.set_xlabel(target_para)
             ax1.legend()
             if i !=0:
@@ -320,33 +331,35 @@ class MyGLUE(object):
         f.savefig(os.path.join(self.out_path, 'param_dist.png'), dpi=600)
 
         # Time series of data
-        for var_name in var_names:
-            if var_name == "Total Discharge":
-                df_simrange = self.df_Q_simrange
-                df_obs = self.df_Q_obs
-                obs_label = 'Observed discharge'
-                y_label = 'Total flow [mm/hour]'
-                title = 'Total flow for behavioral runs'
-                fn = 'Q_range.png'
-            elif var_name == "Soil Moisture Content":
-                df_simrange = self.df_SM_simrange
-                df_obs = self.df_SM_obs
-                obs_label = 'Observed soil moisture'
-                y_label = 'Volmetric Soil Moisture Content [m^3/m^3]'
-                title = 'Soil moisture for behavioral runs'
-                fn = 'SM_range.png'
+        if 'self.df_Q_simrange' in locals():
+            for var_name in var_names:
+                if var_name == "Total Discharge":
+                    df_simrange = self.df_Q_simrange
+                    df_obs = self.df_Q_obs
+                    obs_label = 'Observed discharge'
+                    y_label = 'Total flow [mm/hour]'
+                    title = 'Total flow for behavioral runs'
+                    fn = 'Q_range.png'
+                elif var_name == "Soil Moisture Content":
+                    df_simrange = self.df_SM_simrange
+                    df_obs = self.df_SM_obs
+                    obs_label = 'Observed soil moisture'
+                    y_label = 'Volmetric Soil Moisture Content [m^3/m^3]'
+                    title = 'Soil moisture for behavioral runs'
+                    fn = 'SM_range.png'
 
-            f2 = plt.figure(figsize=(8,6))
-            ax2 = f2.add_subplot()
-            df_simrange['lowerlim'].plot(color='black',alpha=0.2, ax= ax2,  label='_Hidden')
-            df_simrange['upperlim'].plot(color='black', alpha=0.2, ax=ax2,  label='_Hidden')
-            df_obs.plot(color='black', alpha=1, ax=ax2, label=obs_label)
-            plt.fill_between(df_simrange.index, df_simrange['upperlim'], df_simrange['lowerlim'],
-                             facecolor='green', alpha=0.2, interpolate=True, label='Predicted range')
-            ax2.set_xlabel('Time')
-            ax2.set_ylabel(y_label)
-            ax2.set_title(title)
-            ax2.legend()
-            f2.savefig(os.path.join(self.out_path, fn), dpi=600)
+                f2 = plt.figure(figsize=(8,6))
+                ax2 = f2.add_subplot()
+
+                df_simrange['lowerlim'].plot(color='black',alpha=0.2, ax= ax2,  label='_Hidden')
+                df_simrange['upperlim'].plot(color='black', alpha=0.2, ax=ax2,  label='_Hidden')
+                df_obs.plot(color='black', alpha=1, ax=ax2, label=obs_label)
+                plt.fill_between(df_simrange.index, df_simrange['upperlim'], df_simrange['lowerlim'],
+                                 facecolor='green', alpha=0.2, interpolate=True, label='Predicted range')
+                ax2.set_xlabel('Time')
+                ax2.set_ylabel(y_label)
+                ax2.set_title(title)
+                ax2.legend()
+                f2.savefig(os.path.join(self.out_path, fn), dpi=600)
 
 
