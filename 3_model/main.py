@@ -102,7 +102,7 @@ def main(runtype):
         glue1.simulation()
         glue1.post_process()
         glue1.to_csv()
-        # glue1.plot()
+        glue1.plot()
 
     if runtype == "Seasonsig":
 

@@ -10,7 +10,7 @@ import json
 import matplotlib.pyplot as plt
 
 # Global variables
-var_names = ["Total Discharge", "Soil Moisture Content"] # variables of interst
+var_names = ["Flow", "Soil Moisture Content"] # variables of interst
 eval_names = ['KGE_Q', 'KGE_SM', 'd2w_start', 'd2w_end', 'w2d_start', 'w2d_end'] # evaluators except seasontrans
 KGE_Q_thresh = -10 # threshold value
 KGE_SM_thresh = -10 # threshold value
@@ -164,7 +164,7 @@ class MyGLUE(object):
                     diff_avg = abs(np.nanmean(diff, axis=0))
 
                 # Get the variables
-                if var_name == "Total Discharge":
+                if var_name == "Flow":
                     KGE_Q = KGE
                     sim_Q_synced = sim_synced
                     obs_Q_synced = obs_synced
@@ -277,7 +277,7 @@ class MyGLUE(object):
 
             # Calculate weighted quantile
             for var_name in var_names:
-                if var_name == "Total Discharge":
+                if var_name == "Flow":
                     df_behavioral = self.df_Q_behavioral
                 elif var_name == "Soil Moisture Content":
                     df_behavioral = self.df_SM_behavioral
@@ -291,7 +291,7 @@ class MyGLUE(object):
                     quantile[t, :] = weighted_quantile(values=values, quantiles=quantiles, sample_weight=weight,
                                       values_sorted=False, old_style=False)
                 df_simrange = pd.DataFrame(quantile, index=self.df_Q_behavioral.index, columns=['lowerlim', 'median', 'upperlim'])
-                if var_name == "Total Discharge":
+                if var_name == "Flow":
                     self.df_Q_simrange = df_simrange
                 elif var_name == "Soil Moisture Content":
                     self.df_SM_simrange = df_simrange
@@ -333,10 +333,10 @@ class MyGLUE(object):
         # Time series of data
         if 'self.df_Q_simrange' in locals():
             for var_name in var_names:
-                if var_name == "Total Discharge":
+                if var_name == "Flow":
                     df_simrange = self.df_Q_simrange
                     df_obs = self.df_Q_obs
-                    obs_label = 'Observed discharge'
+                    obs_label = 'Observed flow'
                     y_label = 'Total flow [mm/hour]'
                     title = 'Total flow for behavioral runs'
                     fn = 'Q_range.png'
