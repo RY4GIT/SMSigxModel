@@ -48,7 +48,7 @@ def main(runtype):
         print('Start sensitivity analysis')
 
         # preparation & sampling parameters
-        cfe_instance = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'config_cfe.json'))
+        cfe_instance = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'full', 'config_cfe.json'))
         problem = {
             'num_vars':6,
             'names': ['smcmax', 'wltsmc', 'K_lf', 'K_nash', 'D', 'bb'],
@@ -61,7 +61,7 @@ def main(runtype):
         }
 
         salib_experiment = SALib_CFE(
-            cfe_instance=cfe_instance, problem=problem, SAmethod='FAST', out_path=out_path
+            cfe_instance=cfe_instance, problem=problem, SAmethod='Sobol', out_path=out_path
         )
         salib_experiment.run()
         salib_experiment.plot(plot_type='STS1')
@@ -136,7 +136,7 @@ if __name__ == '__main__':
         pr = cProfile.Profile()
         pr.enable()
 
-    main(runtype = "GLUE")
+    main(runtype = "SALib")
 
     # measure the time
     if measuretime:

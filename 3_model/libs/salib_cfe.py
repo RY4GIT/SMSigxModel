@@ -68,7 +68,7 @@ class SALib_CFE():
 
         if self.SAmethod == "Morris":
             # sample
-            iteration = 3
+            iteration = 1
             n_levels = 2
             self.param_values = morris_s.sample(self.problem, iteration, num_levels=n_levels)
 
@@ -268,14 +268,14 @@ def salib_cfe_interface(X, param_names, myCFE):
     myCFE.run_unit_test(plot=False, print_fluxes=False)
 
     sim = myCFE.cfe_output_data[["Time", "Total Discharge"]]
-    sim["Time"] = pd.to_datetime(sim["Time"])
+    sim["Time"] = pd.to_datetime(sim["Time"], format="%Y-%m-%d %H:%M:%S")
     sim = sim.set_index("Time")
     # return sim
 
     # Get the comparison data
     data = myCFE.unit_test_data
     obs = data[["Time", "Total Discharge"]]
-    obs["Time"] = pd.to_datetime(obs["Time"])
+    obs["Time"] = pd.to_datetime(obs["Time"], format="%d-%b-%Y %H:%M:%S")
     obs = obs.set_index("Time")
     # return obs
 

@@ -3,6 +3,7 @@
 % (B) 
 
 %% preparation
+cd('G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\1_code')
 in_path = '../0_data/Mahurangi';
 out_path = '../2_data_input/Mahurangi/full';
 
@@ -41,7 +42,7 @@ PET.Properties.VariableNames = {'PET'};
 load(fullfile(in_path, 'soilmoisture.mat'));
 
 % get weight
-sm_info = readtable('Mahurangi_site_info.xlsx', 'Sheet', 'Soil_moisture_selection');
+sm_info = readtable(fullfile(in_path,'Mahurangi_site_info.xlsx'), 'Sheet', 'Soil_moisture_selection');
 weight0 = sm_info.WeightBasedOnArea_calculatedByRyoko_;
 
 weight = repelem(weight0',size(allsmup,1),1);
