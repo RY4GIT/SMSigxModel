@@ -36,6 +36,9 @@ if not os.path.exists(out_path):
     os.mkdir(out_path)
 data_file_path = '../2_data_input/Mahurangi'
 
+# from numba import jit
+# @jit
+
 def main(runtype):
 
     if runtype == "NOAA_CFE":
@@ -136,7 +139,7 @@ if __name__ == '__main__':
         pr = cProfile.Profile()
         pr.enable()
 
-    main(runtype = "SALib")
+    main(runtype = "GLUE")
 
     # measure the time
     if measuretime:

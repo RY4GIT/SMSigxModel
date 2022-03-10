@@ -6,6 +6,7 @@ from scipy import optimize
 import datetime
 from scipy.optimize import NonlinearConstraint, Bounds, basinhopping
 
+
 def plus_func(x):
     x2 = np.full((len(x),), 0)
     for idx, num in enumerate(x):
@@ -245,9 +246,31 @@ class SMSig():
                     nlc2 = NonlinearConstraint(lambda x: x[0] + x[1]*(x[2]+x[3]) - x[5], 0, 0)
 
                     minimizer_kwargs = dict(method="L-BFGS-B", bounds=bounds, args=(x,y), constraints= (nlc1, nlc2))
-                    res = basinhopping(piecewise_linear_residuals, P0, minimizer_kwargs=minimizer_kwargs)
+                    res = basinhopping(piecewise_linear_residuals, P0, niter=5, minimizer_kwargs=minimizer_kwargs)
                     Pfit = res.x
                     # print(Pfit)
+                    # print(res.fun)
+
+                    """
+                    # Show response surfaces
+                    # sample input range uniformly at 0.1 increments
+                    p1axis = np.arange(Plb[1], Pub[1], 0.001)
+                    p2axis = np.arange(Plb[3], Pub[3], 1)
+                    # create a mesh from the axis
+                    p1, p2 = np.meshgrid(p1axis, p2axis)
+                    results = np.full(p1.shape, 0)
+                    # compute targets
+                    for i in range(p1.shape[0]):
+                        for j in range(p1.shape[1]):
+                            P_01 = [P0[0], p1[i][j],P0[2],  p2[i][j], P0[4], P0[5]]
+                            results[i][j] = piecewise_linear_residuals(P_01, x, y)
+                    # create a surface plot with the jet color scheme
+                    figure = plt.figure()
+                    axis = figure.gca(projection='3d')
+                    axis.plot_surface(p1, p2, results, cmap='jet')
+                    # show the plot
+                    plt.show()
+                    """
 
                     # If the wp and fc coincides, or transition is shorter than 7 days, reject it (optimization is likely to have failed)
                     if abs(Pfit[5]-Pfit[4])<1.0e-03 or Pfit[3] < 7:
