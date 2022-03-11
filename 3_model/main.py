@@ -68,11 +68,10 @@ def main(runtype):
             "giuh_ordinates": [0.1, 0.35, 0.2, 0.14, 0.1, 0.06, 0.05],
             "refkdt": 2.325787803305572,
             "trigger_z_m": 0.8340054706423846,
-            "field_capacity_atm_press_fraction": 0.33,
+            "fc_atm_press_fraction": 0.33,
             "stand_alone": 1,
             "unit_test": 1,
             "compare_results_file": "G:\\Shared drives\\Ryoko and Hilary\\SMSigxModel\\analysis\\2_data_input\\Mahurangi\\full\\test_sm_basinavg.csv",
-            "field_capacity_atm_press_fract": 0.2874548842942498
         }
 
         input_path = os.path.join(data_file_path, 'full', 'config_cfe.json')

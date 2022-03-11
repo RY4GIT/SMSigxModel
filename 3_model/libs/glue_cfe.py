@@ -84,7 +84,7 @@ class MyGLUE(object):
             spotpy.parameter.Uniform('exponent_secondary', low=1, high=8),
             spotpy.parameter.Uniform('coeff_secondary', low=0.01, high=3),
             spotpy.parameter.Uniform('trigger_z_m', low=0.01, high=0.87),
-            spotpy.parameter.Uniform('field_capacity_atm_press_fraction', low=0.10, high=0.33),
+            spotpy.parameter.Uniform('fc_atm_press_fraction', low=0.10, high=0.33),
             spotpy.parameter.Uniform('max_gw_storage', low=10, high=250),
             spotpy.parameter.Uniform('Cgw', low=0.01, high=1),
             spotpy.parameter.Uniform('expon', low=1, high=8),
