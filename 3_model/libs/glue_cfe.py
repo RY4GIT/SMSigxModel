@@ -76,8 +76,8 @@ class MyGLUE(object):
         # define parameter bounds
         self.params = [
             spotpy.parameter.Uniform('bb', low=2, high=15),
-            spotpy.parameter.Uniform('satdk', low=1E-07, high=1E-05),
             spotpy.parameter.Uniform('satdk', low=0, high=1),
+            spotpy.parameter.Uniform('slop', low=0, high=0.1), # maybe I should keep this as 0.2
             spotpy.parameter.Uniform('satpsi', low=0.02, high=0.78),
             spotpy.parameter.Uniform('smcmax', low=0.33, high=0.7),
             spotpy.parameter.Uniform('wltsmc', low=0.0, high=0.57),
@@ -330,21 +330,24 @@ class MyGLUE(object):
 
         # Prior vs. posterior parameter distributions
         nparas = len(self.df_pri_paras.columns)
-        f = plt.figure(figsize=(4*nparas, 4))
+        f = plt.figure(figsize=(4*4, 4*4))
 
         for i in range(nparas):
             target_para = self.df_pri_paras.columns[i]
-            ax1 = f.add_subplot(1, nparas, i+1)
+            ax1 = f.add_subplot(4, 4, i+1)
 
             self.df_pri_paras[target_para].plot.hist(bins=10, alpha=0.4, ax=ax1, color="#3182bd", label="Prior")
 
             if hasattr(self, 'df_post_paras'):
                 self.df_post_paras[target_para].plot.hist(bins=10, alpha=0.8, ax=ax1, color="#3182bd", label="Posterior")
+
             ax1.set_xlabel(target_para)
             ax1.legend()
 
             if i !=0:
                 ax1.yaxis.set_visible(False)
+
+        # f.plot()
 
         f.savefig(os.path.join(self.out_path, 'param_dist.png'), dpi=600)
 
@@ -371,7 +374,7 @@ class MyGLUE(object):
 
                 df_simrange['lowerlim'].plot(color='black',alpha=0.2, ax= ax2,  label='_Hidden')
                 df_simrange['upperlim'].plot(color='black', alpha=0.2, ax=ax2,  label='_Hidden')
-                df_obs.plot(color='black', alpha=1, ax=ax2, label=obs_label)
+                df_obs[var_name + "_y"].plot(color='black', alpha=1, ax=ax2, label=obs_label)
                 plt.fill_between(df_simrange.index, df_simrange['upperlim'], df_simrange['lowerlim'],
                                  facecolor='green', alpha=0.2, interpolate=True, label='Predicted range')
                 if var_name == "Flow":
@@ -381,5 +384,7 @@ class MyGLUE(object):
                 ax2.set_title(title)
                 ax2.legend()
                 f2.savefig(os.path.join(self.out_path, fn), dpi=600)
+
+                f2.plot()
 
 
