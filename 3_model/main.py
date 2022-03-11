@@ -100,8 +100,8 @@ def main(runtype):
         out_fn_sa = out_path + 'results'
 
         # Start GLUE
-        rep = 10
-        glue1 = MyGLUE(cfe_input = cfe1, out_path=out_path, nrun =1)
+        nrun = 3
+        glue1 = MyGLUE(cfe_input = cfe1, out_path=out_path, nrun=nrun)
         glue1.simulation()
         glue1.post_process()
         glue1.to_csv()

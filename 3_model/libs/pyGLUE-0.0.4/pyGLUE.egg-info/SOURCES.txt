@@ -1,0 +1,8 @@
+README
+setup.py
+pyGLUE/GLUEmp.py
+pyGLUE/__init__.py
+pyGLUE.egg-info/PKG-INFO
+pyGLUE.egg-info/SOURCES.txt
+pyGLUE.egg-info/dependency_links.txt
+pyGLUE.egg-info/top_level.txt

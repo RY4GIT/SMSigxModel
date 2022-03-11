@@ -53,6 +53,11 @@ scale_smlo = sum(weight .* ~isnan(allsmlo),2);
 weighted_smup = allsmup .* weight ./ scale_smup;
 weighted_smlo = allsmlo .* weight ./ scale_smlo;
 
+% if mean(weighted_smup,'all','omitnan') > 1.5
+%     weighted_smup = weighted_smup/100;
+%     weighted_smlo = weighted_smlo/100;
+% end
+
 % calculate weighted avg
 
 % sm_30cm_avg_original = mean(allsmup, 2, 'omitnan');
@@ -67,7 +72,7 @@ sm_60cm_avg_tt = timetable(datetime(alldates,'ConvertFrom','datenum'), sm_60cm_a
 sm_60cm_avg_tt.Properties.DimensionNames = {'Time'  'Variables'};
 sm_60cm_avg_tt.Properties.VariableNames = {'Soil Moisture Content'};
 
-sm_avg_tt = timetable(datetime(alldates,'ConvertFrom','datenum'), mean([sm_30cm_avg sm_60cm_avg/100], 2));  % percentile --> fraction
+sm_avg_tt = timetable(datetime(alldates,'ConvertFrom','datenum'), mean([sm_30cm_avg./100 sm_60cm_avg./100], 2));  % percentile --> fraction
 sm_avg_tt.Properties.DimensionNames = {'Time'  'Variables'};
 sm_avg_tt.Properties.VariableNames = {'VSMC'};
 

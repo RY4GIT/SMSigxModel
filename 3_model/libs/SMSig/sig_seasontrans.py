@@ -225,11 +225,11 @@ class SMSig():
                 if np.count_nonzero(np.isnan(seasonsm_value))/len(seasonsm_value) > 0.3 \
                         or seasonsm_value.size == 0\
                         or len(seasonsm_value) < 90:
-                    print('data is not good')
+                    # print('data is not good')
                     seasontrans_date[i,:] = np.nan
                 else:
                 # IF the data looks good, exesute the analysis
-                    print('data is good')
+                    # print('data is good')
 
                     x = np.arange(start=1, step=1, stop=len(seasonsm_value)+1)
                     y = seasonsm_value
@@ -275,9 +275,9 @@ class SMSig():
                     # If the wp and fc coincides, or transition is shorter than 7 days, reject it (optimization is likely to have failed)
                     if abs(Pfit[5]-Pfit[4])<1.0e-03 or Pfit[3] < 7:
                         if abs(Pfit[5]-Pfit[4])<1.0e-03:
-                            print('FC and WP coincides')
+                            None # print('FC and WP coincides')
                         elif Pfit[3] < 7:
-                            print('Duration too short')
+                            None # print('Duration too short')
                         Pfit[:] = np.nan
                     else:
                         # Get signatures
@@ -294,7 +294,7 @@ class SMSig():
                             plt.plot(x,y)
                             plt.show()
 
-        print(seasontrans_date)
+        # print(seasontrans_date)
 
         # return signatures
         return seasontrans_date
