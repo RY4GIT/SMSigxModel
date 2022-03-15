@@ -34,6 +34,17 @@ def datetime_to_timestamp(ts_datetime):
     # Define a vairable
     self.ts_time_d = ts_timestamp_d.astype('int')  # Timestamp array in seconds
 
+
+class MyTakeStep(object):
+   def __init__(self, stepsize=0.5):
+       self.stepsize = stepsize
+   def __call__(self, x):
+       s = self.stepsize
+       x[:] += np.random.uniform(-s, s, x[:].shape)
+       x[2] += np.random.uniform(-100.*s, 100.*s)
+       x[3] += np.random.uniform(-100.*s, 100.*s)
+       return x
+
 class SMSig():
 
     def __init__(self, ts_time, ts_value, plot_results):
@@ -157,8 +168,8 @@ class SMSig():
     def calc_seasontrans(self, t_valley):
         self.t_valley = t_valley
         # initialization
-        P0_d2w = [0, -0.001, 50, 100, 0.4, 0.7]
-        P0_w2d = [0.5, 0.001, 50, 100, 0.7, 0.4]
+        P0_d2w = [0, 0.0005, 60, 120, 0.4, 0.7]
+        P0_w2d = [0.5, -0.0005, 120, 80, 0.7, 0.4]
         trans_type = ["dry2wet", "wet2dry"]
 
         seasontrans_date = np.empty((len(self.t_valley), 4))
@@ -235,18 +246,19 @@ class SMSig():
                     y = seasonsm_value
                     if trans_type[trans] == "dry2wet":
                         P0 = P0_d2w
-                        Plb = [-5, 0, 0, 1, 0, 0]
-                        Pub = [1.5, 0.1, 150, 150, 1, 1]
+                        Plb = [-5,  0,   0,   1,   -1,   -1]
+                        Pub = [1.5, 0.1, 150, 200, 2.0, 10]
                     elif trans_type[trans] == "wet2dry":
                         P0 = P0_w2d
-                        Plb =  [0, -0.1, 0, 1, 0, 0]
-                        Pub =  [2.0, 0, 150, 150, 1, 1]
+                        Plb =  [-1,  -0.1, 0,      1,    0,   -1.5]
+                        Pub =  [2.0, 0,    150,    200,  2.0, 10]
                     bounds = Bounds(lb = Plb, ub = Pub)
-                    nlc1 = NonlinearConstraint(lambda x: x[0] + x[1]*x[2] - x[4], 0, 0)
-                    nlc2 = NonlinearConstraint(lambda x: x[0] + x[1]*(x[2]+x[3]) - x[5], 0, 0)
+                    nlc1 = NonlinearConstraint(lambda x: x[0] + x[1]*x[2] - x[4], -0.1, 0.1)
+                    nlc2 = NonlinearConstraint(lambda x: x[0] + x[1]*(x[2]+x[3]) - x[5], -0.1, 0.1)
+                    take_step = MyTakeStep()
 
-                    minimizer_kwargs = dict(method="L-BFGS-B", bounds=bounds, args=(x,y), constraints= (nlc1, nlc2))
-                    res = basinhopping(piecewise_linear_residuals, P0, niter=5, minimizer_kwargs=minimizer_kwargs)
+                    minimizer_kwargs = dict(method="L-BFGS-B", bounds=bounds, args=(x,y)) #, constraints= (nlc1, nlc2))
+                    res = basinhopping(piecewise_linear_residuals, P0, take_step=take_step, niter=10, minimizer_kwargs=minimizer_kwargs)
                     Pfit = res.x
                     # print(Pfit)
                     # print(res.fun)
@@ -283,6 +295,7 @@ class SMSig():
                         # Get signatures
                         trans_start_result = seasonsm.axes[0][0] + datetime.timedelta(days=Pfit[2])
                         trans_end_result = seasonsm.axes[0][0] + datetime.timedelta(days=Pfit[2]+Pfit[3])
+                        # print(trans_start_result, trans_end_result)
 
                         # Save in the array
                         seasontrans_date[i,2*trans] = trans_start_result.to_julian_date()
