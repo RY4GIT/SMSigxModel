@@ -59,7 +59,7 @@ class SMSig():
         ts_timestamp_d = ts_timestamp_ns.astype('timedelta64[D]')
 
         # Define a vairable
-        self.ts_time_d = ts_timestamp_d.astype('int')  # Timestamp array in seconds
+        self.ts_time_d = ts_timestamp_d.astype('int')  # Timestamp array in dates
 
         # self.timestep = hourly # TODO: make it flexible later
         # TODO: Moving average for 7days or 30days

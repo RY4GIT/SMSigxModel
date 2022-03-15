@@ -92,22 +92,56 @@ def main(runtype):
         # preparation & sampling parameters
         cfe_instance = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'full', 'config_cfe.json'))
         problem = {
-            'num_vars':6,
-            'names': ['smcmax', 'wltsmc', 'K_lf', 'K_nash', 'D', 'bb'],
-            'bounds': [[0, 1.0],
-                       [0, 1.0],
-                       [0.000001, 100],
-                       [0.00001,30],
-                       [1,10],
-                       [1,6]]
+            'num_vars':16,
+            'names': ['bb',
+                      'satdk',
+                      'satpsi',
+                      'slop',
+                      'smcmax',
+                      'wltsmc',
+                      'D',
+                      'coeff_secondary',
+                      'exponent_secondary',
+                      'max_gw_storage',
+                      'Cgw',
+                      'expon',
+                      'K_nash',
+                      'refkdt',
+                      'trigger_z_m',
+                      'fc_atm_press_fraction'
+                      ],
+            'bounds': [[2, 15], # bb
+                       [0, 1],  # satdk
+                       [0.02, 0.78], # satpsi
+                       [0,1], # slop
+                       [0.33, 0.7], # smcmax
+                       [0,0.5], #wltsmc
+                       [0.01, 2], # D
+                       [0.01, 3], #coeff_secondary
+                       [1,8], #exponent_secondary
+                       [10,250], # max_gw_storage
+                       [0.01,3], # Cgw
+                       [1,8], # expon
+                       [0,1], #K_nash
+                       [0.1,4], #refkdt
+                       [0.01,0.87], # trigger_z_m
+                       [0.01,0.33] #fc_atm_press_fraction
+                       ]
         }
 
+        """
         salib_experiment = SALib_CFE(
             cfe_instance=cfe_instance, problem=problem, SAmethod='Sobol', out_path=out_path
         )
         salib_experiment.run()
         salib_experiment.plot(plot_type='STS1')
+        """
 
+        salib_experiment = SALib_CFE(
+            cfe_instance=cfe_instance, problem=problem, SAmethod='Morris', out_path=out_path
+        )
+        salib_experiment.run()
+        salib_experiment.plot(plot_type='EET')
 
     if runtype == "SPOTPy":
         # Initialize
@@ -139,7 +173,7 @@ def main(runtype):
         out_fn_sa = out_path + 'results'
 
         # Start GLUE
-        nrun = 3
+        nrun = 1000
         glue1 = MyGLUE(cfe_input = cfe1, out_path=out_path, nrun=nrun)
         glue1.simulation()
         glue1.post_process()
@@ -178,7 +212,7 @@ if __name__ == '__main__':
         pr = cProfile.Profile()
         pr.enable()
 
-    main(runtype = "NOAA_CFE")
+    main(runtype = "GLUE")
 
     # measure the time
     if measuretime:

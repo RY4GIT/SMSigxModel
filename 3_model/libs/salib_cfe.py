@@ -33,7 +33,7 @@ class SALib_CFE():
     def run(self):
         if self.SAmethod == "Sobol":
             # sample
-            n = 1
+            n = 250
             self.param_values = saltelli.sample(self.problem, n, calc_second_order=True)
 
             # run a model
@@ -68,16 +68,16 @@ class SALib_CFE():
 
         if self.SAmethod == "Morris":
             # sample
-            iteration = 1
-            n_levels = 2
-            self.param_values = morris_s.sample(self.problem, iteration, num_levels=n_levels)
+            N = 500
+            n_levels = 4
+            self.param_values = morris_s.sample(self.problem, N=N, num_levels=n_levels)
 
             # run a model
             self.Y = run_cfes(
                 problem = self.problem,
                 cfe_instance = self.cfe_instance,
                 param_values=self.param_values,
-                nrun = iteration * (self.problem['num_vars']+1)
+                nrun = N * (self.problem['num_vars']+1)
             )
 
             # evaluation
@@ -118,6 +118,8 @@ class SALib_CFE():
             plt.xticks(**pltfont)
             plt.yticks(**pltfont)
             fig.set_size_inches(7, 7)
+
+            out_fn = 'test_EET.png'
 
 
         if plot_type == "dotty":
@@ -229,10 +231,10 @@ class SALib_CFE():
                 lw = 0.5 + max_linewidth_s2 * normalize(weight, s2min, s2max)
                 ax.plot([loc1, loc2], [1, 1], c='darkgray', lw=lw, zorder=1)
 
-        out_fn = 'test_radial.png'
-        sns.set_style('whitegrid')
+            out_fn = 'test_radial.png'
+            sns.set_style('whitegrid')
 
-        out_path_plot = os.path.join(self.out_path, 'plot')
+        out_path_plot = os.path.join(self.out_path, 'plot_SALib')
         if not os.path.exists(out_path_plot):
             # Create a new directory because it does not exist
             os.makedirs(out_path_plot)

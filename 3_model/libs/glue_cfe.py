@@ -12,9 +12,9 @@ import matplotlib.pyplot as plt
 # Global variables
 var_names = ["Flow", "Soil Moisture Content"] # variables of interst
 eval_names = ['KGE_Q', 'KGE_SM', 'd2w_start', 'd2w_end', 'w2d_start', 'w2d_end'] # evaluators except seasontrans
-KGE_Q_thresh = -10 # threshold value
-KGE_SM_thresh = -10 # threshold value
-seasontrans_thresh = 30 # seasonal transition threshold
+KGE_Q_thresh = 0.5 # threshold value
+KGE_SM_thresh = 0.5 # threshold value
+seasontrans_thresh = 10 # seasonal transition threshold
 quantiles = [0.05, 0.5, 0.95] # quantiles
 
 sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs/SMSig")
@@ -105,6 +105,7 @@ class MyGLUE(object):
     def simulation(self):
     # run the simulation
         print('--- Running CFE model ---')
+        m = 0
         for n in range(self.nrun):
 
             print('{}-th run'.format(n))
@@ -200,13 +201,13 @@ class MyGLUE(object):
                 # Store the behavioral runs
                 self.post_rid.append(n) #runid
                 self.post_paras.append(self.sampled) #parameters
-                if n == 0:
+                if m == 0:
                     self.df_Q_behavioral = sim_Q_synced #timeseires
                     self.df_SM_behavioral = sim_SM_synced
                 else:
                     self.df_Q_behavioral = pd.concat([self.df_Q_behavioral, sim_Q_synced], axis=1)
                     self.df_SM_behavioral = pd.concat([self.df_SM_behavioral, sim_SM_synced], axis=1)
-
+                m += 1
                 self.eval.append([KGE_Q, KGE_SM, diff_avg[0], diff_avg[1], diff_avg[2], diff_avg[3]])
             else:
                 # Discard non-behavioral runs
@@ -377,14 +378,14 @@ class MyGLUE(object):
                 df_obs[var_name + "_y"].plot(color='black', alpha=1, ax=ax2, label=obs_label)
                 plt.fill_between(df_simrange.index, df_simrange['upperlim'], df_simrange['lowerlim'],
                                  facecolor='green', alpha=0.2, interpolate=True, label='Predicted range')
-                if var_name == "Flow":
-                    ax2.set_yscale('log')
+                # if var_name == "Flow":
+                #     ax2.set_yscale('log')
                 ax2.set_xlabel('Time')
                 ax2.set_ylabel(y_label)
                 ax2.set_title(title)
                 ax2.legend()
                 f2.savefig(os.path.join(self.out_path, fn), dpi=600)
 
-                f2.plot()
+                # f2.plot()
 
 
