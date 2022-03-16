@@ -14,7 +14,7 @@ var_names = ["Flow", "Soil Moisture Content"] # variables of interst
 eval_names = ['KGE_Q', 'KGE_SM', 'd2w_start', 'd2w_end', 'w2d_start', 'w2d_end'] # evaluators except seasontrans
 KGE_Q_thresh = 0.5 # threshold value
 KGE_SM_thresh = 0.5 # threshold value
-seasontrans_thresh = 100 # seasonal transition threshold
+seasontrans_thresh = 30 # seasonal transition threshold
 quantiles = [0.05, 0.5, 0.95] # quantiles
 
 sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs/SMSig")
@@ -187,7 +187,7 @@ class MyGLUE(object):
                     sim_SM_synced = sim_synced
                     obs_SM_synced = obs_synced
 
-                del df, sim, obs
+                del sim, obs
 
             del sim0, obs0
 
