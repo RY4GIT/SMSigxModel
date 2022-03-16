@@ -35,7 +35,7 @@ os.getcwd()
 out_path = '..\\4_out\\Mahurangi'
 if not os.path.exists(out_path):
     os.mkdir(out_path)
-data_file_path = '..\\2_data_input\\Mahurangi'
+data_file_path = '..\\2_data_input\\Mahurangi\\full'
 
 # from numba import jit
 # @jit
@@ -168,12 +168,11 @@ def main(runtype):
 
     if runtype == "GLUE":
         # Initialize
-        cfe1 = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'full', 'config_cfe.json'))
+        cfe1 = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'config_cfe.json'))
         cfe1.initialize()
-        out_fn_sa = out_path + 'results'
 
         # Start GLUE
-        nrun = 1000
+        nrun = 100
         glue1 = MyGLUE(cfe_input = cfe1, out_path=out_path, nrun=nrun)
         glue1.simulation()
         glue1.post_process()
@@ -212,7 +211,9 @@ if __name__ == '__main__':
         pr = cProfile.Profile()
         pr.enable()
 
+    # o = open(os.path.join(out_path, 'log.txt'), 'w')
     main(runtype = "GLUE")
+    #o.close()
 
     # measure the time
     if measuretime:

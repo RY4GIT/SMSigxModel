@@ -14,7 +14,7 @@ var_names = ["Flow", "Soil Moisture Content"] # variables of interst
 eval_names = ['KGE_Q', 'KGE_SM', 'd2w_start', 'd2w_end', 'w2d_start', 'w2d_end'] # evaluators except seasontrans
 KGE_Q_thresh = 0.5 # threshold value
 KGE_SM_thresh = 0.5 # threshold value
-seasontrans_thresh = 10 # seasonal transition threshold
+seasontrans_thresh = 100 # seasonal transition threshold
 quantiles = [0.05, 0.5, 0.95] # quantiles
 
 sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs/SMSig")
@@ -122,7 +122,7 @@ class MyGLUE(object):
 
             # Overwrite the model config file
             for i in range(len(self.sampled)):
-                if self.sampled[i][1] in ['bb', 'satdk', 'satpsi', 'slop', 'smcmax', 'wltsmc', 'exponent_secondary', 'coeff_secondary']:
+                if self.sampled[i][1] in ['bb', 'satdk', 'satpsi', 'slop', 'smcmax', 'wltsmc', 'exponent_secondary', 'coeff_secondary', 'D']:
                     self.cfe_cfg["soil_params"][self.sampled[i][1]] = self.sampled[i][0]
                 else:
                     self.cfe_cfg[self.sampled[i][1]] = self.sampled[i][0]
@@ -131,10 +131,10 @@ class MyGLUE(object):
             with open(self.myCFE.cfg_file, 'w') as out_file:
                 json.dump(self.cfe_cfg, out_file)
 
-
             # ===============================================================
             # Actual model run
             # ===============================================================
+            self.myCFE.initialize()
             sim0 = self.myCFE.run_unit_test(plot=False)
             obs0 = self.myCFE.load_unit_test_data()
 
@@ -187,6 +187,10 @@ class MyGLUE(object):
                     sim_SM_synced = sim_synced
                     obs_SM_synced = obs_synced
 
+                del df, sim, obs
+
+            del sim0, obs0
+
             # ===============================================================
             # Judge behavioral vs. non-behavioral
             # ===============================================================
@@ -207,11 +211,12 @@ class MyGLUE(object):
                 else:
                     self.df_Q_behavioral = pd.concat([self.df_Q_behavioral, sim_Q_synced], axis=1)
                     self.df_SM_behavioral = pd.concat([self.df_SM_behavioral, sim_SM_synced], axis=1)
-                m += 1
+                m = 1
                 self.eval.append([KGE_Q, KGE_SM, diff_avg[0], diff_avg[1], diff_avg[2], diff_avg[3]])
             else:
                 # Discard non-behavioral runs
                 print('Non-behavioral')
+            print([KGE_Q, KGE_SM, diff_avg[0], diff_avg[1], diff_avg[2], diff_avg[3]])
 
         # ===============================================================
         # Save results in Dataframe
