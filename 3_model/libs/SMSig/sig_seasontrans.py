@@ -258,7 +258,7 @@ class SMSig():
                     take_step = MyTakeStep()
 
                     minimizer_kwargs = dict(method="L-BFGS-B", bounds=bounds, args=(x,y)) #, constraints= (nlc1, nlc2))
-                    res = basinhopping(piecewise_linear_residuals, P0, take_step=take_step, niter=50, minimizer_kwargs=minimizer_kwargs)
+                    res = basinhopping(piecewise_linear_residuals, P0, take_step=take_step, niter=5, minimizer_kwargs=minimizer_kwargs)
                     Pfit = res.x
                     # print(Pfit)
                     # print(res.fun)

@@ -173,11 +173,14 @@ def main(runtype):
 
         # Start GLUE
         nrun = 5
-        glue1 = MyGLUE(cfe_input = cfe1, out_path=out_path, nrun=nrun)
+        glue1 = MyGLUE(cfe_input = cfe1, out_path=out_path, nrun=nrun, calib_case=1)
         glue1.simulation()
         glue1.post_process()
         glue1.to_csv()
-        glue1.plot()
+        glue1.plot(plot_type="dotty")
+        # glue1.plot(plot_type="dotty_interaction")
+        # glue1.plot(plot_type="param_hist")
+        glue1.plot(plot_type="timeseries")
 
     if runtype == "Seasonsig":
 

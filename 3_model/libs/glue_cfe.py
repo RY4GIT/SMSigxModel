@@ -10,10 +10,9 @@ import json
 import matplotlib.pyplot as plt
 
 # Global variables
-var_names = ["Flow", "Soil Moisture Content"] # variables of interst
-eval_names = ['KGE_Q', 'KGE_SM', 'd2w_start', 'd2w_end', 'w2d_start', 'w2d_end'] # evaluators including seasontrans
 KGE_Q_thresh = 0.3 # threshold value
 KGE_SM_thresh = 0.3 # threshold value
+NSE_Q_thresh = 0.3
 seasontrans_thresh = 100 # seasonal transition threshold
 quantiles = [0.05, 0.5, 0.95] # quantiles
 
@@ -67,9 +66,8 @@ def triangle_weight(x, a, b, c):
 
 # GLUE object
 class MyGLUE(object):
-    def __init__(self, cfe_input, out_path='./', nrun = 1, obj_func=None):
+    def __init__(self, cfe_input, out_path='./', nrun = 1, calib_case=1):
 
-        self.obj_func = False
         self.out_path = out_path
         self.myCFE = cfe_input
 
@@ -100,6 +98,27 @@ class MyGLUE(object):
         self.post_paras = []
         self.resulted_totalQ = []
         self.eval = []
+
+        # calibration cases
+        self.calib_case = calib_case
+        if calib_case == 1:
+            print('NSE-based calib')
+            # self.eval_names = ['NSE_Q', 'NSE_SM']
+            self.eval_names = ['NSE_Q']
+            self.var_names = ["Flow"]  # variables of interst
+        elif calib_case == 2:
+            print('KGE-based calib')
+            self.eval_names = ['KGE_Q', 'KGE_SM']
+            self.var_names = ["Flow", "Soil Moisture Content"]  # variables of interst
+        elif calib_case ==3:
+            print('Seasonsig-based calib')
+            self.eval_names = ['d2w_start', 'd2w_end', 'w2d_start', 'w2d_end']
+            self.var_names = ["Soil Moisture Content"]
+        elif calib_case == 4:
+            print('KGE+Seasonsig calib')
+            self.eval_names = ['KGE_Q', 'KGE_SM', 'd2w_start', 'd2w_end', 'w2d_start', 'w2d_end']
+            self.var_names = ["Flow", "Soil Moisture Content"]
+
 
     def simulation(self):
     # run the simulation
@@ -140,7 +159,7 @@ class MyGLUE(object):
             # ===============================================================
             # Get the simulated and observed data & evaluate
             # ===============================================================
-            for var_name in var_names:
+            for var_name in self.var_names:
                 # Get the simulated data
                 sim = sim0[["Time", var_name]]
                 sim["Time"] = pd.to_datetime(sim["Time"], format="%Y-%m-%d %H:%M:%S") # Works specifically for CFE
@@ -156,11 +175,13 @@ class MyGLUE(object):
 
                 # Model evaluators
                 # KGE for both streamflow and SM data
-                KGE = spotpy.objectivefunctions.kge(obs_synced, sim_synced) #kge_non_parametric(obs_synced, sim_synced)
+                if "KGE_Q" in self.eval_names or "KGE_SM" in self.eval_names:
+                    KGE = spotpy.objectivefunctions.kge(obs_synced, sim_synced) #kge_non_parametric(obs_synced, sim_synced)
+                if "NSE_Q" in self.eval_names or "NSE_SM" in self.eval_names:
+                    NSE = spotpy.objectivefunctions.nashsutcliffe(obs_synced, sim_synced)
 
                 # Seasonsig for SM data
-                if var_name == "Soil Moisture Content":
-
+                if var_name == "Soil Moisture Content" and 'd2w_start' in self.eval_names:
                     # Observed. Run only once
                     if n == 0:
                         sig_obs = SMSig(ts_time=df["Time"].to_numpy(), ts_value=obs_synced.to_numpy(), plot_results=False)
@@ -179,11 +200,17 @@ class MyGLUE(object):
 
                 # Get the variables
                 if var_name == "Flow":
-                    KGE_Q = KGE
+                    if "KGE_Q" in self.eval_names:
+                        KGE_Q = KGE
+                    if "NSE_Q" in self.eval_names:
+                        NSE_Q = NSE
                     sim_Q_synced = sim_synced
                     obs_Q_synced = obs_synced
                 elif var_name == "Soil Moisture Content":
-                    KGE_SM = KGE
+                    if "KGE_SM" in self.eval_names:
+                        KGE_SM = KGE
+                    if "NSE_SM" in self.eval_names:
+                        NSE_SM = NSE
                     sim_SM_synced = sim_synced
                     obs_SM_synced = obs_synced
 
@@ -196,8 +223,20 @@ class MyGLUE(object):
             # ===============================================================
             # Store all the prior parameters
             self.pri_paras.append(self.sampled)
+            if self.calib_case == 1:
+                behavioral_condition = NSE_Q > NSE_Q_thresh
+                eval_array = [NSE_Q]
+            elif self.calib_case == 2:
+                behavioral_condition = KGE_Q > KGE_Q_thresh and KGE_SM > KGE_SM_thresh
+                eval_array = [KGE_Q, KGE_SM]
+            elif self.calib_case == 3:
+                behavioral_condition = all(diff_avg < seasontrans_thresh)
+                eval_array = [diff_avg[0], diff_avg[1], diff_avg[2], diff_avg[3]]
+            elif self.calib_case == 4:
+                behavioral_condition = KGE_Q > KGE_Q_thresh and KGE_SM > KGE_SM_thresh and all(diff_avg < seasontrans_thresh)
+                eval_array = [KGE_Q, KGE_SM, diff_avg[0], diff_avg[1], diff_avg[2], diff_avg[3]]
 
-            if KGE_Q > KGE_Q_thresh and KGE_SM > KGE_SM_thresh and all(diff_avg < seasontrans_thresh):
+            if behavioral_condition:
                 print('Behavioral')
                 # This is the threshold conditions
                     # KGE must be above thresholds
@@ -206,17 +245,21 @@ class MyGLUE(object):
                 self.post_rid.append(n) #runid
                 self.post_paras.append(self.sampled) #parameters
                 if flag_behavioral == 0:
-                    self.df_Q_behavioral = sim_Q_synced #timeseires
-                    self.df_SM_behavioral = sim_SM_synced
+                    if "Flow" in self.var_names:
+                        self.df_Q_behavioral = sim_Q_synced #timeseires
+                    if "Soil Moisture Content" in self.var_names:
+                        self.df_SM_behavioral = sim_SM_synced
                 else:
-                    self.df_Q_behavioral = pd.concat([self.df_Q_behavioral, sim_Q_synced], axis=1)
-                    self.df_SM_behavioral = pd.concat([self.df_SM_behavioral, sim_SM_synced], axis=1)
+                    if "Flow" in self.var_names:
+                        self.df_Q_behavioral = pd.concat([self.df_Q_behavioral, sim_Q_synced], axis=1)
+                    if "Soil Moisture Content" in self.var_names:
+                        self.df_SM_behavioral = pd.concat([self.df_SM_behavioral, sim_SM_synced], axis=1)
                 flag_behavioral = 1
-                self.eval.append([KGE_Q, KGE_SM, diff_avg[0], diff_avg[1], diff_avg[2], diff_avg[3]])
+                self.eval.append(eval_array)
             else:
                 # Discard non-behavioral runs
                 print('Non-behavioral')
-            print([KGE_Q, KGE_SM, diff_avg[0], diff_avg[1], diff_avg[2], diff_avg[3]])
+            print(eval_array)
 
         # ===============================================================
         # Save results in Dataframe
@@ -252,12 +295,12 @@ class MyGLUE(object):
 
         # Evaluation metrics
         if len(self.eval) != 0:
-            eval_values = np.empty((n_behavioral, len(eval_names)))
+            eval_values = np.empty((n_behavioral, len(self.eval_names)))
             eval_values[:] = np.nan
-            for i in range(len(eval_names)):
+            for i in range(len(self.eval_names)):
                 for j in range(n_behavioral):
                     eval_values[j][i] = self.eval[j][i]
-            self.df_post_eval = pd.DataFrame(eval_values, index=self.post_rid, columns=eval_names)
+            self.df_post_eval = pd.DataFrame(eval_values, index=self.post_rid, columns=self.eval_names)
 
         # Simulated
         # Total flow
@@ -271,12 +314,14 @@ class MyGLUE(object):
 
         # Observed
         # Total flow
-        self.df_Q_obs = pd.DataFrame(obs_Q_synced)
-        self.df_Q_obs.set_axis(df["Time"], axis=0, inplace=True)
+        if "Flow" in self.var_names:
+            self.df_Q_obs = pd.DataFrame(obs_Q_synced)
+            self.df_Q_obs.set_axis(df["Time"], axis=0, inplace=True)
 
         # Soil moisture
-        self.df_SM_obs = pd.DataFrame(obs_SM_synced)
-        self.df_SM_obs.set_axis(df["Time"], axis=0, inplace=True)
+        if "Soil Moisture Content" in self.var_names:
+            self.df_SM_obs = pd.DataFrame(obs_SM_synced)
+            self.df_SM_obs.set_axis(df["Time"], axis=0, inplace=True)
 
     def post_process(self):
         # post-process the results
@@ -287,18 +332,30 @@ class MyGLUE(object):
             t_len = len(self.df_Q_behavioral)
 
             # Get empirical weight
-            KGE_Q_weight = (self.df_post_eval["KGE_Q"] - KGE_Q_thresh)/sum( (self.df_post_eval["KGE_Q"] - KGE_Q_thresh))
-            KGE_SM_weight = (self.df_post_eval["KGE_SM"] - KGE_SM_thresh) / sum((self.df_post_eval["KGE_SM"] - KGE_SM_thresh))
-            Seasonsig_weight_d2ws = triangle_weight(self.df_post_eval['d2w_start'], a= -1*seasontrans_thresh, b=0, c=seasontrans_thresh)
-            Seasonsig_weight_d2we = triangle_weight(self.df_post_eval['d2w_end'], a=-1 * seasontrans_thresh, b=0, c=seasontrans_thresh)
-            Seasonsig_weight_w2ds = triangle_weight(self.df_post_eval['w2d_start'], a=-1 * seasontrans_thresh, b=0, c=seasontrans_thresh)
-            Seasonsig_weight_w2de = triangle_weight(self.df_post_eval['w2d_end'], a=-1 * seasontrans_thresh, b=0, c=seasontrans_thresh)
+            if "KGE_Q" in self.eval_names:
+                KGE_Q_weight = (self.df_post_eval["KGE_Q"] - KGE_Q_thresh)/sum( (self.df_post_eval["KGE_Q"] - KGE_Q_thresh))
+            if "KGE_SM" in self.eval_names:
+                KGE_SM_weight = (self.df_post_eval["KGE_SM"] - KGE_SM_thresh) / sum((self.df_post_eval["KGE_SM"] - KGE_SM_thresh))
+            if "NSE_Q" in self.eval_names:
+                NSE_Q_weight = (self.df_post_eval["NSE_Q"] - NSE_Q_thresh) / sum((self.df_post_eval["NSE_Q"] - NSE_Q_thresh))
+            if "d2w_start" in self.eval_names:
+                Seasonsig_weight_d2ws = triangle_weight(self.df_post_eval['d2w_start'], a= -1*seasontrans_thresh, b=0, c=seasontrans_thresh)
+                Seasonsig_weight_d2we = triangle_weight(self.df_post_eval['d2w_end'], a=-1 * seasontrans_thresh, b=0, c=seasontrans_thresh)
+                Seasonsig_weight_w2ds = triangle_weight(self.df_post_eval['w2d_start'], a=-1 * seasontrans_thresh, b=0, c=seasontrans_thresh)
+                Seasonsig_weight_w2de = triangle_weight(self.df_post_eval['w2d_end'], a=-1 * seasontrans_thresh, b=0, c=seasontrans_thresh)
 
             # Get composite weight
-            weight = (KGE_Q_weight.values + KGE_SM_weight.values + Seasonsig_weight_d2ws + Seasonsig_weight_d2we + Seasonsig_weight_w2ds + Seasonsig_weight_w2de)/6
+            if self.calib_case == 1:
+                weight = NSE_Q_weight
+            elif self.calib_case == 2:
+                weight = (KGE_Q_weight.values + KGE_SM_weight.values )/2
+            elif self.calib_case == 3:
+                weight = (Seasonsig_weight_d2ws + Seasonsig_weight_d2we + Seasonsig_weight_w2ds + Seasonsig_weight_w2de) / 4
+            elif self.calib_case == 4:
+                weight = (KGE_Q_weight.values + KGE_SM_weight.values + Seasonsig_weight_d2ws + Seasonsig_weight_d2we + Seasonsig_weight_w2ds + Seasonsig_weight_w2de) / 6
 
             # Calculate weighted quantile
-            for var_name in var_names:
+            for var_name in self.var_names:
                 if var_name == "Flow":
                     df_behavioral = self.df_Q_behavioral
                 elif var_name == "Soil Moisture Content":
@@ -379,8 +436,8 @@ class MyGLUE(object):
                     ax1.set_xlabel(target_para)
                     ax1.set_ylabel(target_eval)
 
-                    if i !=0:
-                        ax1.yaxis.set_visible(False)
+                    # if i !=0:
+                    #     ax1.yaxis.set_visible(False)
 
                     # f.plot()
                     f.savefig(os.path.join(self.out_path, "param_dotty_%s.png" % (target_eval)), dpi=600)
@@ -403,8 +460,8 @@ class MyGLUE(object):
                         ax1.set_xlabel(para0)
                         ax1.set_ylabel(para1)
 
-                        if i !=0:
-                            ax1.yaxis.set_visible(False)
+                        # if i !=0:
+                        #     ax1.yaxis.set_visible(False)
 
                         # f.plot()
                         f.savefig(os.path.join(self.out_path, "param_dotty__%s__%s.png" % (para0, para1)), dpi=600)
@@ -412,7 +469,7 @@ class MyGLUE(object):
         # Time series of data
         if plot_type == "timeseries":
             if hasattr(self, 'df_Q_simrange'):
-                for var_name in var_names:
+                for var_name in self.var_names:
                     if var_name == "Flow":
                         df_simrange = self.df_Q_simrange
                         df_obs = self.df_Q_obs
