@@ -12,9 +12,9 @@ import matplotlib.pyplot as plt
 # Global variables
 var_names = ["Flow", "Soil Moisture Content"] # variables of interst
 eval_names = ['KGE_Q', 'KGE_SM', 'd2w_start', 'd2w_end', 'w2d_start', 'w2d_end'] # evaluators except seasontrans
-KGE_Q_thresh = 0.5 # threshold value
-KGE_SM_thresh = 0.5 # threshold value
-seasontrans_thresh = 30 # seasonal transition threshold
+KGE_Q_thresh = 0.3 # threshold value
+KGE_SM_thresh = 0.3 # threshold value
+seasontrans_thresh = 100 # seasonal transition threshold
 quantiles = [0.05, 0.5, 0.95] # quantiles
 
 sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs/SMSig")
@@ -77,7 +77,7 @@ class MyGLUE(object):
         self.params = [
             spotpy.parameter.Uniform('bb', low=2, high=15),
             spotpy.parameter.Uniform('satdk', low=0, high=1),
-            spotpy.parameter.Uniform('slop', low=0, high=0.1), # maybe I should keep this as 0.2
+            spotpy.parameter.Uniform('slop', low=0, high=1),
             spotpy.parameter.Uniform('satpsi', low=0.02, high=0.78),
             spotpy.parameter.Uniform('smcmax', low=0.33, high=0.7),
             spotpy.parameter.Uniform('wltsmc', low=0.0, high=0.57),
@@ -88,7 +88,6 @@ class MyGLUE(object):
             spotpy.parameter.Uniform('max_gw_storage', low=10, high=250),
             spotpy.parameter.Uniform('Cgw', low=0.01, high=1),
             spotpy.parameter.Uniform('expon', low=1, high=8),
-            spotpy.parameter.Uniform('K_nash', low=0, high=1),
             spotpy.parameter.Uniform('refkdt', low=0.1, high=4)
         ]
 
@@ -134,7 +133,7 @@ class MyGLUE(object):
             # ===============================================================
             # Actual model run
             # ===============================================================
-            self.myCFE.initialize()
+            # self.myCFE.initialize()
             sim0 = self.myCFE.run_unit_test(plot=False)
             obs0 = self.myCFE.load_unit_test_data()
 
@@ -157,7 +156,7 @@ class MyGLUE(object):
 
                 # Model evaluators
                 # KGE for both streamflow and SM data
-                KGE = spotpy.objectivefunctions.kge_non_parametric(obs_synced, sim_synced)
+                KGE = spotpy.objectivefunctions.kge(obs_synced, sim_synced) #kge_non_parametric(obs_synced, sim_synced)
 
                 # Seasonsig for SM data
                 if var_name == "Soil Moisture Content":

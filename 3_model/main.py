@@ -172,7 +172,7 @@ def main(runtype):
         cfe1.initialize()
 
         # Start GLUE
-        nrun = 100
+        nrun = 5
         glue1 = MyGLUE(cfe_input = cfe1, out_path=out_path, nrun=nrun)
         glue1.simulation()
         glue1.post_process()

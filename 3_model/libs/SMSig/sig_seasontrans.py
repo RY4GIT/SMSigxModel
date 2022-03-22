@@ -41,8 +41,8 @@ class MyTakeStep(object):
    def __call__(self, x):
        s = self.stepsize
        x[:] += np.random.uniform(-s, s, x[:].shape)
-       x[2] += np.random.uniform(-100.*s, 100.*s)
-       x[3] += np.random.uniform(-100.*s, 100.*s)
+       x[2] += np.random.uniform(-5.*s, 5.*s)
+       x[3] += np.random.uniform(-5.*s, 5.*s)
        return x
 
 class SMSig():
@@ -258,7 +258,7 @@ class SMSig():
                     take_step = MyTakeStep()
 
                     minimizer_kwargs = dict(method="L-BFGS-B", bounds=bounds, args=(x,y)) #, constraints= (nlc1, nlc2))
-                    res = basinhopping(piecewise_linear_residuals, P0, take_step=take_step, niter=10, minimizer_kwargs=minimizer_kwargs)
+                    res = basinhopping(piecewise_linear_residuals, P0, take_step=take_step, niter=50, minimizer_kwargs=minimizer_kwargs)
                     Pfit = res.x
                     # print(Pfit)
                     # print(res.fun)
