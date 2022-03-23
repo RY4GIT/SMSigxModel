@@ -137,8 +137,12 @@ def main(runtype):
         salib_experiment.plot(plot_type='STS1')
         """
 
+        out_path_salibexp = '..\\4_out\\Mahurangi\\salidexp_id1'
+        if not os.path.exists(out_path_salibexp):
+            os.mkdir(out_path_salibexp)
+
         salib_experiment = SALib_CFE(
-            cfe_instance=cfe_instance, problem=problem, SAmethod='Morris', out_path=out_path
+            cfe_instance=cfe_instance, problem=problem, SAmethod='Morris', out_path=out_path_salibexp
         )
         salib_experiment.run()
         salib_experiment.plot(plot_type='EET')
@@ -171,9 +175,13 @@ def main(runtype):
         cfe1 = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'config_cfe.json'))
         cfe1.initialize()
 
+        out_path_glueexp = '..\\4_out\\Mahurangi\\exp_id3'
+        if not os.path.exists(out_path_glueexp):
+            os.mkdir(out_path_glueexp)
+
         # Start GLUE
         nrun = 5
-        glue1 = MyGLUE(cfe_input = cfe1, out_path=out_path, nrun=nrun, calib_case=1)
+        glue1 = MyGLUE(cfe_input = cfe1, out_path=out_path_glueexp, nrun=nrun, calib_case=1)
         glue1.simulation()
         glue1.post_process()
         glue1.to_csv()
@@ -215,7 +223,7 @@ if __name__ == '__main__':
         pr.enable()
 
     # o = open(os.path.join(out_path, 'log.txt'), 'w')
-    main(runtype = "GLUE")
+    main(runtype = "SALib")
     #o.close()
 
     # measure the time

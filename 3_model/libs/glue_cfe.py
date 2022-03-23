@@ -378,6 +378,11 @@ class MyGLUE(object):
     def to_csv(self):
         print('--- Saving data into csv file ---')
 
+        # dump the parameter range to txt file
+        file = open(os.path.join(self.out_path, "param_bounds.txt"), "w")
+        file.write("%s" % str(self.params))
+        file.close
+
         # save the results to csv
         if hasattr(self, 'df_post_paras'):
             self.df_post_paras.to_csv(os.path.join(self.out_path, 'parameter_posterior.csv'), sep=',', header=True, index=False, encoding='utf-8', na_rep='nan')

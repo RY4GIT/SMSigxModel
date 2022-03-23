@@ -84,6 +84,10 @@ class SALib_CFE():
             self.Si = morris_a.analyze(self.problem, self.param_values, self.Y, print_to_console=True)
             print(self.Si['mu'])
 
+        file = open(os.path.join(self.out_path, "param_bounds.txt"), "w")
+        file.write("%s" % str(self.problem))
+        file.close
+
     def plot(self, plot_type=None):
         # Add dotty plot module. Either here or in the above method
         # https://pynetlogo.readthedocs.io/en/latest/_docs/SALib_ipyparallel.html
