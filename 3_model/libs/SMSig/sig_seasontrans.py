@@ -235,16 +235,16 @@ class SMSig():
                     y = seasonsm_value
                     if trans_type[trans] == "dry2wet":
                         P0 = P0_d2w
-                        Plb = [-5,  0,   0,   1]
-                        Pub = [1.5, 0.1, 150, 200]
+                        Plb = (-5,  0,   0,   1)
+                        Pub = (1.5, 0.1, 150, 200)
                     elif trans_type[trans] == "wet2dry":
                         P0 = P0_w2d
-                        Plb =  [-1,  -0.1, 0,      1]
-                        Pub =  [2.0, 0,    150,    200]
+                        Plb =  (-1,  -0.1, 0,      1)
+                        Pub =  (2.0, 0,    150,    200)
 
-                    popt, pcov = curve_fit(piecewise_linear, x, y, p0=P0)
+                    popt, pcov = curve_fit(piecewise_linear, x, y, p0=P0, bounds=(Plb, Pub))
                     Pfit = popt
-                    print(Pfit)
+                    # print(Pfit)
                     # print(res.fun)
 
                     """
@@ -269,12 +269,11 @@ class SMSig():
                     """
 
                     # If the wp and fc coincides, or transition is shorter than 7 days, reject it (optimization is likely to have failed)
-                    # TODO: modify
-                    if Pfit[3] < 7:# abs(Pfit[5]-Pfit[4])<1.0e-03 or Pfit[3] < 7:
-                        # if abs(Pfit[5]-Pfit[4])<1.0e-03:
-                            # None # print('FC and WP coincides')
-                        # elif Pfit[3] < 7:
-                            # None # print('Duration too short')
+                    if abs((Pfit[0]+Pfit[1]*Pfit[2])-(Pfit[0]+Pfit[1]*(Pfit[2]+Pfit[3])))<1.0e-03 or Pfit[3] < 7:
+                        if abs((Pfit[0]+Pfit[1]*Pfit[2])-(Pfit[0]+Pfit[1]*(Pfit[2]+Pfit[3])))<1.0e-03:
+                            print('FC and WP coincides')
+                        elif Pfit[3] < 7:
+                            print('Duration too short')
                         Pfit[:] = np.nan
                     else:
                         # Get signatures
