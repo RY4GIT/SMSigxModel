@@ -4,22 +4,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy import optimize
 import datetime
-from scipy.optimize import NonlinearConstraint, Bounds, basinhopping
+from scipy.optimize import curve_fit
 
-
-def plus_func(x):
-    x2 = np.full((len(x),), 0)
-    for idx, num in enumerate(x):
-        if num > 0:
-            x2[idx] = num
-    return x2
-
-def piecewise_linear(P, x):
-    return P[0] + P[1]*x + P[1]*plus_func(P[2]-x) + -1*P[1]*plus_func(x-(P[2]+P[3]))
-
-def piecewise_linear_residuals(P, x, y):
-    I = np.full((len(x),), 1)
-    return np.sum(np.power((( P[0] + I*P[1]*x + I*P[1]*plus_func(I*P[2] - x) + -1*I*P[1]*plus_func(x-(I*P[2]+I*P[3])) ) -y), 2))
+def piecewise_linear(x, P0, P1, P2, P3):
+    y0 = np.where(x-P2>0, P0+P1*x, P0+P1*P2)
+    return np.where(x-(P2+P3)>0, P0+P1*(P2+P3), y0)
 
 def sine_func(x, A, phi, k):
     w = 2*np.pi/365
@@ -168,8 +157,8 @@ class SMSig():
     def calc_seasontrans(self, t_valley):
         self.t_valley = t_valley
         # initialization
-        P0_d2w = [0, 0.0005, 60, 120, 0.4, 0.7]
-        P0_w2d = [0.5, -0.0005, 120, 80, 0.7, 0.4]
+        P0_d2w = [0, 0.0005, 60, 120]
+        P0_w2d = [0.5, -0.0005, 120, 80]
         trans_type = ["dry2wet", "wet2dry"]
 
         seasontrans_date = np.empty((len(self.t_valley), 4))
@@ -246,21 +235,16 @@ class SMSig():
                     y = seasonsm_value
                     if trans_type[trans] == "dry2wet":
                         P0 = P0_d2w
-                        Plb = [-5,  0,   0,   1,   -1,   -1]
-                        Pub = [1.5, 0.1, 150, 200, 2.0, 10]
+                        Plb = [-5,  0,   0,   1]
+                        Pub = [1.5, 0.1, 150, 200]
                     elif trans_type[trans] == "wet2dry":
                         P0 = P0_w2d
-                        Plb =  [-1,  -0.1, 0,      1,    0,   -1.5]
-                        Pub =  [2.0, 0,    150,    200,  2.0, 10]
-                    bounds = Bounds(lb = Plb, ub = Pub)
-                    nlc1 = NonlinearConstraint(lambda x: x[0] + x[1]*x[2] - x[4], -0.1, 0.1)
-                    nlc2 = NonlinearConstraint(lambda x: x[0] + x[1]*(x[2]+x[3]) - x[5], -0.1, 0.1)
-                    take_step = MyTakeStep()
+                        Plb =  [-1,  -0.1, 0,      1]
+                        Pub =  [2.0, 0,    150,    200]
 
-                    minimizer_kwargs = dict(method="L-BFGS-B", bounds=bounds, args=(x,y)) #, constraints= (nlc1, nlc2))
-                    res = basinhopping(piecewise_linear_residuals, P0, take_step=take_step, niter=5, minimizer_kwargs=minimizer_kwargs)
-                    Pfit = res.x
-                    # print(Pfit)
+                    popt, pcov = curve_fit(piecewise_linear, x, y, p0=P0)
+                    Pfit = popt
+                    print(Pfit)
                     # print(res.fun)
 
                     """
@@ -285,11 +269,12 @@ class SMSig():
                     """
 
                     # If the wp and fc coincides, or transition is shorter than 7 days, reject it (optimization is likely to have failed)
-                    if abs(Pfit[5]-Pfit[4])<1.0e-03 or Pfit[3] < 7:
-                        if abs(Pfit[5]-Pfit[4])<1.0e-03:
-                            None # print('FC and WP coincides')
-                        elif Pfit[3] < 7:
-                            None # print('Duration too short')
+                    # TODO: modify
+                    if Pfit[3] < 7:# abs(Pfit[5]-Pfit[4])<1.0e-03 or Pfit[3] < 7:
+                        # if abs(Pfit[5]-Pfit[4])<1.0e-03:
+                            # None # print('FC and WP coincides')
+                        # elif Pfit[3] < 7:
+                            # None # print('Duration too short')
                         Pfit[:] = np.nan
                     else:
                         # Get signatures
@@ -303,7 +288,7 @@ class SMSig():
 
                         if self.plot_results:
                             plt.figure(figsize=(6, 4))
-                            plt.plot(x, piecewise_linear(res.x, x))
+                            plt.plot(x, piecewise_linear(x, Pfit[0], Pfit[1], Pfit[2], Pfit[3]))
                             plt.plot(x,y)
                             plt.show()
 
