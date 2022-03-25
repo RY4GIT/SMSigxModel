@@ -40,7 +40,7 @@ data_file_path = '..\\2_data_input\\Mahurangi\\full'
 # from numba import jit
 # @jit
 
-def main(runtype):
+def main(runtype, nrun):
 
     if runtype == "NOAA_CFE":
 
@@ -180,15 +180,14 @@ def main(runtype):
             os.mkdir(out_path_glueexp)
 
         # Start GLUE
-        nrun = 3
         glue1 = MyGLUE(cfe_input = cfe1, out_path=out_path_glueexp, nrun=nrun, calib_case=3)
         glue1.simulation()
         glue1.post_process()
         glue1.to_csv()
-        glue1.plot(plot_type="dotty")
-        # glue1.plot(plot_type="dotty_interaction")
+        # glue1.plot(plot_type="dotty")
+        glue1.plot(plot_type="dotty_interaction")
         # glue1.plot(plot_type="param_hist")
-        glue1.plot(plot_type="timeseries")
+        # glue1.plot(plot_type="timeseries")
 
     if runtype == "Seasonsig":
 

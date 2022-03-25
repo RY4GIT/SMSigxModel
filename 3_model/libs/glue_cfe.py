@@ -448,28 +448,47 @@ class MyGLUE(object):
                     f.savefig(os.path.join(self.out_path, "param_dotty_%s.png" % (target_eval)), dpi=600)
 
         if plot_type == "dotty_interaction":
+            """
             param_combi = [['fc_atm_press_fraction', 'satdk'],
                            ['fc_atm_press_fraction', 'bb'],
                            ['fc_atm_press_fraction', 'smcmax']]
+                           
+           """
+
+            param_interset = ['bb',
+                      'satdk',
+                      'satpsi',
+                      'slop',
+                      'smcmax',
+                      'wltsmc',
+                      'refkdt',
+                      'trigger_z_m',
+                      'fc_atm_press_fraction'
+                      ]
 
             if hasattr(self, 'df_post_paras'):
-                    f = plt.figure(figsize=(4 * 4, 4 * 4))
-                    for i in range(len(param_combi)):
-                        para0 = param_combi[i][0]
-                        para1 = param_combi[i][1]
-                        ax1 = f.add_subplot(4, 4, i+1)
-                        x = self.df_post_paras[para0]
-                        y = self.df_post_paras[para1]
-                        plt.scatter(x, y)
+                    f = plt.figure(figsize=(5 * len(param_interset), 5 * len(param_interset)), constrained_layout=True)
+                    f.tight_layout()
+                    n_plot = 0
+                    for i in range(len(param_interset)):
+                        for j in range(len(param_interset)):
+                            n_plot += 1
+                            para0 = param_interset[i]
+                            para1 = param_interset[j]
+                            ax1 = f.add_subplot(len(param_interset), len(param_interset), n_plot)
+                            x = self.df_post_paras[para0]
+                            y = self.df_post_paras[para1]
+                            plt.scatter(x, y)
 
-                        ax1.set_xlabel(para0)
-                        ax1.set_ylabel(para1)
+                            ax1.set_xlabel(para0)
+                            ax1.set_ylabel(para1)
+                            ax1.tick_params(direction="in")
 
-                        # if i !=0:
-                        #     ax1.yaxis.set_visible(False)
+                            # if i !=0:
+                            #     ax1.yaxis.set_visible(False)
 
-                        # f.plot()
-                        f.savefig(os.path.join(self.out_path, "param_dotty__%s__%s.png" % (para0, para1)), dpi=600)
+                    # f.plot()
+                    f.savefig(os.path.join(self.out_path, "param_dotty_interaction_case%s.png" % (self.calib_case)), dpi=600)
 
         # Time series of data
         if plot_type == "timeseries":
