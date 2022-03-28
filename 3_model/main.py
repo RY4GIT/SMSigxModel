@@ -32,15 +32,12 @@ from glue_cfe import MyGLUE
 # specify current directory create output directory if it does not exist
 os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model")
 os.getcwd()
-out_path = '..\\4_out\\Mahurangi'
-if not os.path.exists(out_path):
-    os.mkdir(out_path)
 data_file_path = '..\\2_data_input\\Mahurangi\\full'
 
 # from numba import jit
 # @jit
 
-def main(runtype, nrun):
+def main(runtype, nrun, glue_calib_case, out_path):
 
     if runtype == "NOAA_CFE":
 
@@ -175,19 +172,20 @@ def main(runtype, nrun):
         cfe1 = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'config_cfe.json'))
         cfe1.initialize()
 
-        out_path_glueexp = '..\\4_out\\Mahurangi\\'
+        # Start GLUE
+        out_path_glueexp = out_path
         if not os.path.exists(out_path_glueexp):
             os.mkdir(out_path_glueexp)
 
-        # Start GLUE
-        glue1 = MyGLUE(cfe_input = cfe1, out_path=out_path_glueexp, nrun=nrun, calib_case=3)
+        glue1 = MyGLUE(cfe_input = cfe1, out_path=out_path_glueexp, nrun=nrun, calib_case=glue_calib_case)
         glue1.simulation()
         glue1.post_process()
         glue1.to_csv()
-        # glue1.plot(plot_type="dotty")
+        glue1.plot(plot_type="dotty")
         glue1.plot(plot_type="dotty_interaction")
-        # glue1.plot(plot_type="param_hist")
-        # glue1.plot(plot_type="timeseries")
+        glue1.plot(plot_type="param_hist")
+        glue1.plot(plot_type="timeseries")
+
 
     if runtype == "Seasonsig":
 
@@ -222,7 +220,14 @@ if __name__ == '__main__':
         pr.enable()
 
     # o = open(os.path.join(out_path, 'log.txt'), 'w')
-    main(runtype = "GLUE")
+
+    nrun = 100
+    main(runtype = "GLUE", nrun=nrun, glue_calib_case=1, out_path= '..\\4_out\\Mahurangi\\exp_id1')
+    main(runtype="GLUE", nrun=nrun, glue_calib_case=2, out_path= '..\\4_out\\Mahurangi\\exp_id2')
+    main(runtype="GLUE", nrun=nrun, glue_calib_case=3, out_path= '..\\4_out\\Mahurangi\\exp_id3')
+    main(runtype="GLUE", nrun=nrun, glue_calib_case=5, out_path= '..\\4_out\\Mahurangi\\exp_id5')
+    main(runtype="GLUE", nrun=nrun, glue_calib_case=6, out_path= '..\\4_out\\Mahurangi\\exp_id6')
+
     #o.close()
 
     # measure the time
