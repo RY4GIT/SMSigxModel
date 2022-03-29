@@ -201,6 +201,9 @@ class MyGLUE(object):
                     diff = season_trans_sim - season_trans_obs
                     diff_avg = abs(np.nanmean(diff, axis=0))
 
+
+
+
                 # Get the variables
                 if var_name == "Flow":
                     if "KGE_Q" in self.eval_names:
@@ -462,12 +465,6 @@ class MyGLUE(object):
                     f.savefig(os.path.join(self.out_path, "param_dotty_%s.png" % (target_eval)), dpi=600)
 
         if plot_type == "dotty_interaction":
-            """
-            param_combi = [['fc_atm_press_fraction', 'satdk'],
-                           ['fc_atm_press_fraction', 'bb'],
-                           ['fc_atm_press_fraction', 'smcmax']]
-                           
-           """
 
             param_interset = ['bb',
                       'satdk',

@@ -36,9 +36,10 @@ class MyTakeStep(object):
 
 class SMSig():
 
-    def __init__(self, ts_time, ts_value, plot_results):
+    def __init__(self, ts_time, ts_value, plot_results, plot_label):
 
         self.plot_results = plot_results
+        self.plot_label = plot_label
 
         # If the data is likely to be in percentage. Convert to VSMC
         if sum(ts_value)/len(ts_value) > 1.5:
@@ -164,6 +165,8 @@ class SMSig():
         seasontrans_date = np.empty((len(self.t_valley), 4))
         seasontrans_date[:] = np.nan
 
+        n_plot = 0
+
         ## Main execusion
         for trans in range(len(trans_type)):
 
@@ -286,10 +289,18 @@ class SMSig():
                         seasontrans_date[i,1+2*trans] = trans_end_result.to_julian_date()
 
                         if self.plot_results:
-                            plt.figure(figsize=(6, 4))
-                            plt.plot(x, piecewise_linear(x, Pfit[0], Pfit[1], Pfit[2], Pfit[3]))
-                            plt.plot(x,y)
-                            plt.show()
+                            n_plot += 1
+                            if self.plot_label == "sim":
+                                lcolor = '#ef8a62'
+                            elif self.plot_label == "obs":
+                                lcolor = '#67a9cf'
+
+                            plt.figure(n_plot, figsize=(6, 4))
+                            plt.plot(x, piecewise_linear(x, Pfit[0], Pfit[1], Pfit[2], Pfit[3]), color=lcolor)
+                            plt.plot(x,y, color=lcolor, label=self.plot_label)
+                            plt.show(block=False)
+                            plt.legend()
+
 
         # print(seasontrans_date)
 
