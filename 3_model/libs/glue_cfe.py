@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 KGE_Q_thresh = 0.5 # threshold value
 KGE_SM_thresh = 0.5 # threshold value
 NSE_Q_thresh = 0.5
-seasontrans_thresh = 10 # seasonal transition threshold
+seasontrans_thresh = 35 # seasonal transition threshold
 quantiles = [0.05, 0.5, 0.95] # quantiles
 
 sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs/SMSig")
@@ -187,14 +187,14 @@ class MyGLUE(object):
                 if var_name == "Soil Moisture Content" and 'd2w_start' in self.eval_names:
                     # Observed. Run only once
                     if n == 0:
-                        sig_obs = SMSig(ts_time=df["Time"].to_numpy(), ts_value=obs_synced.to_numpy(), plot_results=False)
+                        sig_obs = SMSig(ts_time=df["Time"].to_numpy(), ts_value=obs_synced.to_numpy(), plot_results=False, plot_label="obs")
                         # sig_obs.detrend() # TODO:debug
                         sig_obs.movmean()
                         t_valley = sig_obs.calc_sinecurve()
                         season_trans_obs = sig_obs.calc_seasontrans(t_valley=t_valley)
 
                     # simulated
-                    sig_sim = SMSig(ts_time=df["Time"].to_numpy(), ts_value=sim_synced.to_numpy(), plot_results=False)
+                    sig_sim = SMSig(ts_time=df["Time"].to_numpy(), ts_value=sim_synced.to_numpy(), plot_results=False, plot_label="sim")
                     sig_sim.movmean()
                     season_trans_sim = sig_sim.calc_seasontrans(t_valley=t_valley)
 

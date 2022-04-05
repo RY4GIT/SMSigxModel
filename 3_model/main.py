@@ -169,7 +169,9 @@ def main(runtype, nrun, glue_calib_case, out_path):
 
     if runtype == "GLUE":
         # Initialize
-        cfe1 = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'config_cfe.json'))
+        cfe1 = bmi_cfe.BMI_CFE("G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/2_data_input/Mahurangi/full/config_cfe.json")
+
+        # cfe1 = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'config_cfe.json'))
         cfe1.initialize()
 
         # Start GLUE
@@ -221,12 +223,14 @@ if __name__ == '__main__':
 
     # o = open(os.path.join(out_path, 'log.txt'), 'w')
 
-    nrun = 100
-    main(runtype = "GLUE", nrun=nrun, glue_calib_case=1, out_path= '..\\4_out\\Mahurangi\\exp_id1')
-    main(runtype="GLUE", nrun=nrun, glue_calib_case=2, out_path= '..\\4_out\\Mahurangi\\exp_id2')
-    main(runtype="GLUE", nrun=nrun, glue_calib_case=3, out_path= '..\\4_out\\Mahurangi\\exp_id3')
-    main(runtype="GLUE", nrun=nrun, glue_calib_case=5, out_path= '..\\4_out\\Mahurangi\\exp_id5')
-    main(runtype="GLUE", nrun=nrun, glue_calib_case=6, out_path= '..\\4_out\\Mahurangi\\exp_id6')
+    # nrun = 100
+    # main(runtype = "GLUE", nrun=nrun, glue_calib_case=1, out_path= '..\\4_out\\Mahurangi\\exp_id1') #NSE_Q
+    # main(runtype="GLUE", nrun=nrun, glue_calib_case=2, out_path= '..\\4_out\\Mahurangi\\exp_id2') #KGE_Q
+    main(runtype="GLUE", nrun=10000, glue_calib_case=5, out_path= '..\\4_out\\Mahurangi\\exp_id8') #sesasonSM
+    # main(runtype="GLUE", nrun=10000, glue_calib_case=3, out_path= '..\\4_out\\Mahurangi\\exp_id6') #KGE_SM
+    # main(runtype="GLUE", nrun=nrun, glue_calib_case=6, out_path= '..\\4_out\\Mahurangi\\exp_id6') #multi
+
+
 
     #o.close()
 
