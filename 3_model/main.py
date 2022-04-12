@@ -32,17 +32,17 @@ from glue_cfe import MyGLUE
 # specify current directory create output directory if it does not exist
 os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model")
 os.getcwd()
-data_file_path = '..\\2_data_input\\Mahurangi\\full'
-
+# data_file_path = '..\\2_data_input\\Mahurangi\\full'
+data_file_path = '..\\2_data_input\\debug'
 # from numba import jit
 # @jit
 
-def main(runtype, nrun, glue_calib_case, out_path):
+def main(runtype, nrun=1, glue_calib_case=1, out_path='..\\4_out\\'):
 
     if runtype == "NOAA_CFE":
 
         input_config = {
-            "forcing_file": "..\\2_data_input\\Mahurangi\\full\\mahurangi_1998_2001.csv",
+            "forcing_file": "..\\2_data_input\\debug\\mahurangi_1998_2001.csv",
             "catchment_area_km2": 46.65,
             "soil_params": {
                 "bb": 14.658880935233976,
@@ -68,10 +68,10 @@ def main(runtype, nrun, glue_calib_case, out_path):
             "fc_atm_press_fraction": 0.33,
             "stand_alone": 1,
             "unit_test": 1,
-            "compare_results_file": "G:\\Shared drives\\Ryoko and Hilary\\SMSigxModel\\analysis\\2_data_input\\Mahurangi\\full\\test_sm_basinavg.csv",
+            "compare_results_file": "G:\\Shared drives\\Ryoko and Hilary\\SMSigxModel\\analysis\\2_data_input\\debug\\test_sm_basinavg.csv",
         }
 
-        input_path = os.path.join(data_file_path, 'full', 'config_cfe.json')
+        input_path = os.path.join(data_file_path, 'config_cfe.json')
         with open(input_path, 'w') as outfile:
             json.dump(input_config, outfile)
 
@@ -223,10 +223,11 @@ if __name__ == '__main__':
 
     # o = open(os.path.join(out_path, 'log.txt'), 'w')
 
+    main(runtype="NOAA_CFE", out_path='..\\4_out\\Mahurangi\\')
     # nrun = 100
     # main(runtype = "GLUE", nrun=nrun, glue_calib_case=1, out_path= '..\\4_out\\Mahurangi\\exp_id1') #NSE_Q
     # main(runtype="GLUE", nrun=nrun, glue_calib_case=2, out_path= '..\\4_out\\Mahurangi\\exp_id2') #KGE_Q
-    main(runtype="GLUE", nrun=10000, glue_calib_case=5, out_path= '..\\4_out\\Mahurangi\\exp_id8') #sesasonSM
+    # main(runtype="GLUE", nrun=10000, glue_calib_case=5, out_path= '..\\4_out\\Mahurangi\\exp_id8') #sesasonSM
     # main(runtype="GLUE", nrun=10000, glue_calib_case=3, out_path= '..\\4_out\\Mahurangi\\exp_id6') #KGE_SM
     # main(runtype="GLUE", nrun=nrun, glue_calib_case=6, out_path= '..\\4_out\\Mahurangi\\exp_id6') #multi
 
