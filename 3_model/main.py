@@ -9,6 +9,7 @@ if not sys.warnoptions:
     import warnings
     warnings.simplefilter("ignore")
 import json
+import multiprocessing as mp
 
 import spotpy
 import cProfile, pstats, io
@@ -33,16 +34,17 @@ from glue_cfe import MyGLUE
 os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model")
 os.getcwd()
 # data_file_path = '..\\2_data_input\\Mahurangi\\full'
-data_file_path = '..\\2_data_input\\debug'
+# data_file_path = '..\\2_data_input\\debug'
 # from numba import jit
 # @jit
 
-def main(runtype, nrun=1, glue_calib_case=1, out_path='..\\4_out\\'):
+def main(runtype, nrun=1, glue_calib_case=1, out_path='..\\4_out\\', data_file_path='', cfe_json_fn=''):
 
     if runtype == "NOAA_CFE":
 
         input_config = {
-            "forcing_file": "..\\2_data_input\\debug\\mahurangi_1998_2001.csv",
+            "forcing_file": "..\\2_data_input\\Mahurangi\\full\\mahurangi_1998_2001.csv",
+            # "forcing_file": "..\\2_data_input\\debug\\mahurangi_1998_2001.csv",
             "catchment_area_km2": 46.65,
             "soil_params": {
                 "bb": 14.658880935233976,
@@ -87,7 +89,7 @@ def main(runtype, nrun=1, glue_calib_case=1, out_path='..\\4_out\\'):
         print('Start sensitivity analysis')
 
         # preparation & sampling parameters
-        cfe_instance = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'full', 'config_cfe.json'))
+        cfe_instance = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'config_cfe.json'))
         problem = {
             'num_vars':16,
             'names': ['bb',
@@ -126,15 +128,9 @@ def main(runtype, nrun=1, glue_calib_case=1, out_path='..\\4_out\\'):
                        ]
         }
 
-        """
-        salib_experiment = SALib_CFE(
-            cfe_instance=cfe_instance, problem=problem, SAmethod='Sobol', out_path=out_path
-        )
-        salib_experiment.run()
-        salib_experiment.plot(plot_type='STS1')
-        """
 
-        out_path_salibexp = '..\\4_out\\Mahurangi\\salidexp_id1'
+
+        out_path_salibexp = out_path
         if not os.path.exists(out_path_salibexp):
             os.mkdir(out_path_salibexp)
 
@@ -143,6 +139,17 @@ def main(runtype, nrun=1, glue_calib_case=1, out_path='..\\4_out\\'):
         )
         salib_experiment.run()
         salib_experiment.plot(plot_type='EET')
+
+
+        salib_experiment = SALib_CFE(
+            cfe_instance=cfe_instance, problem=problem, SAmethod='Sobol', out_path=out_path_salibexp
+        )
+        salib_experiment.run()
+        salib_experiment.plot(plot_type='STS1')
+
+
+        # Morris & EET
+        # Sobol & STS1
 
     if runtype == "SPOTPy":
         # Initialize
@@ -169,7 +176,7 @@ def main(runtype, nrun=1, glue_calib_case=1, out_path='..\\4_out\\'):
 
     if runtype == "GLUE":
         # Initialize
-        cfe1 = bmi_cfe.BMI_CFE("G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/2_data_input/Mahurangi/full/config_cfe.json")
+        cfe1 = bmi_cfe.BMI_CFE(os.path.join("G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/2_data_input/Mahurangi/full/", cfe_json_fn))
 
         # cfe1 = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'config_cfe.json'))
         cfe1.initialize()
@@ -223,14 +230,31 @@ if __name__ == '__main__':
 
     # o = open(os.path.join(out_path, 'log.txt'), 'w')
 
-    main(runtype="NOAA_CFE", out_path='..\\4_out\\Mahurangi\\')
-    # nrun = 100
-    # main(runtype = "GLUE", nrun=nrun, glue_calib_case=1, out_path= '..\\4_out\\Mahurangi\\exp_id1') #NSE_Q
-    # main(runtype="GLUE", nrun=nrun, glue_calib_case=2, out_path= '..\\4_out\\Mahurangi\\exp_id2') #KGE_Q
-    # main(runtype="GLUE", nrun=10000, glue_calib_case=5, out_path= '..\\4_out\\Mahurangi\\exp_id8') #sesasonSM
-    # main(runtype="GLUE", nrun=10000, glue_calib_case=3, out_path= '..\\4_out\\Mahurangi\\exp_id6') #KGE_SM
+    # main(runtype="NOAA_CFE", out_path='..\\4_out\\Mahurangi\\')
+
+    data_file_path = '..\\2_data_input\\Mahurangi\\full'
+    # main(runtype="SALib", out_path='..\\4_out\\Mahurangi\\SALib_id1', data_file_path=data_file_path)
+    nrun = 10000
+    # main(runtype = "GLUE", nrun=nrun, glue_calib_case=1, out_path= '..\\4_out\\Mahurangi\\exp_id9') #NSE_Q
+    # main(runtype="GLUE", nrun=nrun, glue_calib_case=2, out_path= '..\\4_out\\Mahurangi\\exp_id10') #KGE_Q
+    # main(runtype="GLUE", nrun=nrun, glue_calib_case=5, out_path= '..\\4_out\\Mahurangi\\exp_id11') #sesasonSM
+    # main(runtype="GLUE", nrun=nrun, glue_calib_case=3, out_path= '..\\4_out\\Mahurangi\\exp_id12') #KGE_SM
     # main(runtype="GLUE", nrun=nrun, glue_calib_case=6, out_path= '..\\4_out\\Mahurangi\\exp_id6') #multi
 
+    process1 = mp.Process(target=main, kwargs={'runtype': "GLUE", 'nrun': nrun, 'glue_calib_case': 1,
+                                               'out_path': '..\\4_out\\Mahurangi\\exp_id9', 'cfe_json_fn': 'config_cfe_core1.json'})
+    process2 = mp.Process(target=main, kwargs={'runtype': "GLUE", 'nrun': nrun, 'glue_calib_case': 2,
+                                               'out_path': '..\\4_out\\Mahurangi\\exp_id10', 'cfe_json_fn': 'config_cfe_core2.json'})
+    process3 = mp.Process(target=main, kwargs={'runtype': "GLUE", 'nrun': nrun, 'glue_calib_case': 5,
+                                               'out_path': '..\\4_out\\Mahurangi\\exp_id11', 'cfe_json_fn': 'config_cfe_core3.json'})
+    process4 = mp.Process(target=main, kwargs={'runtype': "GLUE", 'nrun': nrun, 'glue_calib_case': 3,
+                                               'out_path': '..\\4_out\\Mahurangi\\exp_id12', 'cfe_json_fn': 'config_cfe_core4.json'})
+    # process2 = mp.Process(target=main)
+
+    process1.start()
+    process2.start()
+    process3.start()
+    process4.start()
 
 
     #o.close()

@@ -10,9 +10,9 @@ import json
 import matplotlib.pyplot as plt
 
 # Global variables
-KGE_Q_thresh = 0.5 # threshold value
+KGE_Q_thresh = -0.41 # threshold value
 KGE_SM_thresh = 0.5 # threshold value
-NSE_Q_thresh = 0.5
+NSE_Q_thresh = 0
 seasontrans_thresh = 35 # seasonal transition threshold
 quantiles = [0.05, 0.5, 0.95] # quantiles
 
@@ -82,6 +82,7 @@ class MyGLUE(object):
             spotpy.parameter.Uniform('exponent_secondary', low=1, high=8),
             spotpy.parameter.Uniform('coeff_secondary', low=0.01, high=3),
             spotpy.parameter.Uniform('trigger_z_m', low=0.01, high=0.87),
+            spotpy.parameter.Uniform('K_nash', low=0.005, high=1),
             spotpy.parameter.Uniform('fc_atm_press_fraction', low=0.10, high=0.33),
             spotpy.parameter.Uniform('max_gw_storage', low=10, high=250),
             spotpy.parameter.Uniform('Cgw', low=0.01, high=1),
@@ -103,6 +104,7 @@ class MyGLUE(object):
         self.calib_case = calib_case
         self.var_names = ["Flow", "Soil Moisture Content"]
 
+        self.calib_case = calib_case
         if calib_case == 1:
             print('NSE-based calib on Q')
             self.eval_names = ['NSE_Q']
@@ -125,11 +127,11 @@ class MyGLUE(object):
 
     def simulation(self):
     # run the simulation
-        print('--- Running CFE model ---')
+        # print('--- Running CFE model ---')
         flag_behavioral = 0
         for n in range(self.nrun):
 
-            print('{}-th run'.format(n))
+
 
             # ===============================================================
             # Write the randomly-generated parameters to the config json file
@@ -201,9 +203,6 @@ class MyGLUE(object):
                     diff = season_trans_sim - season_trans_obs
                     diff_avg = abs(np.nanmean(diff, axis=0))
 
-
-
-
                 # Get the variables
                 if var_name == "Flow":
                     if "KGE_Q" in self.eval_names:
@@ -248,8 +247,9 @@ class MyGLUE(object):
                 behavioral_condition = KGE_Q > KGE_Q_thresh and KGE_SM > KGE_SM_thresh and all(diff_avg < seasontrans_thresh)
                 eval_array = [KGE_Q, KGE_SM, diff_avg[0], diff_avg[1], diff_avg[2], diff_avg[3]]
 
+
             if behavioral_condition:
-                print('Behavioral')
+                print_results = 'Behavioral'
                 # This is the threshold conditions
                     # KGE must be above thresholds
                     # Average transition dates are less than threshold
@@ -270,7 +270,10 @@ class MyGLUE(object):
                 self.eval.append(eval_array)
             else:
                 # Discard non-behavioral runs
-                print('Non-behavioral')
+                print_results = 'Non-ehavioral'
+
+            print('Case{}: {}-th run'.format(self.calib_case, n))
+            print(print_results)
             print(eval_array)
 
         # ===============================================================
@@ -400,9 +403,9 @@ class MyGLUE(object):
         file.close
 
         # save the results to csv
+        self.df_pri_paras.to_csv(os.path.join(self.out_path, 'paramter_priori.csv'), sep=',', header=True, index=False, encoding='utf-8', na_rep='nan')
         if hasattr(self, 'df_post_paras'):
             self.df_post_paras.to_csv(os.path.join(self.out_path, 'parameter_posterior.csv'), sep=',', header=True, index=False, encoding='utf-8', na_rep='nan')
-        self.df_pri_paras.to_csv(os.path.join(self.out_path, 'paramter_priori.csv'), sep=',', header=True, index=False, encoding='utf-8', na_rep='nan')
         if hasattr(self, 'df_post_eval'):
             self.df_post_eval.to_csv(os.path.join(self.out_path, 'evaluations.csv'), sep=',', header=True, index=False, encoding='utf-8', na_rep='nan')
         if hasattr(self, 'df_Q_simrange'):

@@ -33,6 +33,7 @@ class SALib_CFE():
     def run(self):
         if self.SAmethod == "Sobol":
             # sample
+            # n = 2
             n = 250
             self.param_values = saltelli.sample(self.problem, n, calc_second_order=True)
 
@@ -70,6 +71,8 @@ class SALib_CFE():
             # sample
             N = 500
             n_levels = 4
+            # N = 3
+            # n_levels = 4
             self.param_values = morris_s.sample(self.problem, N=N, num_levels=n_levels)
 
             # run a model

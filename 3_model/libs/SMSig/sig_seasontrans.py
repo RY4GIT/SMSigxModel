@@ -271,6 +271,7 @@ class SMSig():
                     plt.show()
                     """
 
+                    """
                     # If the wp and fc coincides, or transition is shorter than 7 days, reject it (optimization is likely to have failed)
                     if abs((Pfit[0]+Pfit[1]*Pfit[2])-(Pfit[0]+Pfit[1]*(Pfit[2]+Pfit[3])))<1.0e-03 or Pfit[3] < 7:
                         if abs((Pfit[0]+Pfit[1]*Pfit[2])-(Pfit[0]+Pfit[1]*(Pfit[2]+Pfit[3])))<1.0e-03:
@@ -279,27 +280,28 @@ class SMSig():
                             print('Duration too short')
                         Pfit[:] = np.nan
                     else:
-                        # Get signatures
-                        trans_start_result = seasonsm.axes[0][0] + datetime.timedelta(days=Pfit[2])
-                        trans_end_result = seasonsm.axes[0][0] + datetime.timedelta(days=Pfit[2]+Pfit[3])
-                        # print(trans_start_result, trans_end_result)
+                    """
+                    # Get signatures
+                    trans_start_result = seasonsm.axes[0][0] + datetime.timedelta(days=Pfit[2])
+                    trans_end_result = seasonsm.axes[0][0] + datetime.timedelta(days=Pfit[2]+Pfit[3])
+                    # print(trans_start_result, trans_end_result)
 
-                        # Save in the array
-                        seasontrans_date[i,2*trans] = trans_start_result.to_julian_date()
-                        seasontrans_date[i,1+2*trans] = trans_end_result.to_julian_date()
+                    # Save in the array
+                    seasontrans_date[i,2*trans] = trans_start_result.to_julian_date()
+                    seasontrans_date[i,1+2*trans] = trans_end_result.to_julian_date()
 
-                        if self.plot_results:
-                            n_plot += 1
-                            if self.plot_label == "sim":
-                                lcolor = '#ef8a62'
-                            elif self.plot_label == "obs":
-                                lcolor = '#67a9cf'
+                    if self.plot_results:
+                        n_plot += 1
+                        if self.plot_label == "sim":
+                            lcolor = '#ef8a62'
+                        elif self.plot_label == "obs":
+                            lcolor = '#67a9cf'
 
-                            plt.figure(n_plot, figsize=(6, 4))
-                            plt.plot(x, piecewise_linear(x, Pfit[0], Pfit[1], Pfit[2], Pfit[3]), color=lcolor)
-                            plt.plot(x,y, color=lcolor, label=self.plot_label)
-                            plt.show(block=False)
-                            plt.legend()
+                        plt.figure(n_plot, figsize=(6, 4))
+                        plt.plot(x, piecewise_linear(x, Pfit[0], Pfit[1], Pfit[2], Pfit[3]), color=lcolor)
+                        plt.plot(x,y, color=lcolor, label=self.plot_label)
+                        plt.show(block=False)
+                        plt.legend()
 
 
         # print(seasontrans_date)
