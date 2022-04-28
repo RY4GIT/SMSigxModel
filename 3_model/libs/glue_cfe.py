@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 # Global variables
 KGE_Q_thresh = -0.41 # threshold value
 KGE_SM_thresh = 0.5 # threshold value
-NSE_Q_thresh = 0
+NSE_Q_thresh = -1000
 seasontrans_thresh = 35 # seasonal transition threshold
 quantiles = [0.05, 0.5, 0.95] # quantiles
 
@@ -77,16 +77,16 @@ class MyGLUE(object):
             spotpy.parameter.Uniform('satdk', low=0, high=1),
             spotpy.parameter.Uniform('slop', low=0, high=1),
             spotpy.parameter.Uniform('satpsi', low=0.02, high=0.78),
-            spotpy.parameter.Uniform('smcmax', low=0.33, high=0.7),
+            spotpy.parameter.Uniform('smcmax', low=0.33, high=1.0),
             spotpy.parameter.Uniform('wltsmc', low=0.0, high=0.57),
-            spotpy.parameter.Uniform('exponent_secondary', low=1, high=8),
-            spotpy.parameter.Uniform('coeff_secondary', low=0.01, high=3),
+            spotpy.parameter.Uniform('exponent_secondary', low=0, high=8),
+            spotpy.parameter.Uniform('max_gw_storage', low=0.1, high=250),
+            spotpy.parameter.Uniform('Cgw', low=0.01, high=10),
+            spotpy.parameter.Uniform('expon', low=0, high=8),
+            spotpy.parameter.Uniform('K_lf', low=0, high=50),
+            spotpy.parameter.Uniform('K_nash', low=0, high=30),
             spotpy.parameter.Uniform('trigger_z_m', low=0.01, high=0.87),
-            spotpy.parameter.Uniform('K_nash', low=0.005, high=1),
             spotpy.parameter.Uniform('fc_atm_press_fraction', low=0.10, high=0.33),
-            spotpy.parameter.Uniform('max_gw_storage', low=10, high=250),
-            spotpy.parameter.Uniform('Cgw', low=0.01, high=1),
-            spotpy.parameter.Uniform('expon', low=1, high=8),
             spotpy.parameter.Uniform('refkdt', low=0.1, high=4)
         ]
 
@@ -270,7 +270,7 @@ class MyGLUE(object):
                 self.eval.append(eval_array)
             else:
                 # Discard non-behavioral runs
-                print_results = 'Non-ehavioral'
+                print_results = 'Non-behavioral'
 
             print('Case{}: {}-th run'.format(self.calib_case, n))
             print(print_results)

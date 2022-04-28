@@ -47,26 +47,24 @@ def main(runtype, nrun=1, glue_calib_case=1, out_path='..\\4_out\\', data_file_p
             # "forcing_file": "..\\2_data_input\\debug\\mahurangi_1998_2001.csv",
             "catchment_area_km2": 46.65,
             "soil_params": {
-                "bb": 14.658880935233976,
-                "mult": 1000.0,
-                "satdk": 0.013447137666802389,
+                "bb": 8,
+                "satdk": 0.0000013888888,
                 "satpsi": 0.09187291127012216,
-                "slop": 0.0002740918314719565,
+                "slop": 1,
                 "smcmax": 0.6757270053046729,
-                "wltsmc": 0.3689068227673663, "D": 0.87,
-                "exponent_primary": 1.0,
-                "coeff_secondary": 1.0174974070860094,
-                "exponent_secondary": 1.1833082840205675
+                "wltsmc": 0.3689068227673663,
+                "D": 0.87,
+                "exponent_secondary": 1
             },
-            "max_gw_storage": 221.96089432793116,
-            "Cgw": 0.9556998526934358,
-            "expon": 1.073458751801099,
-            "K_lf": 46.875000531249995,
-            "K_nash": 0.22440411667008253,
+            "max_gw_storage": 10,
+            "Cgw": 5,
+            "expon": 0.0002,
+            "K_lf": 0.5,
+            "K_nash": 1,
             "nash_storage": [0.0, 0.0],
             "giuh_ordinates": [0.1, 0.35, 0.2, 0.14, 0.1, 0.06, 0.05],
             "refkdt": 2.325787803305572,
-            "trigger_z_m": 0.8340054706423846,
+            "trigger_z_m": 0.1,
             "fc_atm_press_fraction": 0.33,
             "stand_alone": 1,
             "unit_test": 1,
@@ -230,17 +228,18 @@ if __name__ == '__main__':
 
     # o = open(os.path.join(out_path, 'log.txt'), 'w')
 
-    # main(runtype="NOAA_CFE", out_path='..\\4_out\\Mahurangi\\')
-
-    data_file_path = '..\\2_data_input\\Mahurangi\\full'
+    main(runtype="NOAA_CFE", out_path='..\\4_out\\Mahurangi\\', nrun=1)
+    # main(runtype="GLUE", nrun=5000, glue_calib_case=1, out_path='..\\4_out\\Mahurangi\\',cfe_json_fn='config_cfe.json')
+    # data_file_path = '..\\2_data_input\\Mahurangi\\full'
     # main(runtype="SALib", out_path='..\\4_out\\Mahurangi\\SALib_id1', data_file_path=data_file_path)
-    nrun = 10000
+    # nrun = 10000
     # main(runtype = "GLUE", nrun=nrun, glue_calib_case=1, out_path= '..\\4_out\\Mahurangi\\exp_id9') #NSE_Q
     # main(runtype="GLUE", nrun=nrun, glue_calib_case=2, out_path= '..\\4_out\\Mahurangi\\exp_id10') #KGE_Q
     # main(runtype="GLUE", nrun=nrun, glue_calib_case=5, out_path= '..\\4_out\\Mahurangi\\exp_id11') #sesasonSM
     # main(runtype="GLUE", nrun=nrun, glue_calib_case=3, out_path= '..\\4_out\\Mahurangi\\exp_id12') #KGE_SM
     # main(runtype="GLUE", nrun=nrun, glue_calib_case=6, out_path= '..\\4_out\\Mahurangi\\exp_id6') #multi
 
+    """
     process1 = mp.Process(target=main, kwargs={'runtype': "GLUE", 'nrun': nrun, 'glue_calib_case': 1,
                                                'out_path': '..\\4_out\\Mahurangi\\exp_id9', 'cfe_json_fn': 'config_cfe_core1.json'})
     process2 = mp.Process(target=main, kwargs={'runtype': "GLUE", 'nrun': nrun, 'glue_calib_case': 2,
@@ -255,7 +254,7 @@ if __name__ == '__main__':
     process2.start()
     process3.start()
     process4.start()
-
+    """
 
     #o.close()
 
