@@ -20,7 +20,7 @@ plt.title('Lotka-Volterra System')
 plt.show()
 """
 
-storage_threshold_primary_m = 0.5
+storage_threshold_primary_m = 0.7
 storage_max_m = 0.8
 y0 = [0.6]
 coeff_primary = 0.5
@@ -37,6 +37,9 @@ sol = solve_ivp(lambda t, y:conceptual_reservoir_flux_calc(t, y, storage_thresho
                 t_span = [0, 1], y0 = y0,
                 dense_output=False)
 
+sol = solve_ivp(conceptual_reservoir_flux_calc,
+                t_span = [0, 1], y0 = y0,
+                args = (storage_threshold_primary_m,0.8,coeff_primary,coeff_secondary))
 t = sol.t
 y = sol.y[0]
 dS = np.diff(y)
