@@ -4,57 +4,104 @@ from scipy.integrate import solve_ivp
 import numpy as np
 import matplotlib.pyplot as plt
 
-"""
-def lotkavolterra(t, z, a, b, c, d):
-    x, y = z
-    return [a*x - b*x*y, -c*y + d*x*y]
-
-sol = solve_ivp(lotkavolterra, [0, 15], [10, 5], args=(1.5, 1, 3, 1),
-                dense_output=True)
-t = np.linspace(0, 15, 300)
-z = sol.sol(t)
-plt.plot(t, z.T)
-plt.xlabel('t')
-plt.legend(['x', 'y'], shadow=True)
-plt.title('Lotka-Volterra System')
-plt.show()
-"""
-
-storage_threshold_primary_m = 0.7
+storage_threshold_primary_m = 0.5
 storage_max_m = 0.8
+wltsmc = 0.45
 y0 = [0.6]
 coeff_primary = 0.5
 coeff_secondary = 0.5
+PET = 0.5
 
 def conceptual_reservoir_flux_calc(t, reservoir, storage_threshold_primary_m, storage_max_m, coeff_primary, coeff_secondary):
     storage_above_threshold_m = reservoir - storage_threshold_primary_m
     storage_diff = storage_max_m - storage_threshold_primary_m
     storage_ratio = storage_above_threshold_m / storage_diff  # Equation 11 (Ogden's document).
-    dS = -1* (coeff_primary + coeff_secondary) * storage_ratio
+    dS = -1* (coeff_primary + coeff_secondary) * storage_ratio - PET
     return dS
 
-sol = solve_ivp(lambda t, y:conceptual_reservoir_flux_calc(t, y, storage_threshold_primary_m, storage_max_m, coeff_primary, coeff_secondary),
+def conceptual_reservoir_flux_calc2(t, reservoir, storage_threshold_primary_m, storage_max_m, coeff_primary, coeff_secondary, wltsmc):
+    storage_above_threshold_m = reservoir - storage_threshold_primary_m
+    storage_diff = storage_max_m - storage_threshold_primary_m
+    storage_ratio = storage_above_threshold_m / storage_diff  # Equation 11 (Ogden's document).
+    storage_above_threshold_m_paw = reservoir - wltsmc
+    storage_diff_paw = storage_threshold_primary_m - wltsmc
+    storage_ratio_paw = storage_above_threshold_m_paw / storage_diff_paw  # Equation 11 (Ogden's document).
+    dS = -1* (coeff_primary + coeff_secondary) * storage_ratio - PET * storage_ratio_paw
+    return dS
+
+def event_thresh(t,y,storage_threshold_primary_m, storage_max_m, coeff_primary, coeff_secondary):
+    return y[0] - storage_threshold_primary_m
+
+def event_wltsmc(t,y,storage_threshold_primary_m, storage_max_m, coeff_primary, coeff_secondary, wltsmc):
+    return y[0] - wltsmc
+
+
+event_thresh.terminal = True
+event_wltsmc.terminal = True
+
+ts = []
+ys = []
+
+sol = solve_ivp(conceptual_reservoir_flux_calc,
                 t_span = [0, 1], y0 = y0,
-                dense_output=False)
+                args = (storage_threshold_primary_m,0.8,coeff_primary,coeff_secondary),
+                events = event_thresh,
+                dense_output=True)
+ts.append(sol.t)
+ys.append(sol.y)
+# If the event is reached
+if sol.status == 1:
+    sol = solve_ivp(conceptual_reservoir_flux_calc2,
+                    t_span=[sol.t[-1], 1], y0=sol.y[:,-1].copy(),
+                    args=(storage_threshold_primary_m, 0.8, coeff_primary, coeff_secondary, wltsmc),
+                    events = event_wltsmc,
+                    dense_output=True)
+    ts.append(sol.t)
+    ys.append(sol.y)
+
+
+plt.plot(np.concatenate(ts),np.concatenate(ys, axis=1).T)
+plt.plot(ts[0],ys[0].T)
+plt.xlabel('timestep')
+plt.ylabel('Storage')
+plt.title('Soil coceptual reservoir')
+plt.show()
+
+
+sol = solve_ivp(conceptual_reservoir_flux_calc,
+                t_span = [0, 1],
+                y0 = y0,
+                args = (storage_threshold_primary_m,
+                        storage_max_m,
+                        coeff_primary,
+                        coeff_secondary),
+                dense_output=True)
+
 
 sol = solve_ivp(conceptual_reservoir_flux_calc,
                 t_span = [0, 1], y0 = y0,
                 args = (storage_threshold_primary_m,0.8,coeff_primary,coeff_secondary))
+
 t = sol.t
 y = sol.y[0]
+plt.plot(t, y)
+plt.xlabel('timestep')
+plt.ylabel('Storage')
+plt.title('Soil coceptual reservoir')
+plt.show()
+
+# add Evapo in the dS, if not a same form as Perc and Lat, use breakpoint to calculate three fluxes
+
 dS = np.diff(y)
 p_flux = -1 * dS * coeff_primary/(coeff_primary+coeff_secondary)
 s_flux = -1 * dS * coeff_secondary/(coeff_primary+coeff_secondary)
 ds_cum = y[-1] - y[0]
 p_flux = -1 * ds_cum * coeff_primary/(coeff_primary+coeff_secondary)
 s_flux = -1 * ds_cum * coeff_secondary/(coeff_primary+coeff_secondary)
-plt.plot(t, y)
+
 # plt.plot(t[1:],p_flux)
 # plt.plot(t[1:],s_flux)
-plt.xlabel('timestep')
-plt.ylabel('Storage')
-plt.title('Soil coceptual reservoir')
-plt.show()
+
 
 """
 storage_threshold_primary_m = 0.5

@@ -47,7 +47,7 @@ def main(runtype, nrun=1, glue_calib_case=1, out_path='..\\4_out\\', data_file_p
             # "forcing_file": "..\\2_data_input\\debug\\mahurangi_1998_2001.csv",
             "catchment_area_km2": 46.65,
             "soil_params": {
-                "bb": 10,
+                "bb": 8,
                 "satdk": 0.0000013888888, # 1-07 - 1-05
                 "satpsi": 0.09187291127012216,
                 "slop": 1,
