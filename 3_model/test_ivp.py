@@ -9,7 +9,7 @@ storage_max_m = 0.8
 wltsmc = 0.45
 y0 = [0.6]
 coeff_primary = 0.5
-coeff_secondary = 0.5
+coeff_secondary = 0.4
 PET = 0.5
 
 def conceptual_reservoir_flux_calc(t, reservoir, storage_threshold_primary_m, storage_max_m, coeff_primary, coeff_secondary):
@@ -19,20 +19,17 @@ def conceptual_reservoir_flux_calc(t, reservoir, storage_threshold_primary_m, st
     dS = -1* (coeff_primary + coeff_secondary) * storage_ratio - PET
     return dS
 
-def conceptual_reservoir_flux_calc2(t, reservoir, storage_threshold_primary_m, storage_max_m, coeff_primary, coeff_secondary, wltsmc):
-    storage_above_threshold_m = reservoir - storage_threshold_primary_m
-    storage_diff = storage_max_m - storage_threshold_primary_m
-    storage_ratio = storage_above_threshold_m / storage_diff  # Equation 11 (Ogden's document).
+def conceptual_reservoir_flux_calc2(t, reservoir, storage_threshold_primary_m, wltsmc):
     storage_above_threshold_m_paw = reservoir - wltsmc
     storage_diff_paw = storage_threshold_primary_m - wltsmc
     storage_ratio_paw = storage_above_threshold_m_paw / storage_diff_paw  # Equation 11 (Ogden's document).
-    dS = -1* (coeff_primary + coeff_secondary) * storage_ratio - PET * storage_ratio_paw
+    dS = - PET * storage_ratio_paw
     return dS
 
 def event_thresh(t,y,storage_threshold_primary_m, storage_max_m, coeff_primary, coeff_secondary):
     return y[0] - storage_threshold_primary_m
 
-def event_wltsmc(t,y,storage_threshold_primary_m, storage_max_m, coeff_primary, coeff_secondary, wltsmc):
+def event_wltsmc(t,y,storage_threshold_primary_m, wltsmc):
     return y[0] - wltsmc
 
 
@@ -46,25 +43,69 @@ sol = solve_ivp(conceptual_reservoir_flux_calc,
                 t_span = [0, 1], y0 = y0,
                 args = (storage_threshold_primary_m,0.8,coeff_primary,coeff_secondary),
                 events = event_thresh,
-                dense_output=True)
-ts.append(sol.t)
-ys.append(sol.y)
+                dense_output=True,
+                method = 'Radau')
+ts.append(sol.t[:-1])
+ys.append(sol.y[0][:-1])
+ts1 = ts[0]
+ys1 = ys[0]
 # If the event is reached
 if sol.status == 1:
     sol = solve_ivp(conceptual_reservoir_flux_calc2,
                     t_span=[sol.t[-1], 1], y0=sol.y[:,-1].copy(),
-                    args=(storage_threshold_primary_m, 0.8, coeff_primary, coeff_secondary, wltsmc),
+                    args=(storage_threshold_primary_m, wltsmc),
                     events = event_wltsmc,
-                    dense_output=True)
+                    dense_output=True,
+                    method = 'Radau')
     ts.append(sol.t)
-    ys.append(sol.y)
+    ys.append(sol.y[0])
+    ts2 = ts[1]
+    ys2 = ys[1]
 
+ts_concat = np.concatenate(ts)
+ys_concat = np.concatenate(ys, axis=0)
 
-plt.plot(np.concatenate(ts),np.concatenate(ys, axis=1).T)
-plt.plot(ts[0],ys[0].T)
+t_proportion = np.diff(ts_concat)
+
+lateral_flux = np.zeros(ys_concat.shape)
+lateral_flux[:len(ys1)] = coeff_secondary * (ys1 - storage_threshold_primary_m)/(storage_max_m-storage_threshold_primary_m)
+lateral_flux_frac = lateral_flux[:-1] * t_proportion
+
+perc_flux = np.zeros(ys_concat.shape)
+perc_flux[:len(ys1)] = coeff_primary * (ys1 - storage_threshold_primary_m)/(storage_max_m-storage_threshold_primary_m)
+perc_flux_frac = perc_flux[:-1] * t_proportion
+
+et_from_soil = np.repeat(PET, ys_concat.shape)
+et_from_soil[len(ys1):] = PET * (ys2 - wltsmc)/(storage_threshold_primary_m -wltsmc)
+et_from_soil_frac = et_from_soil[:-1] * t_proportion
+
+plt.plot(ts_concat[:-1], lateral_flux_frac, label = 'Lateral flux', color = 'darkturquoise')
+plt.plot(ts_concat[:-1], perc_flux_frac, label = 'Percolation flux', color = 'royalblue')
+plt.plot(ts_concat[:-1], et_from_soil_frac,label =  'ET from soil', color =  'mediumseagreen')
+plt.plot(ts_concat[:-1], lateral_flux_frac+perc_flux_frac+et_from_soil_frac, label = 'Flux sum', ls= '--', color =  'slateblue')
+plt.plot(ts_concat[:-1], np.diff(-ys_concat,axis=0),label =  'dStorage',  ls= '--',color='orangered')
+# plt.plot(ts_concat,ys_concat,label =  'Storage', color='slateblue')
 plt.xlabel('timestep')
 plt.ylabel('Storage')
 plt.title('Soil coceptual reservoir')
+plt.legend()
+plt.show()
+
+flux_scale = np.diff(-ys_concat,axis=0)/(lateral_flux_frac+perc_flux_frac+et_from_soil_frac)
+scaled_lateral_flux = lateral_flux_frac * flux_scale
+scaled_perc_flux = perc_flux_frac* flux_scale
+scaled_et_flux = et_from_soil_frac* flux_scale
+
+plt.plot(ts_concat[:-1], scaled_lateral_flux, label = 'Lateral flux', color = 'darkturquoise')
+plt.plot(ts_concat[:-1], scaled_perc_flux, label = 'Percolation flux', color = 'royalblue')
+plt.plot(ts_concat[:-1], scaled_et_flux,label =  'ET from soil', color =  'mediumseagreen')
+plt.plot(ts_concat[:-1], scaled_lateral_flux+scaled_perc_flux+scaled_et_flux, label = 'Flux sum', ls= '--', color =  'slateblue')
+plt.plot(ts_concat[:-1], np.diff(-ys_concat,axis=0),label =  'dStorage',  ls= '--',color='orangered')
+# plt.plot(ts_concat,ys_concat,label =  'Storage', color='slateblue')
+plt.xlabel('timestep')
+plt.ylabel('Storage')
+plt.title('Soil coceptual reservoir')
+plt.legend()
 plt.show()
 
 
