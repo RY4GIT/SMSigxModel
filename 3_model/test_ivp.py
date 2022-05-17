@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 storage_max_m = 0.8
 storage_threshold_primary_m = 0.5
 wltsmc = 0.3
-y = 0.8
+y = 0.2
 coeff_primary = 0.5
 coeff_secondary = 0.4
 PET = 0.5
@@ -75,7 +75,7 @@ while t0 < 1:
                         dense_output=True,
                         method = 'Radau')
 
-    elif (y0[0] <= storage_threshold_primary_m) and (y0[0]  > wltsmc):
+    elif (y0[0] <= storage_threshold_primary_m) and (y0[0]  >= wltsmc):
         case = 2
         sol = solve_ivp(conceptual_reservoir_flux_calc2,
                         t_span=[t0, 1],
@@ -85,7 +85,7 @@ while t0 < 1:
                         dense_output=True,
                         method = 'Radau')
 
-    elif y0[0]  <= wltsmc:
+    elif y0[0]  < wltsmc:
         case = 3
         sol = solve_ivp(conceptual_reservoir_flux_calc3,
                         t_span=[t0, 1],
