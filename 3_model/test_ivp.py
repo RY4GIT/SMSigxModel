@@ -7,11 +7,13 @@ import matplotlib.pyplot as plt
 storage_max_m = 0.8
 storage_threshold_primary_m = 0.5
 wltsmc = 0.3
-y = 0.2
+y = 0.29999
 coeff_primary = 0.5
 coeff_secondary = 0.4
 PET = 0.5
-infilt = 0.1
+infilt = 0.05
+
+# conceptual_reservoir_flux_calc(1,   (0.54463605+ 0.5)/2, storage_threshold_primary_m, storage_max_m, coeff_primary, coeff_secondary, infilt)
 
 # ODE for Zone 1
 def conceptual_reservoir_flux_calc(t, reservoir, storage_threshold_primary_m, storage_max_m, coeff_primary, coeff_secondary, infilt):
@@ -73,7 +75,8 @@ while t0 < 1:
                         args = (storage_threshold_primary_m,0.8,coeff_primary,coeff_secondary, infilt),
                         events = event_thresh,
                         dense_output=True,
-                        method = 'Radau')
+                        method = 'Radau',
+                        max_step = 0.5)
 
     elif (y0[0] <= storage_threshold_primary_m) and (y0[0]  >= wltsmc):
         case = 2
@@ -83,7 +86,8 @@ while t0 < 1:
                         args=(storage_threshold_primary_m, wltsmc, infilt),
                         events = (event_wltsmc, event_thresh2),
                         dense_output=True,
-                        method = 'Radau')
+                        method = 'Radau',
+                        max_step = 0.5)
 
     elif y0[0]  < wltsmc:
         case = 3
@@ -93,7 +97,8 @@ while t0 < 1:
                         args=(wltsmc, infilt),
                         events = event_wltsmc2,
                         dense_output=True,
-                        method = 'Radau')
+                        method = 'Radau',
+                        max_step = 0.5)
 
     # record results
     ts.append(sol.t[:-1])  # so that it do not overlap with the 2nd solution
@@ -107,40 +112,45 @@ while t0 < 1:
 # finalize results
 ts.append(np.array([1]))
 ys.append(np.array([sol.y[0][-1]]))
-sol_case.append(np.array([case]))
 ts_concat = np.concatenate(ts, axis=0)
 ys_concat = np.concatenate(ys, axis=0)
 sol_case_concat = np.concatenate(sol_case, axis=0)
 
 # Calculate fluxes
 t_proportion = np.diff(ts_concat)
+ys_avg =  np.convolve(ys_concat,np.ones(2),'valid')/2
+ts_avg = np.convolve(ts_concat,np.ones(2),'valid')/2
 
-lateral_flux = np.zeros(ys_concat.shape)
-lateral_flux[sol_case_concat==1] = coeff_secondary * np.minimum((ys_concat[sol_case_concat==1] - storage_threshold_primary_m)/(storage_max_m-storage_threshold_primary_m),1)
-lateral_flux_frac = lateral_flux[:-1] * t_proportion
+lateral_flux = np.zeros(ys_avg.shape)
+lateral_flux[sol_case_concat==1] = coeff_secondary * np.minimum((ys_avg[sol_case_concat==1] - storage_threshold_primary_m)/(storage_max_m-storage_threshold_primary_m),1)
+# lateral_flux_frac = lateral_flux[:-1] * t_proportion
+lateral_flux_frac = lateral_flux* t_proportion
 
-perc_flux = np.zeros(ys_concat.shape)
-perc_flux[sol_case_concat==1] = coeff_primary *  np.minimum((ys_concat[sol_case_concat==1] - storage_threshold_primary_m)/(storage_max_m-storage_threshold_primary_m),1)
-perc_flux_frac = perc_flux[:-1]  * t_proportion
+perc_flux = np.zeros(ys_avg.shape)
+perc_flux[sol_case_concat==1] = coeff_primary *  np.minimum((ys_avg[sol_case_concat==1] - storage_threshold_primary_m)/(storage_max_m-storage_threshold_primary_m),1)
+# perc_flux_frac = perc_flux[:-1]  * t_proportion
+perc_flux_frac = perc_flux* t_proportion
 
-et_from_soil = np.repeat(PET, ys_concat.shape)
+et_from_soil = np.repeat(PET, ys_avg.shape)
 et_from_soil[sol_case_concat==3] = 0
-et_from_soil[sol_case_concat==2] = PET * np.minimum((ys_concat[sol_case_concat==2] - wltsmc)/(storage_threshold_primary_m -wltsmc), 1)
-et_from_soil_frac = et_from_soil[:-1]  * t_proportion
+et_from_soil[sol_case_concat==2] = PET * np.minimum((ys_avg[sol_case_concat==2] - wltsmc)/(storage_threshold_primary_m -wltsmc), 1)
+# et_from_soil_frac = et_from_soil[:-1]  * t_proportion
+et_from_soil_frac = et_from_soil * t_proportion
 
-infilt_to_soil = np.repeat(infilt, ys_concat.shape)
-infilt_to_soil_frac = infilt_to_soil[:-1] * t_proportion
+infilt_to_soil = np.repeat(infilt, ys_avg.shape)
+# infilt_to_soil_frac = infilt_to_soil[:-1] * t_proportion
+infilt_to_soil_frac = infilt_to_soil* t_proportion
 
 # Plot fluxes before scaling
 plt.subplot(2,1,1)
-plt.plot(ts_concat[:-1], -lateral_flux_frac, label = 'Lateral flux', color = 'darkturquoise')
-plt.plot(ts_concat[:-1], -perc_flux_frac, label = 'Percolation flux', color = 'royalblue')
-plt.plot(ts_concat[:-1], -et_from_soil_frac,label =  'ET from soil', color =  'mediumseagreen')
-plt.plot(ts_concat[:-1], +infilt_to_soil_frac, label =  'Infilt to soil', color = 'blue')
-plt.plot(ts_concat[:-1], np.diff(ys_concat),label =  'dStorage', color='orange', ls= '-.')
-plt.plot(ts_concat[:-1], -lateral_flux_frac-perc_flux_frac-et_from_soil_frac+infilt_to_soil_frac, label = 'Flux sum', ls= '--', color =  'slateblue')
-plt.xlabel('timestep')
-plt.ylabel('Flux')
+plt.plot(ts_avg, -lateral_flux_frac/t_proportion, label = 'Lateral flux', color = 'darkturquoise')
+plt.plot(ts_avg, -perc_flux_frac/t_proportion, label = 'Percolation flux', color = 'royalblue')
+plt.plot(ts_avg, -et_from_soil_frac/t_proportion,label =  'ET from soil', color =  'mediumseagreen')
+plt.plot(ts_avg, +infilt_to_soil_frac/t_proportion, label =  'Infilt to soil', color = 'blue')
+plt.plot(ts_avg, np.diff(ys_concat)/t_proportion,label =  'dStorage', color='orange', ls= '-.')
+plt.plot(ts_avg, (-lateral_flux_frac-perc_flux_frac-et_from_soil_frac+infilt_to_soil_frac)/t_proportion, label = 'Flux sum', ls= '--', color =  'slateblue')
+plt.xlabel('timestep [h]')
+plt.ylabel('Flux [m/h]')
 plt.title('Soil coceptual reservoir')
 plt.legend()
 plt.subplot(2,1,2)
@@ -151,25 +161,28 @@ plt.legend()
 plt.show()
 
 # Scale fluxes
-if (lateral_flux_frac+perc_flux_frac+et_from_soil_frac).all() == 0:
+sum_outflux = lateral_flux_frac+perc_flux_frac+et_from_soil_frac
+if sum_outflux.any() == 0:
     flux_scale = 0
 else:
-    flux_scale = (np.diff(-ys_concat,axis=0)+infilt_to_soil_frac)/(lateral_flux_frac+perc_flux_frac+et_from_soil_frac)
+    flux_scale = np.zeros(infilt_to_soil_frac.shape)
+    flux_scale[sum_outflux!=0] = (np.diff(-ys_concat,axis=0)[sum_outflux!=0]+infilt_to_soil_frac[sum_outflux!=0])/sum_outflux[sum_outflux!=0]
+    flux_scale[sum_outflux == 0] = 0
 scaled_lateral_flux = lateral_flux_frac * flux_scale
 scaled_perc_flux = perc_flux_frac* flux_scale
 scaled_et_flux = et_from_soil_frac* flux_scale
 
 # Plot scaled fluxes
 plt.subplot(2,1,1)
-plt.plot(ts_concat[:-1], -scaled_lateral_flux, label = 'Lateral flux', color = 'darkturquoise')
-plt.plot(ts_concat[:-1], -scaled_perc_flux, label = 'Percolation flux', color = 'royalblue')
-plt.plot(ts_concat[:-1], -scaled_et_flux,label =  'ET from soil', color =  'mediumseagreen')
-plt.plot(ts_concat[:-1], +infilt_to_soil_frac, label =  'Infilt to soil', color = 'blue')
-plt.plot(ts_concat[:-1], np.diff(ys_concat,axis=0),label =  'dStorage', color='orange', ls= '-.')
-plt.plot(ts_concat[:-1], -scaled_lateral_flux-scaled_perc_flux-scaled_et_flux+infilt_to_soil_frac, label = 'Flux sum', ls= '--', color =  'slateblue')
+plt.plot(ts_avg, -scaled_lateral_flux/t_proportion, label = 'Lateral flux', color = 'darkturquoise')
+plt.plot(ts_avg, -scaled_perc_flux/t_proportion, label = 'Percolation flux', color = 'royalblue')
+plt.plot(ts_avg, -scaled_et_flux/t_proportion,label =  'ET from soil', color =  'mediumseagreen')
+plt.plot(ts_avg, +infilt_to_soil_frac/t_proportion, label =  'Infilt to soil', color = 'blue')
+plt.plot(ts_avg, np.diff(ys_concat,axis=0)/t_proportion,label =  'dStorage', color='orange', ls= '-.')
+plt.plot(ts_avg, (-scaled_lateral_flux-scaled_perc_flux-scaled_et_flux+infilt_to_soil_frac)/t_proportion, label = 'Flux sum', ls= '--', color =  'slateblue')
 # plt.plot(ts_concat,ys_concat,label =  'Storage', color='slateblue')
-plt.xlabel('timestep')
-plt.ylabel('Flux')
+plt.xlabel('timestep [h]')
+plt.ylabel('Flux [m/h]')
 plt.title('Soil coceptual reservoir')
 plt.legend()
 plt.subplot(2,1,2)
