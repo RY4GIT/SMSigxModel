@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 storage_max_m = 0.8
 storage_threshold_primary_m = 0.5
 wltsmc = 0.3
-y = 0.29999
+y = 0.5
 coeff_primary = 0.5
 coeff_secondary = 0.4
 PET = 0.5
@@ -16,8 +16,8 @@ infilt = 0.05
 # conceptual_reservoir_flux_calc(1,   (0.54463605+ 0.5)/2, storage_threshold_primary_m, storage_max_m, coeff_primary, coeff_secondary, infilt)
 
 # ODE for Zone 1
-def conceptual_reservoir_flux_calc(t, reservoir, storage_threshold_primary_m, storage_max_m, coeff_primary, coeff_secondary, infilt):
-    storage_above_threshold_m = reservoir - storage_threshold_primary_m
+def conceptual_reservoir_flux_calc(t, S, storage_threshold_primary_m, storage_max_m, coeff_primary, coeff_secondary, infilt):
+    storage_above_threshold_m = S - storage_threshold_primary_m
     storage_diff = storage_max_m - storage_threshold_primary_m
     storage_ratio = np.minimum(storage_above_threshold_m / storage_diff, 1)
     dS = infilt -1* (coeff_primary + coeff_secondary) * storage_ratio - PET
@@ -29,8 +29,8 @@ event_thresh.terminal = True
 event_thresh.direction = -1
 
 # ODE for Zone 2
-def conceptual_reservoir_flux_calc2(t, reservoir, storage_threshold_primary_m, wltsmc, infilt):
-    storage_above_threshold_m_paw = reservoir - wltsmc
+def conceptual_reservoir_flux_calc2(t, S, storage_threshold_primary_m, wltsmc, infilt):
+    storage_above_threshold_m_paw = S - wltsmc
     storage_diff_paw = storage_threshold_primary_m - wltsmc
     storage_ratio_paw = np.minimum(storage_above_threshold_m_paw/storage_diff_paw, 1) # Equation 11 (Ogden's document).
     dS = infilt - PET * storage_ratio_paw
