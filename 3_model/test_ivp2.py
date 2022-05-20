@@ -7,11 +7,11 @@ import matplotlib.pyplot as plt
 storage_max_m = 0.8
 storage_threshold_primary_m = 0.5
 wltsmc = 0.3
-y = 0.5
+y = 0.8
 coeff_primary = 0.5
 coeff_secondary = 0.4
 PET = 0.5
-infilt = 0.05
+infilt = 0.
 
 # conceptual_reservoir_flux_calc(1,   (0.54463605+ 0.5)/2, storage_threshold_primary_m, storage_max_m, coeff_primary, coeff_secondary, infilt)
 
@@ -42,18 +42,14 @@ y0 = [y]
 sol = solve_ivp(conceptual_reservoir_flux_calc,
                 t_span=[t0, 1],
                 y0=y0,
-                args=(storage_threshold_primary_m, 0.8, coeff_primary, coeff_secondary, PET, infilt, wltsmc),
+                args=(storage_threshold_primary_m, storage_max_m, coeff_primary, coeff_secondary, PET, infilt, wltsmc),
                 dense_output=True,
                 method='Radau',
                 max_step=0.5)
 
-
 # finalize results
-ts.append(np.array([1]))
-ys.append(np.array([sol.y[0][-1]]))
-ts_concat = np.concatenate(ts, axis=0)
-ys_concat = np.concatenate(ys, axis=0)
-sol_case_concat = np.concatenate(sol_case, axis=0)
+ts_concat = sol.t
+ys_concat = sol.y[0]
 
 # Calculate fluxes
 t_proportion = np.diff(ts_concat)
@@ -61,18 +57,18 @@ ys_avg =  np.convolve(ys_concat,np.ones(2),'valid')/2
 ts_avg = np.convolve(ts_concat,np.ones(2),'valid')/2
 
 lateral_flux = np.zeros(ys_avg.shape)
-lateral_flux[sol_case_concat==1] = coeff_secondary * np.minimum((ys_avg[sol_case_concat==1] - storage_threshold_primary_m)/(storage_max_m-storage_threshold_primary_m),1)
-# lateral_flux_frac = lateral_flux[:-1] * t_proportion
+perc_lat_switch = ys_avg - storage_threshold_primary_m > 0
+lateral_flux[perc_lat_switch] = coeff_secondary * np.minimum((ys_avg[perc_lat_switch] - storage_threshold_primary_m)/(storage_max_m-storage_threshold_primary_m),1)
 lateral_flux_frac = lateral_flux* t_proportion
 
 perc_flux = np.zeros(ys_avg.shape)
-perc_flux[sol_case_concat==1] = coeff_primary *  np.minimum((ys_avg[sol_case_concat==1] - storage_threshold_primary_m)/(storage_max_m-storage_threshold_primary_m),1)
-# perc_flux_frac = perc_flux[:-1]  * t_proportion
+perc_flux[perc_lat_switch] = coeff_primary *  np.minimum((ys_avg[perc_lat_switch] - storage_threshold_primary_m)/(storage_max_m-storage_threshold_primary_m),1)
 perc_flux_frac = perc_flux* t_proportion
 
-et_from_soil = np.repeat(PET, ys_avg.shape)
-et_from_soil[sol_case_concat==3] = 0
-et_from_soil[sol_case_concat==2] = PET * np.minimum((ys_avg[sol_case_concat==2] - wltsmc)/(storage_threshold_primary_m -wltsmc), 1)
+et_from_soil = np.zeros(ys_avg.shape)
+ET_switch = ys_avg - wltsmc > 0
+# et_from_soil[sol_case_concat] = 0
+et_from_soil[ET_switch] = PET * np.minimum((ys_avg[ET_switch] - wltsmc)/(storage_threshold_primary_m -wltsmc), 1)
 # et_from_soil_frac = et_from_soil[:-1]  * t_proportion
 et_from_soil_frac = et_from_soil * t_proportion
 

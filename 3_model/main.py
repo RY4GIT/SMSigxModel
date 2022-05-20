@@ -10,6 +10,7 @@ if not sys.warnoptions:
     warnings.simplefilter("ignore")
 import json
 import multiprocessing as mp
+import snakeviz
 
 import spotpy
 import cProfile, pstats, io
@@ -268,5 +269,6 @@ if __name__ == '__main__':
         print(s.getvalue())
         ps.dump_stats('runtime.txt')
 
+# "C:\Users\flipl\anaconda3\envs\CFE\Scripts\snakeviz.exe"
 # snakeviz "G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\3_model\runtime.txt"
 # visualize to type the above in terminal
