@@ -1,11 +1,13 @@
 # https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html#scipy.integrate.solve_ivp
 
-from scipy.integrate import solve_ivp
+from scipy.integrate import ode
+from scipy.integrate import odeint
 import numpy as np
 import matplotlib.pyplot as plt
 import timeit
 
 start = timeit.timeit()
+
 storage_max_m = 0.8
 storage_threshold_primary_m = 0.5
 wltsmc = 0.3
@@ -34,17 +36,21 @@ def conceptual_reservoir_flux_calc(t, S, storage_threshold_primary_m, storage_ma
     dS = infilt -1 * perc_lat_switch * (coeff_primary + coeff_secondary) * storage_ratio - ET_switch * PET * storage_ratio_paw
     return dS
 
-def jac(t, S, storage_threshold_primary_m, storage_max_m, coeff_primary, coeff_secondary, PET, infilt, wltsmc):
+def conceptual_reservoir_flux_calc_odeint(S, t, storage_threshold_primary_m, storage_max_m, coeff_primary, coeff_secondary, PET, infilt, wltsmc):
+    storage_above_threshold_m = S - storage_threshold_primary_m
     storage_diff = storage_max_m - storage_threshold_primary_m
+    storage_ratio = np.minimum(storage_above_threshold_m / storage_diff, 1)
 
     perc_lat_switch = np.multiply(S - storage_threshold_primary_m > 0, 1)
-    ET_switch = np.multiply((S - wltsmc > 0) and (S - storage_threshold_primary_m < 0), 1)
+    ET_switch = np.multiply(S - wltsmc > 0, 1)
+    # print(perc_lat_switch, ET_switch)
 
+    storage_above_threshold_m_paw = S - wltsmc
     storage_diff_paw = storage_threshold_primary_m - wltsmc
+    storage_ratio_paw = np.minimum(storage_above_threshold_m_paw/storage_diff_paw, 1) # Equation 11 (Ogden's document).
 
-    dfdS = -1 * perc_lat_switch * (coeff_primary + coeff_secondary) * 1/storage_diff - ET_switch * PET * 1/storage_diff_paw
-    return [dfdS]
-
+    dS = infilt -1 * perc_lat_switch * (coeff_primary + coeff_secondary) * storage_ratio - ET_switch * PET * storage_ratio_paw
+    return dS
 
 # Initialization
 ts = []
@@ -53,20 +59,17 @@ sol_case = []
 t0 = 0
 y0 = [y]
 
-sol = solve_ivp(conceptual_reservoir_flux_calc,
-                t_span=[t0, 1],
-                y0=y0,
-                args=(storage_threshold_primary_m, storage_max_m, coeff_primary, coeff_secondary, PET, infilt, wltsmc),
-                dense_output=True,
-                method='LSODA',
-                max_step=0.5,
-                jac=jac,
-                lband=0,
-                uband=0)
+t = np.linspace(0, 1, 11)
+sol = odeint(
+    conceptual_reservoir_flux_calc_odeint,
+             y0,
+             t,
+             args=(storage_threshold_primary_m, storage_max_m, coeff_primary, coeff_secondary, PET, infilt, wltsmc)
+             )
 
 # finalize results
-ts_concat = sol.t
-ys_concat = sol.y[0]
+ts_concat = t
+ys_concat = np.concatenate(sol, axis=0)
 
 # Calculate fluxes
 t_proportion = np.diff(ts_concat)

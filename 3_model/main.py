@@ -36,8 +36,6 @@ os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model")
 os.getcwd()
 # data_file_path = '..\\2_data_input\\Mahurangi\\full'
 # data_file_path = '..\\2_data_input\\debug'
-# from numba import jit
-# @jit
 
 def main(runtype, nrun=1, glue_calib_case=1, out_path='..\\4_out\\', data_file_path='', cfe_json_fn=''):
 
