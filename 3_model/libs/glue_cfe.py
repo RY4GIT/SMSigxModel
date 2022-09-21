@@ -131,8 +131,6 @@ class MyGLUE(object):
         flag_behavioral = 0
         for n in range(self.nrun):
 
-
-
             # ===============================================================
             # Write the randomly-generated parameters to the config json file
             # ===============================================================
