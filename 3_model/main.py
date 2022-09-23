@@ -1,5 +1,6 @@
 # A main module to run various analysis with CFE model
 
+# Import libraries
 import os
 import sys
 import numpy as np
@@ -11,7 +12,6 @@ if not sys.warnoptions:
 import json
 import multiprocessing as mp
 import snakeviz
-
 import spotpy
 import cProfile, pstats, io
 from pstats import SortKey
@@ -31,18 +31,19 @@ from salib_cfe import SALib_CFE
 # sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs/glue")
 from glue_cfe import MyGLUE
 
-# specify current directory create output directory if it does not exist
+# Specify current directory create output directory if it does not exist
 os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model")
 os.getcwd()
-# data_file_path = '..\\2_data_input\\Mahurangi\\full'
-# data_file_path = '..\\2_data_input\\debug'
 
+# Create an instance
 def main(runtype, nrun=1, glue_calib_case=1, out_path='..\\4_out\\', data_file_path='', cfe_json_fn=''):
 
-    if runtype == "NOAA_CFE":
+    if runtype == "run_CFE":
+        # To simply run the CFE model
+        print('Run the CFE model')
 
         input_config = {
-            "forcing_file": "..\\2_data_input\\Mahurangi\\full\\mahurangi_1998_2001.csv",
+            "forcing_file": "..\\2_data_input\\unit_test\\mahurangi_1998_2001.csv",
             # "forcing_file": "..\\2_data_input\\debug\\mahurangi_1998_2001.csv",
             "catchment_area_km2": 46.65,
             "soil_params": {
@@ -51,8 +52,8 @@ def main(runtype, nrun=1, glue_calib_case=1, out_path='..\\4_out\\', data_file_p
                 "satpsi": 0.09187291127012216,
                 "slop": 1,
                 "smcmax": 0.6757270053046729,
-                "wltsmc": 0.3189068227673663,
-                "D": 0.87,
+                "wltsmc": 0.3,
+                "D": 1.0,
                 "exponent_secondary": 1
             },
             "max_gw_storage": 1,
@@ -67,7 +68,7 @@ def main(runtype, nrun=1, glue_calib_case=1, out_path='..\\4_out\\', data_file_p
             "fc_atm_press_fraction": 0.33,
             "stand_alone": 1,
             "unit_test": 1,
-            "compare_results_file": "G:\\Shared drives\\Ryoko and Hilary\\SMSigxModel\\analysis\\2_data_input\\debug\\test_sm_basinavg.csv",
+            "compare_results_file": "G:\\Shared drives\\Ryoko and Hilary\\SMSigxModel\\analysis\\2_data_input\\unit_test\\test_sm_basinavg.csv",
         }
 
         input_path = os.path.join(data_file_path, 'config_cfe.json')
@@ -80,9 +81,10 @@ def main(runtype, nrun=1, glue_calib_case=1, out_path='..\\4_out\\', data_file_p
         cfe_instance = bmi_cfe.BMI_CFE(input_path)
         cfe_instance.initialize()
         cfe_instance.run_unit_test(plot=True, print_fluxes=False)
-        cfe_instance.finalize()
+        cfe_instance.finalize(print_mass_balance=True)
 
     if runtype == "SALib":
+        # To implement sensitivity analysis with SALib. Currently supports Morris and Sobol analysis
         print('Start sensitivity analysis')
 
         # preparation & sampling parameters
@@ -125,12 +127,11 @@ def main(runtype, nrun=1, glue_calib_case=1, out_path='..\\4_out\\', data_file_p
                        ]
         }
 
-
-
         out_path_salibexp = out_path
         if not os.path.exists(out_path_salibexp):
             os.mkdir(out_path_salibexp)
 
+        # Morris & EET
         salib_experiment = SALib_CFE(
             cfe_instance=cfe_instance, problem=problem, SAmethod='Morris', out_path=out_path_salibexp
         )
@@ -138,17 +139,17 @@ def main(runtype, nrun=1, glue_calib_case=1, out_path='..\\4_out\\', data_file_p
         salib_experiment.plot(plot_type='EET')
 
 
+        # Sobol & STS1
         salib_experiment = SALib_CFE(
             cfe_instance=cfe_instance, problem=problem, SAmethod='Sobol', out_path=out_path_salibexp
         )
         salib_experiment.run()
         salib_experiment.plot(plot_type='STS1')
 
-
-        # Morris & EET
-        # Sobol & STS1
-
     if runtype == "SPOTPy":
+        # To implement sensitivity analysis with SPOTPy.
+        print('Start sensitivity analysis')
+
         # Initialize
         cfe1 = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'config_cfe.json'))
         cfe1.initialize()
@@ -172,6 +173,9 @@ def main(runtype, nrun=1, glue_calib_case=1, out_path='..\\4_out\\', data_file_p
         SI = spotpy.analyser.get_sensitivity_of_fast(results)
 
     if runtype == "GLUE":
+        # To implement sensitivity analysis with GLUE.
+        print('Start GLUE analysis')
+
         # Initialize
         cfe1 = bmi_cfe.BMI_CFE(os.path.join("G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/2_data_input/Mahurangi/full/", cfe_json_fn))
 
@@ -186,14 +190,17 @@ def main(runtype, nrun=1, glue_calib_case=1, out_path='..\\4_out\\', data_file_p
         glue1 = MyGLUE(cfe_input = cfe1, out_path=out_path_glueexp, nrun=nrun, calib_case=glue_calib_case)
         glue1.simulation()
         glue1.post_process()
+
+        # Output the results
         glue1.to_csv()
         glue1.plot(plot_type="dotty")
         glue1.plot(plot_type="dotty_interaction")
         glue1.plot(plot_type="param_hist")
         glue1.plot(plot_type="timeseries")
 
-
     if runtype == "Seasonsig":
+        # To test soil moisture signature
+        print('Start seasonal signature test')
 
         # Get the comparison data
         cfe1 = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'full', 'config_cfe.json'))
@@ -208,26 +215,15 @@ def main(runtype, nrun=1, glue_calib_case=1, out_path='..\\4_out\\', data_file_p
         t_valley = sig.calc_sinecurve()
         season_trans1 = sig.calc_seasontrans(t_valley=t_valley)
 
-    """
-    if runtype == "cfe_CUAHSI":
-        cfe1 = cfe.CFE(os.path.join(data_file_path, 'cat_58_config_cfe.json'))
-        cfe1.initialize()
-        cfe1.update()
-        cfe1.update_until(4)
-        cfe1.finalize()
-    """
-
 if __name__ == '__main__':
 
+    # measure the running time
     measuretime = True
-    # measure the time
     if measuretime:
         pr = cProfile.Profile()
         pr.enable()
 
-    # o = open(os.path.join(out_path, 'log.txt'), 'w')
-
-    main(runtype="NOAA_CFE", out_path='..\\4_out\\Mahurangi\\', nrun=1)
+    main(runtype="run_CFE", out_path='..\\4_out\\unit_test\\', nrun=1)
     # main(runtype="GLUE", nrun=5000, glue_calib_case=1, out_path='..\\4_out\\Mahurangi\\',cfe_json_fn='config_cfe.json')
     # data_file_path = '..\\2_data_input\\Mahurangi\\full'
     # main(runtype="SALib", out_path='..\\4_out\\Mahurangi\\SALib_id1', data_file_path=data_file_path)
@@ -255,8 +251,6 @@ if __name__ == '__main__':
     process4.start()
     """
 
-    #o.close()
-
     # measure the time
     if measuretime:
         pr.disable()
@@ -264,9 +258,9 @@ if __name__ == '__main__':
         sortby = SortKey.CUMULATIVE
         ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
         ps.print_stats()
-        print(s.getvalue())
+        # print(s.getvalue())
         ps.dump_stats('runtime.txt')
 
-# "C:\Users\flipl\anaconda3\envs\CFE\Scripts\snakeviz.exe"
-# snakeviz "G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\3_model\runtime.txt"
-# visualize to type the above in terminal
+    # "C:\Users\flipl\anaconda3\envs\CFE\Scripts\snakeviz.exe"
+    # snakeviz "G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\3_model\runtime.txt"
+    # visualize to type the above in terminal
