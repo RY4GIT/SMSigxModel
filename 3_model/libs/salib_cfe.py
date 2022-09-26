@@ -23,11 +23,12 @@ from matplotlib.legend_handler import HandlerPatch
 
 class SALib_CFE():
 
-    def __init__(self, cfe_instance=None, config_path='', method_SALib=None, like_measure='NashSutcliffe', out_path=None):
+    def __init__(self, cfe_instance=None, config_path='', method_SALib=None, like_measure='NashSutcliffe', var_measure='Flow', out_path=None):
         self.cfe_instance = cfe_instance
         self.method_SALib = method_SALib
         self.out_path = out_path
         self.like_measure = like_measure
+        self.var_measure = var_measure
 
         with open(config_path, 'r') as outfile:
             problem = json.load(outfile)
@@ -44,7 +45,9 @@ class SALib_CFE():
                 problem = self.problem,
                 cfe_instance = self.cfe_instance,
                 param_values= self.param_values,
-                nrun = n*(2*self.problem['num_vars']+2)
+                nrun = n*(2*self.problem['num_vars']+2),
+                like_measure=self.like_measure,
+                var_measure=self.var_measure
             )
 
             # evaluation
@@ -81,7 +84,8 @@ class SALib_CFE():
                 cfe_instance = self.cfe_instance,
                 param_values=self.param_values,
                 nrun = N * (self.problem['num_vars']+1),
-                like_measure = self.like_measure
+                like_measure = self.like_measure,
+                var_measure = self.var_measure
             )
 
             # evaluation
@@ -128,7 +132,6 @@ class SALib_CFE():
             fig.set_size_inches(7, 7)
 
             out_fn = 'test_EET.png'
-
 
         if self.method_SALib['plot'] == "dotty":
             # Dotty plots for any types of sampled parameters
@@ -250,15 +253,15 @@ class SALib_CFE():
         plt.show()
 
 
-def run_cfes(problem, cfe_instance, param_values, nrun, like_measure):
+def run_cfes(problem, cfe_instance, param_values, nrun, like_measure, var_measure):
     Y = np.zeros([param_values.shape[0]])
     for i, X in enumerate(param_values):
         print('{} of {}'.format(i+1, nrun))
-        Y[i] = salib_cfe_interface(X, problem['names'], cfe_instance, like_measure)
+        Y[i] = salib_cfe_interface(X=X, param_names=problem['names'], myCFE=cfe_instance, like_measure=like_measure, var_measure=var_measure)
     return Y
 
 
-def salib_cfe_interface(X, param_names, myCFE, like_measure):
+def salib_cfe_interface(X, param_names, myCFE, like_measure, var_measure):
 
     # write the randomly-generated parameters to the config json file
     with open(myCFE.cfg_file) as data_file:
@@ -277,17 +280,15 @@ def salib_cfe_interface(X, param_names, myCFE, like_measure):
     myCFE.initialize()
     myCFE.run_unit_test(plot=False, print_fluxes=False)
 
-    sim = myCFE.cfe_output_data[["Time", "Total Discharge"]]
+    sim = myCFE.cfe_output_data[["Time", var_measure]]
     sim["Time"] = pd.to_datetime(sim["Time"], format="%Y-%m-%d %H:%M:%S")
     sim = sim.set_index("Time")
-    # return sim
 
     # Get the comparison data
     data = myCFE.unit_test_data
-    obs = data[["Time", "Total Discharge"]]
+    obs = data[["Time", var_measure]]
     obs["Time"] = pd.to_datetime(obs["Time"], format="%d-%b-%Y %H:%M:%S")
     obs = obs.set_index("Time")
-    # return obs
 
     if obs.index[0] != sim.index[0]:
         diff_time = obs.index[0] - sim.index[0]
@@ -298,8 +299,8 @@ def salib_cfe_interface(X, param_names, myCFE, like_measure):
         warnings.warn("The end of observation and simulation time is different by %s" % diff_time)
 
     df = pd.merge_asof(sim, obs, on = "Time")
-    sim_synced = df["Total Discharge_x"]
-    obs_synced = df["Total Discharge_y"]
+    sim_synced = df[var_measure+"_x"]
+    obs_synced = df[var_measure+"_y"]
 
     # Calculate objective metrics
     if like_measure == "NashSutcliffe":

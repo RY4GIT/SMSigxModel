@@ -36,9 +36,15 @@ os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model")
 os.getcwd()
 
 # Create an instance
-def main(runtype, out_path='../4_out/', config_path_CFE='',
-         config_path_SALib='', method_SALib=None, like_SALib = '',
-         nrun=1, glue_calib_case=1):
+def main(runtype,
+         out_path='../4_out/',
+         config_path_CFE='',
+         config_path_SALib='',
+         method_SALib=None,
+         like_SALib = '',
+         var_measure_SALib = '',
+         nrun=1,
+         glue_calib_case=1):
 
     if runtype == "run_CFE":
         # To simply run the CFE model
@@ -58,12 +64,13 @@ def main(runtype, out_path='../4_out/', config_path_CFE='',
         if not os.path.exists(out_path):
             os.mkdir(out_path)
 
-        # Implement sensitivity analysis
+        # Implementation
         salib_experiment = SALib_CFE(
             cfe_instance=cfe_instance,
             config_path=config_path_SALib,
             method_SALib=method_SALib,
             like_measure= like_SALib,
+            var_measure = var_measure_SALib,
             out_path=out_path
         )
         salib_experiment.run()
@@ -74,7 +81,7 @@ def main(runtype, out_path='../4_out/', config_path_CFE='',
         print('Start sensitivity analysis')
 
         # Initialize
-        cfe1 = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'config_cfe.json'))
+        cfe1 = bmi_cfe.BMI_CFE(config_path_CFE)
         cfe1.initialize()
         out_fn_sa = out_path + 'results'
 
@@ -100,26 +107,28 @@ def main(runtype, out_path='../4_out/', config_path_CFE='',
         print('Start GLUE analysis')
 
         # Initialize
-        cfe1 = bmi_cfe.BMI_CFE(os.path.join("G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/2_data_input/Mahurangi/full/", cfe_json_fn))
+        cfe_instance = bmi_cfe.BMI_CFE(config_path_CFE)
+        cfe_instance.initialize()
 
-        # cfe1 = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'config_cfe.json'))
-        cfe1.initialize()
+        if not os.path.exists(out_path):
+            os.mkdir(out_path)
 
         # Start GLUE
-        out_path_glueexp = out_path
-        if not os.path.exists(out_path_glueexp):
-            os.mkdir(out_path_glueexp)
-
-        glue1 = MyGLUE(cfe_input = cfe1, out_path=out_path_glueexp, nrun=nrun, calib_case=glue_calib_case)
-        glue1.simulation()
-        glue1.post_process()
+        glue_instance = MyGLUE(
+            cfe_input = cfe_instance,
+            out_path=out_path,
+            nrun=nrun,
+            calib_case=glue_calib_case
+        )
+        glue_instance.simulation()
+        glue_instance.post_process()
 
         # Output the results
-        glue1.to_csv()
-        glue1.plot(plot_type="dotty")
-        glue1.plot(plot_type="dotty_interaction")
-        glue1.plot(plot_type="param_hist")
-        glue1.plot(plot_type="timeseries")
+        glue_instance.to_csv()
+        glue_instance.plot(plot_type="dotty")
+        glue_instance.plot(plot_type="dotty_interaction")
+        glue_instance.plot(plot_type="param_hist")
+        glue_instance.plot(plot_type="timeseries")
 
     if runtype == "Seasonsig":
         # To test soil moisture signature
@@ -146,12 +155,18 @@ if __name__ == '__main__':
         pr = cProfile.Profile()
         pr.enable()
 
-    # =========== To simply run CFE
+    # ===============================================
+    # =========== RUN CFE ==============
+    # ===============================================
+
     #　main(runtype="run_CFE", out_path='../4_out/unit_test/', config_path_CFE='../2_data_input/unit_test/config_cfe.json', nrun=1)
 
+    # ===============================================
     # =========== SENSITIVITY ANALYSIS ==============
+    # ===============================================
+
     # To implement sensitivity analysis with SALib
-    # Specify the sensitivity analysis method, plottign method, and number of runs here
+    # Specify the sensitivity analysis method, plotting method, and number of runs here
     method_SALib = {
         'Morris': {'method': 'Morris', 'plot': 'EET', 'N': 3, 'n_levels': 4}, # n=250 is ideal, n=2 for a test run
         'Sobol': {'method': 'Sobol', 'plot': 'STS1', 'n': 2} # N=500, n_levels=4, total run = 8500 is ideal, N=3, n_levels=4 for a test run
@@ -162,19 +177,25 @@ if __name__ == '__main__':
         runtype="SALib",
         out_path='../4_out/sensitivity_analysis/Mahurangi/test',
         config_path_CFE='../2_data_input/unit_test/config_cfe.json',
-        config_path_SALib='../2_data_input/sensitivity_analysis/SALib_config.json',
+        config_path_SALib='../2_data_input/unit_test/SALib_config.json',
         method_SALib=method_SALib['Morris'],
-        like_SALib = 'NashSutcliffe'
+        like_SALib = 'NashSutcliffe',
+        var_measure_SALib = 'Flow' # 'Flow' (discharge in meter), 'Soil Moisture Content' soil moisture content in fraction
     )
 
     main(
         runtype="SALib",
         out_path='../4_out/sensitivity_analysis/Mahurangi/test',
         config_path_CFE='../2_data_input/unit_test/config_cfe.json',
-        config_path_SALib='../2_data_input/sensitivity_analysis/SALib_config.json',
-        method_SALib=method_SALib['EET'],
-        like_SALib = 'NashSutcliffe'
+        config_path_SALib='../2_data_input/unit_test/SALib_config.json',
+        method_SALib=method_SALib['Sobol'],
+        like_SALib = 'NashSutcliffe',
+        var_measure_SALib='Flow'
     )
+
+    # ===============================================
+    # =========== GLUE ANALYSIS ==============
+    # ===============================================
 
     # main(runtype="GLUE", nrun=5000, glue_calib_case=1, out_path='..\\4_out\\Mahurangi\\',cfe_json_fn='config_cfe.json')
     # data_file_path = '..\\2_data_input\\Mahurangi\\full'
