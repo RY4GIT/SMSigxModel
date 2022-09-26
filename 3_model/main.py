@@ -36,115 +36,38 @@ os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model")
 os.getcwd()
 
 # Create an instance
-def main(runtype, nrun=1, glue_calib_case=1, out_path='..\\4_out\\', data_file_path='', cfe_json_fn=''):
+def main(runtype, out_path='../4_out/', config_path_CFE='',
+         config_path_SALib='', method_SALib=None, like_SALib = '',
+         nrun=1, glue_calib_case=1):
 
     if runtype == "run_CFE":
         # To simply run the CFE model
         print('Run the CFE model')
 
-        input_config = {
-            "forcing_file": "..\\2_data_input\\unit_test\\mahurangi_1998_2001.csv",
-            # "forcing_file": "..\\2_data_input\\debug\\mahurangi_1998_2001.csv",
-            "catchment_area_km2": 46.65,
-            "soil_params": {
-                "bb": 8,
-                "satdk": 0.0000013888888, # 1-07 - 1-05
-                "satpsi": 0.09187291127012216,
-                "slop": 1,
-                "smcmax": 0.6757270053046729,
-                "wltsmc": 0.3,
-                "D": 1.0,
-                "exponent_secondary": 1
-            },
-            "max_gw_storage": 1,
-            "Cgw": 5,
-            "expon": 0.0002,
-            "K_lf": 0.5,
-            "K_nash": 0.05,
-            "nash_storage": [0.0, 0.0, 0.0, 0.0, 0.0],
-            "giuh_ordinates": [0.1, 0.2, 0.4, 0.2, 0.1],
-            "refkdt": 0.496,
-            "trigger_z_m": 0.109,
-            "fc_atm_press_fraction": 0.33,
-            "stand_alone": 1,
-            "unit_test": 1,
-            "compare_results_file": "G:\\Shared drives\\Ryoko and Hilary\\SMSigxModel\\analysis\\2_data_input\\unit_test\\test_sm_basinavg.csv",
-        }
-
-        input_path = os.path.join(data_file_path, 'config_cfe.json')
-        with open(input_path, 'w') as outfile:
-            json.dump(input_config, outfile)
-
-        with open(input_path) as outfile:
-            loaded_data = json.load(outfile)
-
-        cfe_instance = bmi_cfe.BMI_CFE(input_path)
+        cfe_instance = bmi_cfe.BMI_CFE(config_path_CFE)
         cfe_instance.initialize()
         cfe_instance.run_unit_test(plot=True, print_fluxes=False)
         cfe_instance.finalize(print_mass_balance=True)
 
     if runtype == "SALib":
-        # To implement sensitivity analysis with SALib. Currently supports Morris and Sobol analysis
-        print('Start sensitivity analysis')
+        # To implement sensitivity analysis with SALib. Currently this module supports Morris and Sobol analysis
+        print('Start sensitivity analysis with ** %s **' % method_SALib['method'])
 
-        # preparation & sampling parameters
-        cfe_instance = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'config_cfe.json'))
-        problem = {
-            'num_vars':16,
-            'names': ['bb',
-                      'satdk',
-                      'satpsi',
-                      'slop',
-                      'smcmax',
-                      'wltsmc',
-                      'D',
-                      'coeff_secondary',
-                      'exponent_secondary',
-                      'max_gw_storage',
-                      'Cgw',
-                      'expon',
-                      'K_nash',
-                      'refkdt',
-                      'trigger_z_m',
-                      'fc_atm_press_fraction'
-                      ],
-            'bounds': [[2, 15], # bb
-                       [0, 1],  # satdk
-                       [0.02, 0.78], # satpsi
-                       [0,1], # slop
-                       [0.33, 0.7], # smcmax
-                       [0,0.5], #wltsmc
-                       [0.01, 2], # D
-                       [0.01, 3], #coeff_secondary
-                       [1,8], #exponent_secondary
-                       [10,250], # max_gw_storage
-                       [0.01,3], # Cgw
-                       [1,8], # expon
-                       [0,1], #K_nash
-                       [0.1,4], #refkdt
-                       [0.01,0.87], # trigger_z_m
-                       [0.01,0.33] #fc_atm_press_fraction
-                       ]
-        }
+        # Preperation
+        cfe_instance = bmi_cfe.BMI_CFE(config_path_CFE)
+        if not os.path.exists(out_path):
+            os.mkdir(out_path)
 
-        out_path_salibexp = out_path
-        if not os.path.exists(out_path_salibexp):
-            os.mkdir(out_path_salibexp)
-
-        # Morris & EET
+        # Implement sensitivity analysis
         salib_experiment = SALib_CFE(
-            cfe_instance=cfe_instance, problem=problem, SAmethod='Morris', out_path=out_path_salibexp
+            cfe_instance=cfe_instance,
+            config_path=config_path_SALib,
+            method_SALib=method_SALib,
+            like_measure= like_SALib,
+            out_path=out_path
         )
         salib_experiment.run()
-        salib_experiment.plot(plot_type='EET')
-
-
-        # Sobol & STS1
-        salib_experiment = SALib_CFE(
-            cfe_instance=cfe_instance, problem=problem, SAmethod='Sobol', out_path=out_path_salibexp
-        )
-        salib_experiment.run()
-        salib_experiment.plot(plot_type='STS1')
+        salib_experiment.plot()
 
     if runtype == "SPOTPy":
         # To implement sensitivity analysis with SPOTPy.
@@ -223,7 +146,36 @@ if __name__ == '__main__':
         pr = cProfile.Profile()
         pr.enable()
 
-    main(runtype="run_CFE", out_path='..\\4_out\\unit_test\\', nrun=1)
+    # =========== To simply run CFE
+    #　main(runtype="run_CFE", out_path='../4_out/unit_test/', config_path_CFE='../2_data_input/unit_test/config_cfe.json', nrun=1)
+
+    # =========== SENSITIVITY ANALYSIS ==============
+    # To implement sensitivity analysis with SALib
+    # Specify the sensitivity analysis method, plottign method, and number of runs here
+    method_SALib = {
+        'Morris': {'method': 'Morris', 'plot': 'EET', 'N': 3, 'n_levels': 4}, # n=250 is ideal, n=2 for a test run
+        'Sobol': {'method': 'Sobol', 'plot': 'STS1', 'n': 2} # N=500, n_levels=4, total run = 8500 is ideal, N=3, n_levels=4 for a test run
+        }
+
+    # Run the analysis
+    main(
+        runtype="SALib",
+        out_path='../4_out/sensitivity_analysis/Mahurangi/test',
+        config_path_CFE='../2_data_input/unit_test/config_cfe.json',
+        config_path_SALib='../2_data_input/sensitivity_analysis/SALib_config.json',
+        method_SALib=method_SALib['Morris'],
+        like_SALib = 'NashSutcliffe'
+    )
+
+    main(
+        runtype="SALib",
+        out_path='../4_out/sensitivity_analysis/Mahurangi/test',
+        config_path_CFE='../2_data_input/unit_test/config_cfe.json',
+        config_path_SALib='../2_data_input/sensitivity_analysis/SALib_config.json',
+        method_SALib=method_SALib['EET'],
+        like_SALib = 'NashSutcliffe'
+    )
+
     # main(runtype="GLUE", nrun=5000, glue_calib_case=1, out_path='..\\4_out\\Mahurangi\\',cfe_json_fn='config_cfe.json')
     # data_file_path = '..\\2_data_input\\Mahurangi\\full'
     # main(runtype="SALib", out_path='..\\4_out\\Mahurangi\\SALib_id1', data_file_path=data_file_path)

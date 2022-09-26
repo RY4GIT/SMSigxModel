@@ -7,6 +7,7 @@ import scipy
 import matplotlib.pyplot as plt
 import seaborn as sns
 import json
+import warnings
 
 from SALib.sample import saltelli
 from SALib.analyze import sobol
@@ -20,21 +21,22 @@ import itertools
 from math import pi
 from matplotlib.legend_handler import HandlerPatch
 
-
-
 class SALib_CFE():
 
-    def __init__(self, cfe_instance=None, problem=None, SAmethod=None, out_path=None):
+    def __init__(self, cfe_instance=None, config_path='', method_SALib=None, like_measure='NashSutcliffe', out_path=None):
         self.cfe_instance = cfe_instance
-        self.problem = problem
-        self.SAmethod = SAmethod
+        self.method_SALib = method_SALib
         self.out_path = out_path
+        self.like_measure = like_measure
+
+        with open(config_path, 'r') as outfile:
+            problem = json.load(outfile)
+        self.problem = problem
 
     def run(self):
-        if self.SAmethod == "Sobol":
+        if self.method_SALib['method'] == "Sobol":
             # sample
-            # n = 2
-            n = 250
+            n = self.method_SALib['n']
             self.param_values = saltelli.sample(self.problem, n, calc_second_order=True)
 
             # run a model
@@ -49,7 +51,7 @@ class SALib_CFE():
             self.Si = sobol.analyze(self.problem, self.Y, calc_second_order=True, print_to_console=False)
             print(self.Si)
 
-        if self.SAmethod == "FAST":
+        if self.method_SALib['method'] == "FAST":
             # sample
             n = 8
             m = 1
@@ -60,19 +62,17 @@ class SALib_CFE():
                 problem=self.problem,
                 cfe_instance=self.cfe_instance,
                 param_values=self.param_values,
-                nrun=n * (2 * self.problem['num_vars'] + 2)
+                nrun=n * (2 * self.problem['num_vars'] + 2),
+                like_measure=self.like_measure
             )
 
             # evaluation
             self.Si = fast.analyze(self.problem, self.Y, M=4, num_resamples=10, conf_level=0.95, print_to_console=False, seed=None)
             print(self.Si)
 
-        if self.SAmethod == "Morris":
-            # sample
-            N = 500
-            n_levels = 4
-            # N = 3
-            # n_levels = 4
+        if self.method_SALib['method'] == "Morris":
+            N = self.method_SALib['N']
+            n_levels = self.method_SALib['n_levels']
             self.param_values = morris_s.sample(self.problem, N=N, num_levels=n_levels)
 
             # run a model
@@ -80,7 +80,8 @@ class SALib_CFE():
                 problem = self.problem,
                 cfe_instance = self.cfe_instance,
                 param_values=self.param_values,
-                nrun = N * (self.problem['num_vars']+1)
+                nrun = N * (self.problem['num_vars']+1),
+                like_measure = self.like_measure
             )
 
             # evaluation
@@ -95,7 +96,7 @@ class SALib_CFE():
         # Add dotty plot module. Either here or in the above method
         # https://pynetlogo.readthedocs.io/en/latest/_docs/SALib_ipyparallel.html
 
-        if plot_type == "EET":
+        if self.method_SALib['plot'] == "EET":
             # Options for the graphic
             pltfont = {'fontname': 'DejaVu Sans', 'fontsize': 15}  # font for axes
             pltfont_leg = {'family': 'DejaVu Sans', 'size': 15}  # font for legend
@@ -129,7 +130,7 @@ class SALib_CFE():
             out_fn = 'test_EET.png'
 
 
-        if plot_type == "dotty":
+        if self.method_SALib['plot'] == "dotty":
             # Dotty plots for any types of sampled parameters
             nrow = 1
             ncol = 3
@@ -153,26 +154,26 @@ class SALib_CFE():
 
             out_fn = 'test_dotty.png'
 
-        if plot_type == "STS1":
+        if self.method_SALib['plot'] == "STS1":
             # Bar plots for Sobol analysis (total order & 1st order indices)
-            if self.SAmethod == 'Sobol':
+            if self.method_SALib['method'] == 'Sobol':
                 Si_filter = {k: self.Si[k] for k in ['ST', 'ST_conf', 'S1', 'S1_conf']}
-            elif self.SAmethod == 'FAST':
+            elif self.method_SALib['method'] == 'FAST':
                 Si_filter = {k: self.Si[k] for k in ['ST', 'S1']}
             Si_df = pd.DataFrame(Si_filter, index=self.problem['names'])
 
             fig, ax = plt.subplots(1)
             indices = Si_df[['S1', 'ST']]
-            if self.SAmethod == 'Sobol':
+            if self.method_SALib['method'] == 'Sobol':
                 err = Si_df[['S1_conf', 'ST_conf']]
                 indices.plot.bar(yerr=err.values.T, ax=ax)
-            elif self.SAmethod == 'FAST':
+            elif self.method_SALib['method'] == 'FAST':
                 indices.plot.bar(ax=ax)
             fig.set_size_inches(8, 4)
 
             out_fn = 'test_STS1.png'
 
-        if plot_type == "radial":
+        if self.method_SALib['plot'] == "radial":
             # TODO: need a debug
             # Radial plot for Sobol analysis
             # IndexError: index 5 is out of bounds for axis 0 with size 5
@@ -249,15 +250,15 @@ class SALib_CFE():
         plt.show()
 
 
-def run_cfes(problem, cfe_instance, param_values, nrun):
+def run_cfes(problem, cfe_instance, param_values, nrun, like_measure):
     Y = np.zeros([param_values.shape[0]])
     for i, X in enumerate(param_values):
         print('{} of {}'.format(i+1, nrun))
-        Y[i] = salib_cfe_interface(X, problem['names'], cfe_instance)
+        Y[i] = salib_cfe_interface(X, problem['names'], cfe_instance, like_measure)
     return Y
 
 
-def salib_cfe_interface(X, param_names, myCFE):
+def salib_cfe_interface(X, param_names, myCFE, like_measure):
 
     # write the randomly-generated parameters to the config json file
     with open(myCFE.cfg_file) as data_file:
@@ -288,12 +289,21 @@ def salib_cfe_interface(X, param_names, myCFE):
     obs = obs.set_index("Time")
     # return obs
 
+    if obs.index[0] != sim.index[0]:
+        diff_time = obs.index[0] - sim.index[0]
+        warnings.warn("The start of observation and simulation time is different by %s" % diff_time)
+
+    if obs.index[-1] != sim.index[-1]:
+        diff_time = obs.index[-1] - sim.index[-1]
+        warnings.warn("The end of observation and simulation time is different by %s" % diff_time)
+
     df = pd.merge_asof(sim, obs, on = "Time")
     sim_synced = df["Total Discharge_x"]
     obs_synced = df["Total Discharge_y"]
 
     # Calculate objective metrics
-    like = spotpy.objectivefunctions.nashsutcliffe(obs_synced, sim_synced)
+    if like_measure == "NashSutcliffe":
+        like = spotpy.objectivefunctions.nashsutcliffe(obs_synced, sim_synced)
 
     return like
 
