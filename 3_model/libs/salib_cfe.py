@@ -281,13 +281,13 @@ def salib_cfe_interface(X, param_names, myCFE, like_measure, var_measure):
     myCFE.run_unit_test(plot=False, print_fluxes=False)
 
     sim = myCFE.cfe_output_data[["Time", var_measure]]
-    sim["Time"] = pd.to_datetime(sim["Time"], format="%Y-%m-%d %H:%M:%S")
+    sim.loc[:, "Time"] = pd.to_datetime(sim["Time"], format="%Y-%m-%d %H:%M:%S")
     sim = sim.set_index("Time")
 
     # Get the comparison data
     data = myCFE.unit_test_data
     obs = data[["Time", var_measure]]
-    obs["Time"] = pd.to_datetime(obs["Time"], format="%d-%b-%Y %H:%M:%S")
+    obs.loc[:, "Time"] = pd.to_datetime(obs["Time"], format="%d-%b-%Y %H:%M:%S")
     obs = obs.set_index("Time")
 
     if obs.index[0] != sim.index[0]:
@@ -304,7 +304,7 @@ def salib_cfe_interface(X, param_names, myCFE, like_measure, var_measure):
 
     # Calculate objective metrics
     if like_measure == "NashSutcliffe":
-        like = spotpy.objectivefunctions.nashsutcliffe(obs_synced, sim_synced)
+        like = spotpy.objectivefunctions.nashsutcliffe(evaluation=obs_synced, simulation=sim_synced)
 
     return like
 
