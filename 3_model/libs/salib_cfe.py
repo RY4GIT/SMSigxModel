@@ -250,7 +250,7 @@ class SALib_CFE():
             # Create a new directory because it does not exist
             os.makedirs(out_path_plot)
         plt.savefig(os.path.join(out_path_plot, out_fn), dpi=600, format='png')
-        plt.show()
+        # plt.show()
 
 
 def run_cfes(problem, cfe_instance, param_values, nrun, like_measure, var_measure):

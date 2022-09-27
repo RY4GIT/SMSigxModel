@@ -15,6 +15,7 @@ import snakeviz
 import spotpy
 import cProfile, pstats, io
 from pstats import SortKey
+
 # https://docs.python.org/3/library/profile.html#module-cProfile
 
 sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs/cfe/py_cfe")
@@ -34,6 +35,30 @@ from glue_cfe import MyGLUE
 # Specify current directory create output directory if it does not exist
 os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model")
 os.getcwd()
+
+def SALib_excel_to_config(config_excel_path_SALib, config_json_path_SALib):
+    # This function reads configuration setting for SALib sensitivity analysis
+    # from Excel file to json file format
+
+    # Read the data
+    df = pd.read_excel(config_excel_path_SALib)
+    df_param_to_calibrate = df[df['calibrate']==1]
+
+    # Convert it to dictionary
+    config_SALib = dict()
+    config_SALib['num_vars'] = df_param_to_calibrate.shape[0]
+    config_SALib['names'] = [None] * df_param_to_calibrate.shape[0]
+    config_SALib['bounds'] = [[np.nan, np.nan]] * df_param_to_calibrate.shape[0]
+    for i in df_param_to_calibrate.index:
+        config_SALib['names'][i] = df_param_to_calibrate['name'][i]
+        config_SALib['bounds'][i] = [df_param_to_calibrate['lower_bound'][i],df_param_to_calibrate['upper_bound'][i]]
+
+        if df_param_to_calibrate['upper_bound'][i] <= df_param_to_calibrate['lower_bound'][i]:
+            warnings.warn('The upper bound is smaller than lower bound for the parameter %s' % {config_SALib['names'][i]})
+
+    # Output the data
+    with open(config_json_path_SALib, 'w') as outfile:
+        json.dump(config_SALib, outfile, indent=4)
 
 # Create an instance
 def main(runtype,
@@ -69,8 +94,8 @@ def main(runtype,
             cfe_instance=cfe_instance,
             config_path=config_path_SALib,
             method_SALib=method_SALib,
-            like_measure= like_SALib,
-            var_measure = var_measure_SALib,
+            like_measure=like_SALib,
+            var_measure=var_measure_SALib,
             out_path=out_path
         )
         salib_experiment.run()
@@ -159,11 +184,11 @@ if __name__ == '__main__':
     # =========== RUN CFE ==============
     # ===============================================
 
-    main(
-        runtype="run_CFE",
-        out_path='../4_out/unit_test/',
-        config_path_CFE='../2_data_input/unit_test/config_cfe.json',
-        )
+    # main(
+    #     runtype="run_CFE",
+    #     out_path='../4_out/unit_test/',
+    #     config_path_CFE='../2_data_input/unit_test/config_cfe.json',
+    #     )
 
     # ===============================================
     # =========== SENSITIVITY ANALYSIS ==============
@@ -172,9 +197,14 @@ if __name__ == '__main__':
     # To implement sensitivity analysis with SALib
     # Specify the sensitivity analysis method, plotting method, and number of runs here
     method_SALib = {
-        'Morris': {'method': 'Morris', 'plot': 'EET', 'N': 3, 'n_levels': 4}, # n=250 is ideal, n=2 for a test run
-        'Sobol': {'method': 'Sobol', 'plot': 'STS1', 'n': 2} # N=500, n_levels=4, total run = 8500 is ideal, N=3, n_levels=4 for a test run
+        'Morris': {'method': 'Morris', 'plot': 'EET', 'N': 500, 'n_levels': 4}, # n=250 is ideal, n=2 for a test run
+        'Sobol': {'method': 'Sobol', 'plot': 'STS1', 'n': 250} # N=500, n_levels=4, total run = 8500 is ideal, N=3, n_levels=4 for a test run
         }
+
+    SALib_excel_to_config(
+        config_excel_path_SALib='../2_data_input/unit_test/SALib_config.xlsx',
+        config_json_path_SALib='../2_data_input/unit_test/SALib_config.json'
+    )
 
     # Run the analysis
     main(
@@ -187,7 +217,7 @@ if __name__ == '__main__':
         var_measure_SALib = 'Flow' # 'Flow' (discharge in meter), 'Soil Moisture Content' soil moisture content in fraction
     )
 
-    """
+
     main(
         runtype="SALib",
         out_path='../4_out/sensitivity_analysis/Mahurangi/test',
@@ -197,7 +227,7 @@ if __name__ == '__main__':
         like_SALib = 'NashSutcliffe',
         var_measure_SALib='Flow'
     )
-    """
+
 
     # ===============================================
     # =========== GLUE ANALYSIS ==============
