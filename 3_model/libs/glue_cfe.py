@@ -173,6 +173,7 @@ class MyGLUE(object):
 
                 # Merge observed and simulated timeseries
                 df = pd.merge_asof(sim, obs, on="Time")
+
                 sim_synced = df[var_name + "_x"]
                 obs_synced = df[var_name + "_y"]
 

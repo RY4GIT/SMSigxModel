@@ -159,7 +159,11 @@ if __name__ == '__main__':
     # =========== RUN CFE ==============
     # ===============================================
 
-    #　main(runtype="run_CFE", out_path='../4_out/unit_test/', config_path_CFE='../2_data_input/unit_test/config_cfe.json', nrun=1)
+    main(
+        runtype="run_CFE",
+        out_path='../4_out/unit_test/',
+        config_path_CFE='../2_data_input/unit_test/config_cfe.json',
+        )
 
     # ===============================================
     # =========== SENSITIVITY ANALYSIS ==============
@@ -183,6 +187,7 @@ if __name__ == '__main__':
         var_measure_SALib = 'Flow' # 'Flow' (discharge in meter), 'Soil Moisture Content' soil moisture content in fraction
     )
 
+    """
     main(
         runtype="SALib",
         out_path='../4_out/sensitivity_analysis/Mahurangi/test',
@@ -192,6 +197,7 @@ if __name__ == '__main__':
         like_SALib = 'NashSutcliffe',
         var_measure_SALib='Flow'
     )
+    """
 
     # ===============================================
     # =========== GLUE ANALYSIS ==============

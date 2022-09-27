@@ -299,6 +299,7 @@ def salib_cfe_interface(X, param_names, myCFE, like_measure, var_measure):
         warnings.warn("The end of observation and simulation time is different by %s" % diff_time)
 
     df = pd.merge_asof(sim, obs, on = "Time")
+
     sim_synced = df[var_measure+"_x"]
     obs_synced = df[var_measure+"_y"]
 
