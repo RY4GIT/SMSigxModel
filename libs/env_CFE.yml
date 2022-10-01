@@ -1,0 +1,20 @@
+name: CFE
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.8
+  - pip
+
+  # Core scientific python
+  - numpy
+  - scipy
+  - pandas
+
+  # Plotting
+  - matplotlib
+  - seaborn
+
+  # Spatial packages
+  - spotpy

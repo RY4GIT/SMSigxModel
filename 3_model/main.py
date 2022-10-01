@@ -68,7 +68,8 @@ def main(runtype,
          method_SALib=None,
          like_SALib = '',
          var_measure_SALib = '',
-         nrun=1,
+         config_path_GLUE='',
+         nrun_GLUE=1,
          glue_calib_case=1):
 
     if runtype == "run_CFE":
@@ -142,7 +143,8 @@ def main(runtype,
         glue_instance = MyGLUE(
             cfe_input = cfe_instance,
             out_path=out_path,
-            nrun=nrun,
+            config_path=config_path_GLUE,
+            nrun=nrun_GLUE,
             calib_case=glue_calib_case
         )
         glue_instance.simulation()
@@ -198,35 +200,47 @@ if __name__ == '__main__':
     # Specify the sensitivity analysis method, plotting method, and number of runs here
     method_SALib = {
         'Morris': {'method': 'Morris', 'plot': 'EET', 'N': 500, 'n_levels': 4}, # n=250 is ideal, n=2 for a test run
-        'Sobol': {'method': 'Sobol', 'plot': 'STS1', 'n': 250} # N=500, n_levels=4, total run = 8500 is ideal, N=3, n_levels=4 for a test run
+        'Sobol': {'method': 'Sobol', 'plot': 'STS1', 'n': 250}, # N=500, n_levels=4, total run = 8500 is ideal, N=3, n_levels=4 for a test run
+        'stability_test': {'method': 'stability_test', 'plot': 'STS1', 'n': 250}
         }
 
     SALib_excel_to_config(
-        config_excel_path_SALib='../2_data_input/unit_test/SALib_config.xlsx',
-        config_json_path_SALib='../2_data_input/unit_test/SALib_config.json'
+        config_excel_path_SALib='../2_data_input/unit_test/SALib_config_wide.xlsx',
+        config_json_path_SALib='../2_data_input/unit_test/SALib_config_wide.json'
     )
 
     # Run the analysis
     main(
         runtype="SALib",
         out_path='../4_out/sensitivity_analysis/Mahurangi/test',
-        config_path_CFE='../2_data_input/unit_test/config_cfe.json',
-        config_path_SALib='../2_data_input/unit_test/SALib_config.json',
-        method_SALib=method_SALib['Morris'],
+        config_path_CFE='../2_data_input/unit_test/short_config_cfe.json',
+        config_path_SALib='../2_data_input/unit_test/SALib_config_wide.json',
+        method_SALib=method_SALib['stability_test'],
         like_SALib = 'NashSutcliffe',
         var_measure_SALib = 'Flow' # 'Flow' (discharge in meter), 'Soil Moisture Content' soil moisture content in fraction
     )
 
-
+    # ===============================================
+    # =========== SENSITIVITY ANALYSIS ==============
+    # ===============================================
     main(
-        runtype="SALib",
-        out_path='../4_out/sensitivity_analysis/Mahurangi/test',
-        config_path_CFE='../2_data_input/unit_test/config_cfe.json',
-        config_path_SALib='../2_data_input/unit_test/SALib_config.json',
-        method_SALib=method_SALib['Sobol'],
-        like_SALib = 'NashSutcliffe',
-        var_measure_SALib='Flow'
+        runtype="GLUE",
+        out_path='../4_out/sensitivity_analysis/Mahurangi/test/GLUE',
+        config_path_CFE='../2_data_input/unit_test/short_config_cfe.json',
+        config_path_GLUE='../2_data_input/unit_test/SALib_config_wide.json',
+        nrun_GLUE=1
     )
+
+
+    # main(
+    #     runtype="SALib",
+    #     out_path='../4_out/sensitivity_analysis/Mahurangi/test',
+    #     config_path_CFE='../2_data_input/unit_test/config_cfe.json',
+    #     config_path_SALib='../2_data_input/unit_test/SALib_config.json',
+    #     method_SALib=method_SALib['Sobol'],
+    #     like_SALib = 'NashSutcliffe',
+    #     var_measure_SALib='Flow'
+    # )
 
 
     # ===============================================

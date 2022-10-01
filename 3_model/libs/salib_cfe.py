@@ -35,6 +35,26 @@ class SALib_CFE():
         self.problem = problem
 
     def run(self):
+        if self.method_SALib['method'] == "stability_test":
+            # sample
+
+            # Array with n's to use
+            nsamples = np.arange(10, 300, 10)
+
+            # run a model
+            S1_estimates, ST_estimates, nsample_record = run_cfes_for_stability_test(
+                problem = self.problem,
+                cfe_instance = self.cfe_instance,
+                nrun = nsamples,
+                like_measure=self.like_measure,
+                var_measure=self.var_measure
+            )
+
+            out_path = 'G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/4_out/sensitivity_analysis/Mahurangi/sensitivity_stability'
+            S1_estimates.to_csv(os.path.join(out_path, 'S1.csv'))
+            ST_estimates.to_csv(os.path.join(out_path, 'ST.csv'))
+            nsample_record.to_csv(os.path.join(out_path, 'nsample.csv'))
+
         if self.method_SALib['method'] == "Sobol":
             # sample
             n = self.method_SALib['n']
@@ -260,6 +280,23 @@ def run_cfes(problem, cfe_instance, param_values, nrun, like_measure, var_measur
         Y[i] = salib_cfe_interface(X=X, param_names=problem['names'], myCFE=cfe_instance, like_measure=like_measure, var_measure=var_measure)
     return Y
 
+def run_cfes_for_stability_test(problem, cfe_instance, nrun, like_measure, var_measure):
+    S1_estimates = np.zeros([problem['num_vars'], len(nrun)])
+    ST_estimates = np.zeros([problem['num_vars'], len(nrun)])
+    nsample_record = np.zeros(len(nrun))
+    for i in range (len(nrun)):
+        print('Major run: n={} of n_Total={}'.format(nrun[i], nrun[-1]))
+        sampleset = saltelli.sample(problem, nrun[i], calc_second_order=False)
+        Y = np.zeros([sampleset.shape[0]])
+        nsample_record[i] = len(sampleset)
+        for j, X in enumerate(sampleset):
+            print('Subrun: {} of {}'.format(j+1, len(sampleset)))
+            Y[j] = salib_cfe_interface(X=X, param_names=problem['names'], myCFE=cfe_instance, like_measure=like_measure, var_measure=var_measure)
+        results = sobol.analyze(problem, Y, calc_second_order=False, print_to_console=False)
+        ST_estimates[:, i] = results['ST']
+        S1_estimates[:, i] = results['S1']
+    return S1_estimates, ST_estimates, nsample_record
+
 
 def salib_cfe_interface(X, param_names, myCFE, like_measure, var_measure):
 
@@ -287,7 +324,7 @@ def salib_cfe_interface(X, param_names, myCFE, like_measure, var_measure):
     # Get the comparison data
     data = myCFE.unit_test_data
     obs = data[["Time", var_measure]]
-    obs.loc[:, "Time"] = pd.to_datetime(obs["Time"], format="%d-%b-%Y %H:%M:%S")
+    obs.loc[:, "Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M") # "%d-%b-%Y %H:%M:%S"
     obs = obs.set_index("Time")
 
     if obs.index[0] != sim.index[0]:
