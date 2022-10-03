@@ -18,7 +18,7 @@ sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/libs/SM
 from sig_seasontrans import SMSig
 
 # Global variables
-quantiles = [0.05, 0.5, 0.95] # quantiles
+quantiles = [0.05, 0.5, 0.95]
 
 # Global function
 def weighted_quantile(values, quantiles, sample_weight=None,
@@ -69,8 +69,8 @@ def triangle_weight(x, a, b, c):
 class MyGLUE(object):
     def __init__(self, out_path='./', config_path_CFE='', config_path='', nrun = 1, eval_criteria=dict()):
 
-        self.out_path = out_path
-        self.nrun = nrun
+        self.out_path = out_path # Output folder path
+        self.nrun = nrun # Number of runs
         self.var_names = ["Flow", "Soil Moisture Content"] # Variables to be analyzed
 
         # CFE model instance
@@ -78,7 +78,7 @@ class MyGLUE(object):
         cfe_instance.initialize()
         self.myCFE = cfe_instance
 
-        # Parameter bounds defined from excel file
+        # Parameter bounds defined from an excel file
         df = pd.read_excel(config_path)
         df_param_to_calibrate = df[df['calibrate'] == 1]
         params = len(df_param_to_calibrate)*[None]
@@ -90,7 +90,7 @@ class MyGLUE(object):
             )
         self.params = params
 
-        # Evaluation criteria
+        # Evaluation criteria (multi-criteria allowed)
         self.eval_criteia = eval_criteria
         print(f"A number of criterion: {len(eval_criteria)}")
         self.eval_names = []
@@ -175,10 +175,15 @@ class MyGLUE(object):
             # Evalute the outputs
             # ===============================================================
 
-            # Get desired evaluation metrics
+            # Preparation
             eval_result_for_a_run = []
             behavioral_flag = [False]*len(self.eval_criteia)
+
+            # Loop for all evaluation metrics (multi-criteria).
+            # Calculate the metrics and judge behavioral vs. non-behavioral
             for i in range(len(self.eval_criteia)):
+
+                # Nash-Sutcliffe scores
                 if self.eval_criteia[i]['metric'] == "NSE":
                     metric_value = spotpy.objectivefunctions.nashsutcliffe(
                         obs_synced[self.eval_criteia[i]['variable_to_analyze']],
@@ -187,7 +192,9 @@ class MyGLUE(object):
                     if metric_value > self.eval_criteia[i]['threshold']:
                         behavioral_flag[i] = True
 
-                elif self.eval_criteia[i]['metric'] == "NSE":
+                # Kling-Gupta Efficiency scores
+                #　Kling-Gupta efficiencies range from -Inf to 1. Essentially, the closer to 1, the more accurate the model is
+                elif self.eval_criteia[i]['metric'] == "KGE":
                     metric_value = spotpy.objectivefunctions.kge(
                         obs_synced[self.eval_criteia[i]['variable_to_analyze']],
                         sim_synced[self.eval_criteia[i]['variable_to_analyze']]
@@ -195,8 +202,9 @@ class MyGLUE(object):
                     if metric_value > self.eval_criteia[i]['threshold']:
                         behavioral_flag[i] = True
 
+                # Seasonal transition dates
                 elif self.eval_criteia[i]['metric'] == "season_transition":
-                    # Calculate metrics for observed timeseries as a baseline performance. Run only once
+                    # Calculate metrics for OBSERVED timeseries as a baseline performance. Run only once
                     if n == 0:
                         sig_obs = SMSig(
                             ts_time=df["Time"].to_numpy(),
@@ -209,7 +217,7 @@ class MyGLUE(object):
                         t_valley = sig_obs.calc_sinecurve()
                         season_trans_obs = sig_obs.calc_seasontrans(t_valley=t_valley)
 
-                    # Calculate metrics for simulated timeseries
+                    # Calculate metrics for SIMULATED timeseries
                     sig_sim = SMSig(
                         ts_time=df["Time"].to_numpy(),
                         ts_value=sim_synced[self.eval_criteia[i]['variable_to_analyze']].to_numpy(),
@@ -219,6 +227,7 @@ class MyGLUE(object):
                     sig_sim.movmean()
                     season_trans_sim = sig_sim.calc_seasontrans(t_valley=t_valley)
 
+                    # Get the deviations in seasonal transition dates between simulated and observed timeseries
                     diff = season_trans_sim - season_trans_obs
                     metric_value = abs(np.nanmean(diff, axis=0))
                     if all(metric_value) < self.eval_criteia[i]['threshold']:
@@ -233,14 +242,15 @@ class MyGLUE(object):
             # ===============================================================
 
             if all(behavioral_flag):
-                # If all criteria is trie, the model is behavioral
+                # If all criteria is TRUE, the model is behavioral
                 result_glue = 'Behavioral'
 
                 # Store the behavioral runs
-                self.post_rid.append(n) #runid
-                self.post_paras.append(self.sampled) #parameters
-                self.eval.append(eval_result_for_a_run)
+                self.post_rid.append(n) # runid
+                self.post_paras.append(self.sampled) # parameters
+                self.eval.append(eval_result_for_a_run) # evaluation metrics
 
+                # timeseires
                 if flag_behavioral == 0:
                     self.df_behavioral_Q = sim_synced["Flow"]
                     self.df_behavioral_SM = sim_synced["Soil Moisture Content"]
@@ -262,25 +272,10 @@ class MyGLUE(object):
         # Get the number of behavioral runs
         n_behavioral = len(self.post_rid)
 
-        # Posterior paramters
-        param_names = []
-        if n_behavioral !=0:
-            # If there is any behavioral parameters
-            for i in range(len(self.params)):
-                param_names.append(self.post_paras[0][i][1])
-
-            param_values = np.empty((n_behavioral, len(param_names)))
-            param_values[:] = np.nan
-            for i in range(len(param_names)):
-                for j in range(n_behavioral):
-                    param_values[j][i] = self.post_paras[j][i][0]
-            self.df_post_paras = pd.DataFrame(param_values, index=self.post_rid, columns=param_names)
-
-        # Prior parameters
+        # Store PRIOR parameters
         param_names = []
         for i in range(len(self.params)):
             param_names.append(self.pri_paras[0][i][1])
-
         param_values = np.empty((self.nrun, len(param_names)))
         param_values[:] = np.nan
         for i in range(len(param_names)):
@@ -289,22 +284,38 @@ class MyGLUE(object):
 
         self.df_pri_paras = pd.DataFrame(param_values, columns=param_names)
 
-        # Evaluation metrics
-        if n_behavioral != 0:
-            eval_values = np.empty((n_behavioral, len(self.eval[0])))
-            eval_values[:] = np.nan
-            for i in range(len(self.eval[0])):
+        # Store POSTERIOR paramters for behavioral runs
+        param_names = []
+        if n_behavioral!=0:
+            # If there is any behavioral parameter
+            for i in range(len(self.params)):
+                param_names.append(self.post_paras[0][i][1])
+            param_values = np.empty((n_behavioral, len(param_names)))
+            param_values[:] = np.nan
+            for i in range(len(param_names)):
                 for j in range(n_behavioral):
-                    eval_values[j][i] = self.eval[j][i]
+                    param_values[j][i] = self.post_paras[j][i][0]
+            self.df_post_paras = pd.DataFrame(param_values, index=self.post_rid, columns=param_names)
+
+        # Store Evaluation metrics for behavioral runs
+        if n_behavioral != 0:
+            eval_values = np.empty((n_behavioral, len(self.eval_names)))
+            eval_values[:] = np.nan
+            for i in range(len(self.eval_names)):
+                for j in range(n_behavioral):
+                    if 'season_transition' in self.eval_names[i]:
+                        eval_values[j][i] = self.eval[j][0][i]
+                    else:
+                        eval_values[j][i] = self.eval[j][i]
             self.df_post_eval = pd.DataFrame(eval_values, index=self.post_rid, columns=self.eval_names)
 
-        # Simulated timeseries
+        # Store Simulated timeseries for behavioral runs
         self.df_behavioral_Q.set_axis(self.post_rid, axis=1, inplace=True)
         self.df_behavioral_Q.set_axis(df["Time"], axis=0, inplace=True)
         self.df_behavioral_SM.set_axis(self.post_rid, axis=1, inplace=True)
         self.df_behavioral_SM.set_axis(df["Time"], axis=0, inplace=True)
 
-        # Observed timeseries
+        # Store Observed timeseries
         self.df_obs_Q = pd.DataFrame(obs_synced["Flow"])
         self.df_obs_Q.set_axis(df["Time"], axis=0, inplace=True)
         self.df_obs_SM = pd.DataFrame(obs_synced["Soil Moisture Content"])
@@ -314,14 +325,17 @@ class MyGLUE(object):
         # post-process the results
         print('--- Post-processing the simulated results ---')
 
-        # Calculate weight
+        # Calculate weights
         weight = np.empty((len(self.df_post_eval), len(self.eval_names)))
         j=int(0)
+        # Loop for all evaluation metrics
         for i in range(len(self.eval_criteia)):
             if self.eval_criteia[i]['metric'] == "NSE" or self.eval_criteia[i]['metric'] == "KGE":
+                # For Nash-Sutcliffe and Kling-Gupta Efficiency scores
                 weight[:,j] = ((self.df_post_eval[self.eval_names[j]] - self.eval_criteia[i]['threshold'])/sum(self.df_post_eval[self.eval_names[j]] - self.eval_criteia[i]['threshold'])).to_numpy()
                 j += int(1)
             elif self.eval_criteia[i]['metric'] == "season_transition":
+                # For seasonal transition dates
                 weight[:, j:j+4] = triangle_weight(self.df_post_eval[self.eval_names[j]], a= -1*self.eval_criteia[i]['threshold'], b=0, c=self.eval_criteia[i]['threshold'])
                 j += int(4)
         avg_weight = np.mean(weight, axis=1)
@@ -352,12 +366,12 @@ class MyGLUE(object):
     def to_csv(self):
         print('--- Saving data into csv file ---')
 
-        # dump the parameter range to txt file
+        # Dump the parameter range to txt file
         file = open(os.path.join(self.out_path, "param_bounds.txt"), "w")
         file.write("%s" % str(self.params))
         file.close
 
-        # save the results to csv
+        # Dump the results to csv
         self.df_pri_paras.to_csv(os.path.join(self.out_path, 'paramter_priori.csv'), sep=',', header=True, index=False, encoding='utf-8', na_rep='nan')
         if hasattr(self, 'df_post_paras'):
             self.df_post_paras.to_csv(os.path.join(self.out_path, 'parameter_posterior.csv'), sep=',', header=True, index=False, encoding='utf-8', na_rep='nan')
@@ -372,6 +386,7 @@ class MyGLUE(object):
         # Plot the results
         print('--- Saving the plots ---')
 
+        # Histogram
         # Prior vs. posterior parameter distributions
         if plot_type == "param_hist":
             nparas = len(self.df_pri_paras.columns)
@@ -422,6 +437,8 @@ class MyGLUE(object):
                     # f.plot()
                     f.savefig(os.path.join(self.out_path, "param_dotty_%s.png" % (target_eval)), dpi=600)
 
+        # Dotty plot
+        # Parameter interactions for the behavioral runs
         if plot_type == "dotty_interaction":
 
             param_interset = ['bb',
@@ -460,6 +477,7 @@ class MyGLUE(object):
                     f.savefig(os.path.join(self.out_path, "param_dotty_interaction.png"), dpi=600)
 
         # Time series of data
+        # Flow and Soil Moisture Content
         if plot_type == "timeseries":
             for var_name in self.var_names:
                 if var_name == "Flow":
@@ -474,7 +492,7 @@ class MyGLUE(object):
                     df_simrange = self.df_SM_simrange
                     df_obs = self.df_obs_SM
                     obs_label = 'Observed soil moisture'
-                    y_label = 'Volmetric Soil Moisture Content [m^3/m^3]'
+                    y_label = 'Volumetric Soil Moisture Content [m^3/m^3]'
                     title = 'Soil moisture for behavioral runs'
                     fn = 'SM_range.png'
 
