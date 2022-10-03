@@ -335,8 +335,9 @@ class MyGLUE(object):
                 weight[:,j] = ((self.df_post_eval[self.eval_names[j]] - self.eval_criteia[i]['threshold'])/sum(self.df_post_eval[self.eval_names[j]] - self.eval_criteia[i]['threshold'])).to_numpy()
                 j += int(1)
             elif self.eval_criteia[i]['metric'] == "season_transition":
-                # For seasonal transition dates
-                weight[:, j:j+4] = triangle_weight(self.df_post_eval[self.eval_names[j]], a= -1*self.eval_criteia[i]['threshold'], b=0, c=self.eval_criteia[i]['threshold'])
+                for k in range(4):
+                    # For seasonal transition dates
+                    weight[:, j+k] = triangle_weight(self.df_post_eval[self.eval_names[j+k]], a= -1*self.eval_criteia[i]['threshold'], b=0, c=self.eval_criteia[i]['threshold'])
                 j += int(4)
         avg_weight = np.mean(weight, axis=1)
 
