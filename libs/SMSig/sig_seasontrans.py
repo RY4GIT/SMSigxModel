@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from scipy import optimize
 import datetime
 from scipy.optimize import curve_fit
+import os
 
 def piecewise_linear(x, P0, P1, P2, P3):
     y0 = np.where(x-P2>0, P0+P1*x, P0+P1*P2)
@@ -15,8 +16,7 @@ def sine_func(x, A, phi, k):
     return A * np.sin(w * x - phi) + k
 
 def datetime_to_timestamp(ts_datetime):
-    ts_timestamp_ns = ts_datetime - np.full((len(ts_datetime),),
-                                                      np.datetime64('1970-01-01T00:00:00Z'))
+    ts_timestamp_ns = ts_datetime - np.full((len(ts_datetime),), np.datetime64('1970-01-01T00:00:00Z'))
     ts_timestamp_d = ts_timestamp_ns.astype('timedelta64[D]')
     return ts_timestamp_d
 
@@ -40,10 +40,6 @@ class SMSig():
 
         self.plot_results = plot_results
         self.plot_label = plot_label
-
-        # If the data is likely to be in percentage. Convert to VSMC
-        if sum(ts_value)/len(ts_value) > 1.5:
-            ts_value = ts_value/100
 
         # Aggregate the timeseries of data into daily
         dti = pd.to_datetime(ts_time)
@@ -124,7 +120,6 @@ class SMSig():
         # https://scipy-lectures.org/intro/scipy/auto_examples/plot_curve_fit.html
         # Get the sine curve information from insitu data
         pseudo_idx = np.arange(start=0, step=1, stop=len(self.ts_value))
-        # pseudo_idx = list(range(0, len(self.ts_value), 1))
         params, params_covariance = optimize.curve_fit(sine_func, xdata=self.ts_time_d, ydata=self.ts_value,
                                                        p0=[1, 0, 0.5])
         phi = params[1]
@@ -158,8 +153,8 @@ class SMSig():
     def calc_seasontrans(self, t_valley):
         self.t_valley = t_valley
         # initialization
-        P0_d2w = [0, 0.0005, 60, 120]
-        P0_w2d = [0.5, -0.0005, 120, 80]
+        P0_d2w = [0, 0.0005, 60, 100]
+        P0_w2d = [0.5, -0.0005, 120, 100]
         trans_type = ["dry2wet", "wet2dry"]
 
         seasontrans_date = np.empty((len(self.t_valley), 4))
@@ -191,36 +186,6 @@ class SMSig():
                 seasonsm_value = seasonsm.to_numpy()
 
                 """
-                # TODO: Add more cropping treatment ... maybe not needed for this data. seasontrans is quite stable. 
-                # If data has too much NaN, or timeseires is empty, do nothing
-                if np.count_nonzero(np.isnan(seasonsm_value))/len(seasonsm_value) > 0.3 \
-                        or seasonsm_value.size == 0:
-                    None
-                else:
-                    # Try finding the actual wettest & driest point and crop based on it
-                    # Get the half length of the timeseries
-                    nhalf = int(np.floor(len(seasonsm)/2))
-                    if trans_type[trans] == "dry2wet":
-                        # the driest point should be happening in the first half of the timeseries
-                        t_start = seasonsm[1:nhalf].idxmin()
-                        # As the dry period is short, do not use the wettest point to crop the timeseries
-                        t_end = trans_end0
-                        # Create the mask
-                        mask = (self.tt.index >= t_start - datetime.timedelta(days=30)) & (
-                                self.tt.index <= t_end + datetime.timedelta(days=30))
-                    elif trans_type[trans] == "wet2dry":
-                        # The wettest point should be happening in the first half of the timeseries
-                        t_start = seasonsm[1:nhalf].idxmax()
-                        # The driest point should be happening in the later half of the timeseries
-                        t_end = seasonsm[nhalf:-1].idxmax()
-                        mask = (self.tt.index >= t_start - datetime.timedelta(days=45)) & (
-                                self.tt.index <= t_end + datetime.timedelta(days=15))
-                    # re-crop the timeseries with buffer
-                    seasonsm = self.tt.loc[mask]
-                    seasonsm_value = seasonsm.to_numpy()
-                """
-
-                """
                 Actual signature calculation
                 """
 
@@ -239,48 +204,17 @@ class SMSig():
                     if trans_type[trans] == "dry2wet":
                         P0 = P0_d2w
                         Plb = (-5,  0,   0,   1)
-                        Pub = (1.5, 0.1, 150, 200)
+                        Pub = (5, 0.1, 150, 200)
                     elif trans_type[trans] == "wet2dry":
                         P0 = P0_w2d
-                        Plb =  (-1,  -0.1, 0,      1)
-                        Pub =  (2.0, 0,    150,    200)
+                        Plb =  (-5,  -0.1, 0,      1)
+                        Pub =  (5, 0,    150,    200)
 
                     popt, pcov = curve_fit(piecewise_linear, x, y, p0=P0, bounds=(Plb, Pub))
                     Pfit = popt
                     # print(Pfit)
                     # print(res.fun)
 
-                    """
-                    # Show response surfaces
-                    # sample input range uniformly at 0.1 increments
-                    p1axis = np.arange(Plb[1], Pub[1], 0.001)
-                    p2axis = np.arange(Plb[3], Pub[3], 1)
-                    # create a mesh from the axis
-                    p1, p2 = np.meshgrid(p1axis, p2axis)
-                    results = np.full(p1.shape, 0)
-                    # compute targets
-                    for i in range(p1.shape[0]):
-                        for j in range(p1.shape[1]):
-                            P_01 = [P0[0], p1[i][j],P0[2],  p2[i][j], P0[4], P0[5]]
-                            results[i][j] = piecewise_linear_residuals(P_01, x, y)
-                    # create a surface plot with the jet color scheme
-                    figure = plt.figure()
-                    axis = figure.gca(projection='3d')
-                    axis.plot_surface(p1, p2, results, cmap='jet')
-                    # show the plot
-                    plt.show()
-                    """
-
-                    """
-                    # If the wp and fc coincides, or transition is shorter than 7 days, reject it (optimization is likely to have failed)
-                    if abs((Pfit[0]+Pfit[1]*Pfit[2])-(Pfit[0]+Pfit[1]*(Pfit[2]+Pfit[3])))<1.0e-03 or Pfit[3] < 7:
-                        if abs((Pfit[0]+Pfit[1]*Pfit[2])-(Pfit[0]+Pfit[1]*(Pfit[2]+Pfit[3])))<1.0e-03:
-                            print('FC and WP coincides')
-                        elif Pfit[3] < 7:
-                            print('Duration too short')
-                        Pfit[:] = np.nan
-                    else:
-                    """
                     # Get signatures
                     trans_start_result = seasonsm.axes[0][0] + datetime.timedelta(days=Pfit[2])
                     trans_end_result = seasonsm.axes[0][0] + datetime.timedelta(days=Pfit[2]+Pfit[3])
@@ -302,6 +236,8 @@ class SMSig():
                         plt.plot(x,y, color=lcolor, label=self.plot_label)
                         plt.show(block=False)
                         plt.legend()
+                        if self.plot_label == "sim":
+                            plt.savefig(os.path.join("G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/6_out/seasonsig_test", f'season_{n_plot}.png'))
 
 
         # print(seasontrans_date)

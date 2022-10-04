@@ -8,20 +8,19 @@ import numpy as np
 import json
 import matplotlib.pyplot as plt
 
-sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs/cfe/py_cfe")
+sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/libs/cfe/py_cfe")
 import cfe
 import bmi_cfe
 
-sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs/SMSig")
+sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/libs/SMSig")
 from sig_seasontrans import SMSig
 
 # specify current directory create output directory if it does not exist
 os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model")
 os.getcwd()
-data_file_path = '..\\2_data_input\\Mahurangi\\full'
+data_file_path = '../2_data_input/unit_test/'
 
 myCFE = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'config_cfe.json'))
-
 
 """
 # define parameter bounds

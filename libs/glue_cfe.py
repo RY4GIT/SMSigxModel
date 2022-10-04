@@ -129,7 +129,7 @@ class MyGLUE(object):
 
             # Overwrite the model config file
             for i in range(len(self.sampled)):
-                if self.sampled[i][1] in ['bb', 'satdk', 'satpsi', 'slop', 'smcmax', 'wltsmc', 'exponent_secondary', 'coeff_secondary', 'D']:
+                if self.sampled[i][1] in ['depth', 'bb', 'mult', 'satdk', 'satpsi', 'slop', 'smcmax', 'wltsmc', 'D']:
                     self.cfe_cfg["soil_params"][self.sampled[i][1]] = self.sampled[i][0]
                 else:
                     self.cfe_cfg[self.sampled[i][1]] = self.sampled[i][0]
@@ -363,6 +363,8 @@ class MyGLUE(object):
                 self.df_Q_simrange = df_simrange.copy()
             elif var_name == "Soil Moisture Content":
                 self.df_SM_simrange = df_simrange.copy()
+
+        print('checkpoint')
 
     def to_csv(self):
         print('--- Saving data into csv file ---')

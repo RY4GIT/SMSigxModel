@@ -58,7 +58,7 @@ if __name__ == '__main__':
     # =========== GLUE ANALYSIS ==============
     # ===============================================
     eval_criteria = {
-        0: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'season_transition', 'threshold': 100}
+        0: {'variable_to_analyze': 'Flow', 'metric': 'NSE', 'threshold': -10000}
     }
     # variable_to_analyze: ["Flow", "Soil Moisture Content"]
     # metric = ["NSE", "KGE", "season_transition"]
