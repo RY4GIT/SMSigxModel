@@ -219,7 +219,6 @@ class BMI_CFE():
                                'coeff_primary': self.soil_params['satdk'] * self.soil_params['slop'] * 3600.0,      # Controls percolation to GW, Equation 11
                                'exponent_primary': 1,                                                               # Controls percolation to GW, FIXED to 1 based on Equation 11
                                'storage_threshold_primary_m': field_capacity_storage_threshold_m,                                 # Equation 4 (and probably 5?) (Ogden's document).
-                               # Soil secondary reservoir params
                                'coeff_secondary': self.K_lf,                                                        # Controls lateral flow
                                'exponent_secondary': 1,                                                             # Controls lateral flow, FIXED to 1 based on schematics in the Ogden's document
                                'storage_threshold_secondary_m': lateral_flow_threshold_storage_m}                   # Equation 4 (and probably 5?) (Ogden's document).
@@ -326,13 +325,12 @@ class BMI_CFE():
         self.catchment_area_km2         = data_loaded['catchment_area_km2']
 
         # SOIL PARAMETERS
-        self.trigger_z_m = data_loaded['trigger_z_m']
+        self.trigger_z_fact = data_loaded['trigger_z_fact']
         self.field_capacity_atm_press_fraction = data_loaded['alpha_fc']
-
-        # Deleted alpha_fc. Not used in the model. Duplicate with satpsi.
         self.soil_params                = {}
         self.soil_params['bb']          = data_loaded['soil_params']['bb']
         self.soil_params['D']           = data_loaded['soil_params']['D']
+        self.trigger_z_m = self.trigger_z_fact * self.soil_params['D']
         # Deleted soil_params['depth']. Not used in the model. Duplicate with D
         # As T-shirt module does not exist, self.soil_params['mult'] is technically not used yet.
         # self.soil_params['mult']        = data_loaded['soil_params']['mult']
@@ -352,7 +350,7 @@ class BMI_CFE():
         self.refkdt = data_loaded['refkdt']
 
         # As T-shirt module does not exist, self.soil_params['mult'] is technically not used yet.
-        self.K_lf                       = data_loaded['K_lf']
+        self.K_lf                       = 0.02 * data_loaded['lksatfac'] * data_loaded['soil_params']['satdk'] * data_loaded['soil_params']['D'] * data_loaded['dd'] # Equation 11 in the Ogden's document
         self.K_nash                     = data_loaded['K_nash']
         self.nash_storage               = np.array(data_loaded['nash_storage'])
         self.giuh_ordinates             = np.array(data_loaded['giuh_ordinates'])
@@ -557,7 +555,7 @@ class BMI_CFE():
                 output_giuhstorage_out[t2]   = self.flux_giuh_runoff_m
 
                 output_smstorage_in[t2]      = self.infiltration_depth_m
-                output_smstorage_out[t2]     = self.flux_lat_m + self.flux_perc_m + self.actual_et_from_soil_m_per_timestep + self.diff_infilt + self.vol_sch_runoff_SOF
+                output_smstorage_out[t2]     = self.flux_lat_m + self.flux_perc_m + self.actual_et_from_soil_m_per_timestep + self.diff_infilt
 
                 output_nashstorage[t2]       = np.sum(self.nash_storage)
                 output_nashstorage_in[t2]    = self.flux_lat_m
@@ -659,8 +657,6 @@ class BMI_CFE():
                 ax2 = ax.twinx()
                 ax2.plot(self.cfe_output_data['Influx to '+output_type][plot_lims].cumsum(), color='seagreen', linestyle='--', label='Influx')
                 ax2.plot(self.cfe_output_data['Outflux from ' + output_type][plot_lims].cumsum(), color='crimson', linestyle='--', label='Outflux')
-                # plt.plot(self.cfe_output_data['Influx to '+output_type][plot_lims], color='dodgerblue', linestyle='--', label='Influx')
-                # plt.plot(self.cfe_output_data['Outflux from ' + output_type][plot_lims], color='crimson', linestyle='--', label='Outflux')
                 ax.set_title(output_type, loc='left', fontweight='bold')
                 plt.xlabel('Time [hr]')
                 ax.set_ylabel('Storage [m]')

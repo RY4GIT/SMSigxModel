@@ -8,13 +8,13 @@
         "satpsi": 0.657124897,
         "smcmax": 0.5,
         "wltsmc": 0.310002781,
-        "D": 0.87,
-        "exponent_secondary": 1
+        "D": 0.87
     },
     "max_gw_storage": 0.5,
     "Cgw": 5,
     "expon": 0.0002,
-    "K_lf": 0.5,
+    "lksatfac": 10000,
+    "dd": 0.035,
     "K_nash": 0.1,
     "nash_storage": [
         0.0,
@@ -28,7 +28,7 @@
         0.2,
         0.1
     ],
-    "trigger_z_m": 0.109099529,
+    "trigger_z_fact": 0.8,
     "alpha_fc": 0.33,
     "refkdt": 0.496733933,
     "stand_alone": 1,
