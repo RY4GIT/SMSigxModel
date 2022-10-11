@@ -145,7 +145,7 @@ class MyGLUE(object):
             # Actual model run
             # ===============================================================
             self.myCFE.initialize()
-            sim0 = self.myCFE.run_unit_test(plot=False)
+            sim0 = self.myCFE.run_unit_test(plot=False, warm_up=True)
             obs0 = self.myCFE.load_unit_test_data()
 
             # ===============================================================

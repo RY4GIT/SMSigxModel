@@ -315,7 +315,7 @@ def salib_cfe_interface(X, param_names, myCFE, like_measure, var_measure):
 
     # Here the model is actualy started with a unique parameter combination that it gets from spotpy for each time the model is called
     myCFE.initialize()
-    myCFE.run_unit_test(plot=False, print_fluxes=False)
+    myCFE.run_unit_test(plot=False, print_fluxes=False,warm_up=True)
 
     sim = myCFE.cfe_output_data[["Time", var_measure]]
     sim.loc[:, "Time"] = pd.to_datetime(sim["Time"], format="%Y-%m-%d %H:%M:%S")
