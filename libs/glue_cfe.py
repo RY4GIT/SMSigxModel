@@ -452,7 +452,7 @@ class MyGLUE(object):
                       'wltsmc',
                       'refkdt',
                       'trigger_z_m',
-                      'fc_atm_press_fraction'
+                      'alpha_fc'
                       ]
 
             if hasattr(self, 'df_post_paras'):

@@ -216,13 +216,12 @@ class BMI_CFE():
 
         self.soil_reservoir = {'is_exponential': False,
                                'storage_max_m': self.soil_params['smcmax'] * self.soil_params['D'],                 # Schaake Partitioning function 1 (Ogden's document)
-                               # Soil primary reservoir params  
-                               'coeff_primary': 0.5, # self.soil_params['satdk'] * self.soil_params['slop'] * 3600.0,      # Controls percolation to GW
-                               'exponent_primary': 1,                                                               # Controls percolation to GW
+                               'coeff_primary': self.soil_params['satdk'] * self.soil_params['slop'] * 3600.0,      # Controls percolation to GW, Equation 11
+                               'exponent_primary': 1,                                                               # Controls percolation to GW, FIXED to 1 based on Equation 11
                                'storage_threshold_primary_m': field_capacity_storage_threshold_m,                                 # Equation 4 (and probably 5?) (Ogden's document).
                                # Soil secondary reservoir params
-                               'coeff_secondary': 0.5, #self.K_lf,                                         # Controls lateral flow
-                               'exponent_secondary': self.soil_params['exponent_secondary'],                        # Controls lateral flow
+                               'coeff_secondary': self.K_lf,                                                        # Controls lateral flow
+                               'exponent_secondary': 1,                                                             # Controls lateral flow, FIXED to 1 based on schematics in the Ogden's document
                                'storage_threshold_secondary_m': lateral_flow_threshold_storage_m}                   # Equation 4 (and probably 5?) (Ogden's document).
         self.soil_reservoir['storage_m'] = self.soil_reservoir['storage_max_m'] * 0.667
         self.volstart                   += self.soil_reservoir['storage_m']
@@ -328,7 +327,7 @@ class BMI_CFE():
 
         # SOIL PARAMETERS
         self.trigger_z_m = data_loaded['trigger_z_m']
-        self.field_capacity_atm_press_fraction = data_loaded['fc_atm_press_fraction']
+        self.field_capacity_atm_press_fraction = data_loaded['alpha_fc']
 
         # Deleted alpha_fc. Not used in the model. Duplicate with satpsi.
         self.soil_params                = {}
@@ -342,7 +341,7 @@ class BMI_CFE():
         self.soil_params['slop']        = data_loaded['soil_params']['slop']
         self.soil_params['smcmax']      = data_loaded['soil_params']['smcmax']
         self.soil_params['wltsmc']      = data_loaded['soil_params']['wltsmc']
-        self.soil_params['exponent_secondary'] = data_loaded['soil_params']['exponent_secondary']
+        # self.soil_params['exponent_secondary'] = data_loaded['soil_params']['exponent_secondary'] # FIXED to 1 based on schematics in the Ogden's document
 
         # GROUNDWATER PARAMETERS
         self.max_gw_storage             = data_loaded['max_gw_storage']
