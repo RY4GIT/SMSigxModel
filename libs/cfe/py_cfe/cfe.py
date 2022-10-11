@@ -106,8 +106,10 @@ class CFE():
         # Calculates saturation excess overland flow
         # If the infiltration is more than the soil moisture deficit, additional SOF occurs
         if cfe_state.soil_reservoir_storage_deficit_m < cfe_state.infiltration_depth_m:
-            cfe_state.vol_sch_runoff += cfe_state.infiltration_depth_m - cfe_state.soil_reservoir_storage_deficit_m
-            cfe_state.vol_sch_runoff_SOF += cfe_state.infiltration_depth_m - cfe_state.soil_reservoir_storage_deficit_m
+            self.diff_inf = cfe_state.infiltration_depth_m - cfe_state.soil_reservoir_storage_deficit_m
+            cfe_state.vol_sch_runoff += self.diff_inf
+            cfe_state.surface_runoff_depth_m += self.diff_inf
+            cfe_state.vol_sch_runoff_SOF += self.diff_inf
             cfe_state.infiltration_depth_m = cfe_state.soil_reservoir_storage_deficit_m
 
         # Final infiltration value
@@ -136,6 +138,7 @@ class CFE():
             self.diff_perc = cfe_state.flux_perc_m - cfe_state.gw_reservoir_storage_deficit_m
             cfe_state.flux_perc_m = cfe_state.gw_reservoir_storage_deficit_m
             cfe_state.vol_sch_runoff += self.diff_perc
+            cfe_state.surface_runoff_depth_m += self.diff_perc
             cfe_state.vol_sch_runoff_SOF += self.diff_perc
             cfe_state.vol_sch_infilt -= self.diff_perc
 
@@ -148,31 +151,26 @@ class CFE():
 
         # ________________________________________________
         # Solve groundwater reservoir
-        self.conceptual_reservoir_flux_calc(cfe_state, cfe_state.gw_reservoir)
+        self.groundwater_reservoir_flux_calc(cfe_state, cfe_state.gw_reservoir)
+        cfe_state.gw_reservoir['storage_m'] -= cfe_state.flux_from_deep_gw_to_chan_m
         cfe_state.flux_from_deep_gw_to_chan_m = cfe_state.primary_flux_m
         cfe_state.vol_from_gw += cfe_state.flux_from_deep_gw_to_chan_m
+        cfe_state.volout += cfe_state.flux_from_deep_gw_to_chan_m
 
         # ________________________________________________        
         if not self.is_fabs_less_than_epsilon(cfe_state.secondary_flux_m, 1.0e-09):
             print("problem with nonzero flux point 1\n")
 
-        # ________________________________________________                               
-        cfe_state.gw_reservoir['storage_m'] -= cfe_state.flux_from_deep_gw_to_chan_m
-
         # ________________________________________________
         # SUBROUTINE
         # giuh_runoff_m = f(Schaake_output, giuh_ordinates, runoff_queue_m_per_timestep)
         self.convolution_integral(cfe_state)
-
-        # ________________________________________________
         cfe_state.vol_out_giuh += cfe_state.flux_giuh_runoff_m
-        cfe_state.volout += cfe_state.flux_giuh_runoff_m + cfe_state.flux_from_deep_gw_to_chan_m
+        cfe_state.volout += cfe_state.flux_giuh_runoff_m
 
         # ________________________________________________
         # SUBROUTINE
         self.nash_cascade(cfe_state)
-
-        # ________________________________________________
         cfe_state.vol_in_nash += cfe_state.flux_lat_m
         cfe_state.vol_out_nash += cfe_state.flux_nash_lateral_runoff_m
         # (?) missing to add vol_nash to vol_out
@@ -373,7 +371,7 @@ class CFE():
     ########## SINGLE OUTLET EXPONENTIAL RESERVOIR ###############
     ##########                -or-                 ###############
     ##########    TWO OUTLET NONLINEAR RESERVOIR   ###############                        
-    def conceptual_reservoir_flux_calc(self, cfe_state, reservoir):
+    def groundwater_reservoir_flux_calc(self, cfe_state, reservoir):
         """
             This function calculates the flux from a linear, or nonlinear 
             conceptual reservoir with one or two outlets, or from an
