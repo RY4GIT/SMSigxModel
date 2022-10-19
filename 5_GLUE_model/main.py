@@ -58,15 +58,15 @@ if __name__ == '__main__':
     # =========== GLUE ANALYSIS ==============
     # ===============================================
     eval_criteria = {
-        0: {'variable_to_analyze': 'Flow', 'metric': 'NSE', 'threshold': -10000}
+        0: {'variable_to_analyze': 'Flow', 'metric': 'NSE', 'threshold': -5000}
     }
     # variable_to_analyze: ["Flow", "Soil Moisture Content"]
     # metric = ["NSE", "KGE", "season_transition"]
 
     main(
-        out_path='../4_out/sensitivity_analysis/Mahurangi/test/GLUE',
-        config_path_CFE='../2_data_input/unit_test/GLUE_cfe_config.json',
-        config_path_GLUE='../2_data_input/unit_test/GLUE_config.xlsx',
+        out_path='../6_out/Mahurangi/ex1',
+        config_path_CFE='../2_data_input/Mahurangi/parameters/ex1_config_cfe.json',
+        config_path_GLUE='../2_data_input/Mahurangi/parameters/ex1_GLUE_config.xlsx',
         nrun=3,
         eval_criteria=eval_criteria
     )

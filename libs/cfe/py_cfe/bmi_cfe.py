@@ -348,9 +348,10 @@ class BMI_CFE():
 
         # Schaake parameters
         self.refkdt = data_loaded['refkdt']
+        self.lksatfac = data_loaded['lksatfac']
 
         # As T-shirt module does not exist, self.soil_params['mult'] is technically not used yet.
-        self.K_lf                       = 0.02 * data_loaded['lksatfac'] * data_loaded['soil_params']['satdk'] * data_loaded['soil_params']['D'] * data_loaded['dd'] # Equation 11 in the Ogden's document
+        self.K_lf                       = 0.02 * self.lksatfac * data_loaded['soil_params']['satdk'] * data_loaded['soil_params']['D'] * data_loaded['dd'] # Equation 11 in the Ogden's document
         self.K_nash                     = data_loaded['K_nash']
         self.nash_storage               = np.array(data_loaded['nash_storage'])
         self.giuh_ordinates             = np.array(data_loaded['giuh_ordinates'])
@@ -508,8 +509,9 @@ class BMI_CFE():
         output_nashstorage_in = [0] * len(self.unit_test_data)
         output_nashstorage_out = [0] * len(self.unit_test_data)
 
-        self.current_time = pd.Timestamp(self.forcing_data['time'][0+365])
-        
+        self.current_time = pd.Timestamp(self.forcing_data['time'][0])
+        warm_up_flag = 0
+
         for t, precipitation_input in enumerate(self.forcing_data['precip_rate']):
             # removed multiplication *3600. Walnut Gulch data were in mm/s, but Mahurangi in mm/timestep(hr)
             # print(t)
@@ -521,8 +523,12 @@ class BMI_CFE():
                 self.potential_et_m_per_s           = self.forcing_data.loc[t, 'PET']/3600
 
             if warm_up and t < warmup_offset:
-                None
+                warm_up_flag = 0
             else:
+                # reset the time
+                if warm_up_flag == 0:
+                    self.current_time = pd.Timestamp(self.forcing_data['time'][t])
+                    warm_up_flag = 1
                 t2 = t-warmup_offset
                 output_time[t2]      = self.current_time
                 output_ts[t2]        = self.current_time_step

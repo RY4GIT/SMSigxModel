@@ -129,7 +129,7 @@ class MyGLUE(object):
 
             # Overwrite the model config file
             for i in range(len(self.sampled)):
-                if self.sampled[i][1] in ['depth', 'bb', 'mult', 'satdk', 'satpsi', 'slop', 'smcmax', 'wltsmc', 'D']:
+                if self.sampled[i][1] in ['bb', 'satdk', 'slop', 'satpsi', 'smcmax', 'wltsmc', 'D']:
                     self.cfe_cfg["soil_params"][self.sampled[i][1]] = self.sampled[i][0]
                 else:
                     self.cfe_cfg[self.sampled[i][1]] = self.sampled[i][0]
@@ -163,6 +163,7 @@ class MyGLUE(object):
                 # Get the comparison data
                 obs = obs0[["Time", var_name]].copy()
                 obs["Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M") # Works specifically for Mahurangi data
+                # obs["Time"] = pd.to_datetime(obs["Time"], format="%d-%m-%Y %H:%M:%S")
 
                 # Merge observed and simulated timeseries
                 df = pd.merge_asof(sim, obs, on="Time")
@@ -364,8 +365,6 @@ class MyGLUE(object):
             elif var_name == "Soil Moisture Content":
                 self.df_SM_simrange = df_simrange.copy()
 
-        print('checkpoint')
-
     def to_csv(self):
         print('--- Saving data into csv file ---')
 
@@ -429,7 +428,7 @@ class MyGLUE(object):
                     for i in range(nparas):
                         target_para = self.df_pri_paras.columns[i]
                         ax1 = f.add_subplot(4, 4, i+1)
-                        plt.scatter(self.df_post_paras[target_para], self.df_post_eval[target_eval])
+                        ax1.scatter(self.df_post_paras[target_para], self.df_post_eval[target_eval], alpha=0.5)
 
                         ax1.set_xlabel(target_para)
                         ax1.set_ylabel(target_eval)
@@ -446,13 +445,19 @@ class MyGLUE(object):
 
             param_interset = ['bb',
                       'satdk',
-                      'satpsi',
                       'slop',
+                      'satpsi',
                       'smcmax',
                       'wltsmc',
+                      'alpha_fc',
+                      'lksatfac',
+                      'D',
+                      'trigger_z_m_coeff',
+                      'max_gw_storage',
+                      'Cgw',
+                      'expon',
                       'refkdt',
-                      'trigger_z_m',
-                      'alpha_fc'
+                      'K_nash'
                       ]
 
             if hasattr(self, 'df_post_paras'):
@@ -467,7 +472,7 @@ class MyGLUE(object):
                             ax1 = f.add_subplot(len(param_interset), len(param_interset), n_plot)
                             x = self.df_post_paras[para0]
                             y = self.df_post_paras[para1]
-                            plt.scatter(x, y)
+                            plt.scatter(x, y, alpha=0.5)
 
                             ax1.set_xlabel(para0)
                             ax1.set_ylabel(para1)
