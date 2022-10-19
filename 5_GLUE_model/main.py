@@ -15,7 +15,7 @@ import snakeviz
 # https://docs.python.org/3/library/profile.html#module-cProfile
 
 sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/libs/")
-from analysis.libs.glue_cfe import MyGLUE
+from glue_cfe import MyGLUE
 
 # Specify current directory create output directory if it does not exist
 os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/5_GLUE_model")
@@ -59,19 +59,37 @@ if __name__ == '__main__':
     # ===============================================
     # =========== GLUE ANALYSIS ==============
     # ===============================================
-    eval_criteria = {
-        0: {'variable_to_analyze': 'Flow', 'metric': 'NSE', 'threshold': -5000}
+    eval_criteria_NSE = {
+        0: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'NSE', 'threshold': 0.5}
     }
+
+    eval_criteria_KGE = {
+        0: {'variable_to_analyze': 'Flow', 'metric': 'KGE', 'threshold': 0.5}
+    }
+
+    eval_criteria_season = {
+        0: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'season_transition', 'threshold': 30}
+    }
+
+
     # variable_to_analyze: ["Flow", "Soil Moisture Content"]
     # metric = ["NSE", "KGE", "season_transition"]
 
     main(
-        out_path='../6_out/Mahurangi/ex1',
+        out_path='../6_out/Mahurangi/ex3',
         config_path_CFE='../2_data_input/Mahurangi/parameters/ex1_config_cfe.json',
         config_path_GLUE='../2_data_input/Mahurangi/parameters/ex1_GLUE_config.xlsx',
-        nrun=3,
-        eval_criteria=eval_criteria
+        nrun=200,
+        eval_criteria=eval_criteria_season
     )
+
+    # main(
+    #     out_path='../6_out/Mahurangi/ex3',
+    #     config_path_CFE='../2_data_input/Mahurangi/parameters/ex1_config_cfe.json',
+    #     config_path_GLUE='../2_data_input/Mahurangi/parameters/ex1_GLUE_config.xlsx',
+    #     nrun=200,
+    #     eval_criteria=eval_criteria_seasonsig
+    # )
 
 
     # process1 = mp.Process(target=main, kwargs={'out_path': '../6_out/Mahurangi/ex1',

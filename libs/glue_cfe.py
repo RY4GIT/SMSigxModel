@@ -231,7 +231,7 @@ class MyGLUE(object):
                     # Get the deviations in seasonal transition dates between simulated and observed timeseries
                     diff = season_trans_sim - season_trans_obs
                     metric_value = abs(np.nanmean(diff, axis=0))
-                    if all(metric_value) < self.eval_criteia[i]['threshold']:
+                    if all(metric_value < self.eval_criteia[i]['threshold']):
                         behavioral_flag[i] = True
 
                 # Store evaluation metrics for all criteria for one run
@@ -475,7 +475,7 @@ class MyGLUE(object):
                             ax1.scatter(x, y, alpha=0.5)
 
                             if i==0:
-                                ax1.xaxis.tick_top()
+                                ax1.xaxis.set_label_position('top')
                                 ax1.set_xlabel(para0)
                             if j==0:
                                 ax1.set_ylabel(para1)
