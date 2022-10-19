@@ -8,6 +8,8 @@ if not sys.warnoptions:
     warnings.simplefilter("ignore")
 import cProfile, pstats, io
 from pstats import SortKey
+import multiprocessing as mp
+import snakeviz
 
 
 # https://docs.python.org/3/library/profile.html#module-cProfile
@@ -72,22 +74,36 @@ if __name__ == '__main__':
     )
 
 
-    """
-    process1 = mp.Process(target=main, kwargs={'runtype': "GLUE", 'nrun': nrun, 'glue_calib_case': 1,
-                                               'out_path': '..\\4_out\\Mahurangi\\exp_id9', 'cfe_json_fn': 'config_cfe_core1.json'})
-    process2 = mp.Process(target=main, kwargs={'runtype': "GLUE", 'nrun': nrun, 'glue_calib_case': 2,
-                                               'out_path': '..\\4_out\\Mahurangi\\exp_id10', 'cfe_json_fn': 'config_cfe_core2.json'})
-    process3 = mp.Process(target=main, kwargs={'runtype': "GLUE", 'nrun': nrun, 'glue_calib_case': 5,
-                                               'out_path': '..\\4_out\\Mahurangi\\exp_id11', 'cfe_json_fn': 'config_cfe_core3.json'})
-    process4 = mp.Process(target=main, kwargs={'runtype': "GLUE", 'nrun': nrun, 'glue_calib_case': 3,
-                                               'out_path': '..\\4_out\\Mahurangi\\exp_id12', 'cfe_json_fn': 'config_cfe_core4.json'})
+    # process1 = mp.Process(target=main, kwargs={'out_path': '../6_out/Mahurangi/ex1',
+    #                                             'config_path_CFE': '../2_data_input/Mahurangi/parameters/ex1_config_cfe.json',
+    #                                              'config_path_GLUE': '../2_data_input/Mahurangi/parameters/ex1_GLUE_config.xlsx',
+    #                                              'nrun':3,
+    #                                               'eval_criteria':eval_criteria})
+    #
+    # process2 = mp.Process(target=main, kwargs={'out_path': '../6_out/Mahurangi/ex1',
+    #                                            'config_path_CFE': '../2_data_input/Mahurangi/parameters/ex1_config_cfe.json',
+    #                                            'config_path_GLUE': '../2_data_input/Mahurangi/parameters/ex1_GLUE_config.xlsx',
+    #                                            'nrun': 3,
+    #                                            'eval_criteria': eval_criteria})
+    #
+    # process3 = mp.Process(target=main, kwargs={'out_path': '../6_out/Mahurangi/ex1',
+    #                                             'config_path_CFE': '../2_data_input/Mahurangi/parameters/ex1_config_cfe.json',
+    #                                              'config_path_GLUE': '../2_data_input/Mahurangi/parameters/ex1_GLUE_config.xlsx',
+    #                                              'nrun':3,
+    #                                               'eval_criteria':eval_criteria})
+    #
+    # process4 = mp.Process(target=main, kwargs={'out_path': '../6_out/Mahurangi/ex1',
+    #                                             'config_path_CFE': '../2_data_input/Mahurangi/parameters/ex1_config_cfe.json',
+    #                                              'config_path_GLUE': '../2_data_input/Mahurangi/parameters/ex1_GLUE_config.xlsx',
+    #                                              'nrun':3,
+    #                                               'eval_criteria':eval_criteria})
     # process2 = mp.Process(target=main)
 
-    process1.start()
-    process2.start()
-    process3.start()
-    process4.start()
-    """
+    # process1.start()
+    # process2.start()
+    # process3.start()
+    # process4.start()
+
 
     # measure the time
     if measuretime:

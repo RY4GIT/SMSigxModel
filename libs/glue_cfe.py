@@ -429,9 +429,9 @@ class MyGLUE(object):
                         target_para = self.df_pri_paras.columns[i]
                         ax1 = f.add_subplot(4, 4, i+1)
                         ax1.scatter(self.df_post_paras[target_para], self.df_post_eval[target_eval], alpha=0.5)
-
-                        ax1.set_xlabel(target_para)
-                        ax1.set_ylabel(target_eval)
+                        ax1.tick_params(axis='both', which='major', labelsize=16)
+                        ax1.set_xlabel(target_para, fontsize=16)
+                        ax1.set_ylabel(target_eval, fontsize=16)
 
                     # if i !=0:
                     #     ax1.yaxis.set_visible(False)
@@ -461,21 +461,24 @@ class MyGLUE(object):
                       ]
 
             if hasattr(self, 'df_post_paras'):
-                    f = plt.figure(figsize=(16, 16), constrained_layout=True)
+                    f = plt.figure(figsize=(20, 20), constrained_layout=True)
                     f.tight_layout()
                     n_plot = 0
                     for i in range(len(param_interset)):
                         for j in range(len(param_interset)):
                             n_plot += 1
-                            para0 = param_interset[i]
-                            para1 = param_interset[j]
+                            para0 = param_interset[j]
+                            para1 = param_interset[i]
                             ax1 = f.add_subplot(len(param_interset), len(param_interset), n_plot)
                             x = self.df_post_paras[para0]
                             y = self.df_post_paras[para1]
-                            plt.scatter(x, y, alpha=0.5)
+                            ax1.scatter(x, y, alpha=0.5)
 
-                            ax1.set_xlabel(para0)
-                            ax1.set_ylabel(para1)
+                            if i==0:
+                                ax1.xaxis.tick_top()
+                                ax1.set_xlabel(para0)
+                            if j==0:
+                                ax1.set_ylabel(para1)
                             ax1.tick_params(direction="in")
 
                             # if i !=0:

@@ -284,6 +284,6 @@ if __name__ == '__main__':
         # print(s.getvalue())
         ps.dump_stats('runtime.txt')
 
-    # "C:\Users\flipl\anaconda3\envs\CFE\Scripts\snakeviz.exe"
+    # "C:\Users\flipl\anaconda3\envs\CFE\Scripts\snakeviz.exe" "G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\3_model\runtime.txt"
     # snakeviz "G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\3_model\runtime.txt"
     # visualize to type the above in terminal
