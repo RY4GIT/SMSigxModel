@@ -153,12 +153,14 @@ class SMSig():
     def calc_seasontrans(self, t_valley):
         self.t_valley = t_valley
         # initialization
-        P0_d2w = [0, 0.0005, 60, 100]
-        P0_w2d = [0.5, -0.0005, 120, 100]
+        P0_d2w = [np.min(self.tt.values), 0.0005, 60, 100]
+        P0_w2d = [np.max(self.tt.values), -0.0005, 60, 100]
         trans_type = ["dry2wet", "wet2dry"]
 
         seasontrans_date = np.empty((len(self.t_valley), 4))
         seasontrans_date[:] = np.nan
+        start_dates = []
+        end_dates = []
 
         n_plot = 0
 
@@ -212,7 +214,7 @@ class SMSig():
 
                     popt, pcov = curve_fit(piecewise_linear, x, y, p0=P0, bounds=(Plb, Pub))
                     Pfit = popt
-                    # print(Pfit)
+                    print(trans_type[trans], Pfit)
                     # print(res.fun)
 
                     # Get signatures
@@ -221,8 +223,14 @@ class SMSig():
                     # print(trans_start_result, trans_end_result)
 
                     # Save in the array
-                    seasontrans_date[i,2*trans] = trans_start_result.to_julian_date()
-                    seasontrans_date[i,1+2*trans] = trans_end_result.to_julian_date()
+                    # Discard the very first result, as it is unstable
+                    if trans_type[trans] == "dry2wet" and i==0:
+                        None
+                    else:
+                        start_dates.append(trans_start_result)
+                        end_dates.append(trans_end_result)
+                        seasontrans_date[i,2*trans] = trans_start_result.to_julian_date()
+                        seasontrans_date[i,1+2*trans] = trans_end_result.to_julian_date()
 
                     if self.plot_results:
                         n_plot += 1
@@ -243,7 +251,7 @@ class SMSig():
         # print(seasontrans_date)
 
         # return signatures
-        return seasontrans_date
+        return seasontrans_date, start_dates, end_dates
 
     def compare_results(self, sim, obs):
         None

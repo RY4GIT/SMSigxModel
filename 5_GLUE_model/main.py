@@ -79,7 +79,7 @@ if __name__ == '__main__':
         out_path='../6_out/Mahurangi/ex3',
         config_path_CFE='../2_data_input/Mahurangi/parameters/ex1_config_cfe.json',
         config_path_GLUE='../2_data_input/Mahurangi/parameters/ex1_GLUE_config.xlsx',
-        nrun=200,
+        nrun=100,
         eval_criteria=eval_criteria_season
     )
 

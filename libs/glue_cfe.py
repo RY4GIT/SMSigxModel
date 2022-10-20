@@ -216,7 +216,7 @@ class MyGLUE(object):
                         # sig_obs.detrend() # TODO:debug
                         sig_obs.movmean()
                         t_valley = sig_obs.calc_sinecurve()
-                        season_trans_obs = sig_obs.calc_seasontrans(t_valley=t_valley)
+                        season_trans_obs, _, _ = sig_obs.calc_seasontrans(t_valley=t_valley)
 
                     # Calculate metrics for SIMULATED timeseries
                     sig_sim = SMSig(
@@ -226,7 +226,7 @@ class MyGLUE(object):
                         plot_label="sim"
                     )
                     sig_sim.movmean()
-                    season_trans_sim = sig_sim.calc_seasontrans(t_valley=t_valley)
+                    season_trans_sim, _, _ = sig_sim.calc_seasontrans(t_valley=t_valley)
 
                     # Get the deviations in seasonal transition dates between simulated and observed timeseries
                     diff = season_trans_sim - season_trans_obs
@@ -374,15 +374,15 @@ class MyGLUE(object):
         file.close
 
         # Dump the results to csv
-        self.df_pri_paras.to_csv(os.path.join(self.out_path, 'paramter_priori.csv'), sep=',', header=True, index=False, encoding='utf-8', na_rep='nan')
+        self.df_pri_paras.to_csv(os.path.join(self.out_path, 'paramter_priori.csv'), sep=',', header=True, index=True, encoding='utf-8', na_rep='nan')
         if hasattr(self, 'df_post_paras'):
-            self.df_post_paras.to_csv(os.path.join(self.out_path, 'parameter_posterior.csv'), sep=',', header=True, index=False, encoding='utf-8', na_rep='nan')
+            self.df_post_paras.to_csv(os.path.join(self.out_path, 'parameter_posterior.csv'), sep=',', header=True, index=True, encoding='utf-8', na_rep='nan')
         if hasattr(self, 'df_post_eval'):
-            self.df_post_eval.to_csv(os.path.join(self.out_path, 'evaluations.csv'), sep=',', header=True, index=False, encoding='utf-8', na_rep='nan')
+            self.df_post_eval.to_csv(os.path.join(self.out_path, 'evaluations.csv'), sep=',', header=True, index=True, encoding='utf-8', na_rep='nan')
         if hasattr(self, 'df_Q_simrange'):
-            self.df_Q_simrange.to_csv(os.path.join(self.out_path, 'quantiles_Q.csv'), sep=',', header=True, index=False, encoding='utf-8', na_rep='nan')
+            self.df_Q_simrange.to_csv(os.path.join(self.out_path, 'quantiles_Q.csv'), sep=',', header=True, index=True, encoding='utf-8', na_rep='nan')
         if hasattr(self, 'df_SM_simrange'):
-            self.df_SM_simrange.to_csv(os.path.join(self.out_path, 'quantiles_SM.csv'), sep=',', header=True, index=False, encoding='utf-8', na_rep='nan')
+            self.df_SM_simrange.to_csv(os.path.join(self.out_path, 'quantiles_SM.csv'), sep=',', header=True, index=True, encoding='utf-8', na_rep='nan')
 
     def plot(self, plot_type=None):
         # Plot the results
