@@ -12,7 +12,7 @@ import multiprocessing as mp
 import snakeviz
 import spotpy
 import pandas as pd
-
+os.environ['NUMEXPR_MAX_THREADS'] = '3'
 
 # https://docs.python.org/3/library/profile.html#module-cProfile
 
@@ -50,7 +50,6 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', nrun=1, eval_crit
             high=df_param_to_calibrate['upper_bound'][i]
         )
 
-    nrun = 4
     sampled_params = nrun * [None]
     for i in range(len(sampled_params)):
         sampled_params[i] = [i, spotpy.parameter.generate(params)]
@@ -97,16 +96,12 @@ if __name__ == '__main__':
         0: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'NSE', 'threshold':-10000}
     }
 
-    eval_criteria_KGE_SM = {
-        0: {'variable_to_analyze': 'Flow', 'metric': 'KGE', 'threshold': 0.5}
-    }
-
     eval_criteria_KGE_Q = {
         0: {'variable_to_analyze': 'Flow', 'metric': 'KGE', 'threshold': 0.5}
     }
 
     eval_criteria_KGE_SM = {
-        0: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'KGE', 'threshold': -10000}
+        0: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'KGE', 'threshold': 0.5}
     }
 
     eval_criteria_season = {
@@ -129,7 +124,7 @@ if __name__ == '__main__':
         out_path='../6_out/Mahurangi/ex111',
         config_path_CFE='../2_data_input/Mahurangi/parameters/config_cfe_template.json',
         config_path_GLUE='../2_data_input/Mahurangi/parameters/ex1_GLUE_config.xlsx',
-        nrun=3,
+        nrun=1,
         eval_criteria=eval_criteria_NSE_Q
     )
 

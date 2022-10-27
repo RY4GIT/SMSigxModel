@@ -1,25 +1,21 @@
-import spotpy
-from spotpy.parameter import Uniform
-from spotpy.objectivefunctions import rmse
 import sys
 sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/libs/cfe/py_cfe")
 import cfe
 import bmi_cfe
+sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/libs/SMSig")
+from sig_seasontrans import SMSig
+
+import spotpy
 import os
-import sys
 import pandas as pd
 import numpy as np
 import json
 import matplotlib.pyplot as plt
-
-import multiprocessing as mp
 import shutil
-
-sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/libs/SMSig")
-from sig_seasontrans import SMSig
 
 # Global variables
 quantiles = [0.05, 0.5, 0.95]
+
 
 # Global function
 def weighted_quantile(values, quantiles, sample_weight=None,
@@ -57,22 +53,24 @@ def weighted_quantile(values, quantiles, sample_weight=None,
         weighted_quantiles /= np.sum(sample_weight)
     return np.interp(quantiles, weighted_quantiles, values)
 
+
 def triangle_weight(x, a, b, c):
     # a: lowerlim, c:upperlim, b:midpoint
     y = np.full((len(x),), np.nan)
-    #for i in range(len(x)):
-    y = np.where((x<=a) | (x>=c), 0, y)
-    y = np.where((a<=x) & (x<=b), (x-a)/(b-a), y)
-    y = np.where((b<=x) & (x<=c), (c-x)/(c-b), y)
+    # for i in range(len(x)):
+    y = np.where((x <= a) | (x >= c), 0, y)
+    y = np.where((a <= x) & (x <= b), (x - a) / (b - a), y)
+    y = np.where((b <= x) & (x <= c), (c - x) / (c - b), y)
     return y
+
 
 # GLUE object
 class MyGLUE(object):
-    def __init__(self, out_path='./', config_path_CFE='', config_path='', nrun = 1, eval_criteria=dict()):
+    def __init__(self, out_path='./', config_path_CFE='', config_path='', nrun=1, eval_criteria=dict()):
 
-        self.out_path = out_path # Output folder path
-        self.nrun = nrun # Number of runs
-        self.var_names = ["Flow", "Soil Moisture Content"] # Variables to be analyzed
+        self.out_path = out_path  # Output folder path
+        self.nrun = nrun  # Number of runs
+        self.var_names = ["Flow", "Soil Moisture Content"]  # Variables to be analyzed
 
         self.config_path_CFE = config_path_CFE
 
@@ -81,26 +79,30 @@ class MyGLUE(object):
         print(f"A number of criterion: {len(eval_criteria)}")
         self.eval_names = []
         for i in range(len(eval_criteria)):
-            if eval_criteria[i]["metric"]=='season_transition':
-                self.eval_names.append(f'{eval_criteria[i]["metric"]} on {eval_criteria[i]["variable_to_analyze"]} (d2w_start)')
-                self.eval_names.append(f'{eval_criteria[i]["metric"]} on {eval_criteria[i]["variable_to_analyze"]} (d2w_end)')
-                self.eval_names.append(f'{eval_criteria[i]["metric"]} on {eval_criteria[i]["variable_to_analyze"]} (w2d_start)')
-                self.eval_names.append(f'{eval_criteria[i]["metric"]} on {eval_criteria[i]["variable_to_analyze"]} (w2d_end)')
+            if eval_criteria[i]["metric"] == 'season_transition':
+                self.eval_names.append(
+                    f'{eval_criteria[i]["metric"]} on {eval_criteria[i]["variable_to_analyze"]} (d2w_start)')
+                self.eval_names.append(
+                    f'{eval_criteria[i]["metric"]} on {eval_criteria[i]["variable_to_analyze"]} (d2w_end)')
+                self.eval_names.append(
+                    f'{eval_criteria[i]["metric"]} on {eval_criteria[i]["variable_to_analyze"]} (w2d_start)')
+                self.eval_names.append(
+                    f'{eval_criteria[i]["metric"]} on {eval_criteria[i]["variable_to_analyze"]} (w2d_end)')
             else:
                 self.eval_names.append(f'{eval_criteria[i]["metric"]} on {eval_criteria[i]["variable_to_analyze"]}')
-            print(f'[{i+1}] {eval_criteria[i]["metric"]}-based analysis on {eval_criteria[i]["variable_to_analyze"]}')
+            print(f'[{i + 1}] {eval_criteria[i]["metric"]}-based analysis on {eval_criteria[i]["variable_to_analyze"]}')
 
         # Initializations
         self.post_rid = []
         # self.pri_paras  = []
-        self.post_paras  = []
-        self.resulted_totalQ  = []
-        self.eval  = []
+        self.post_paras = []
+        self.resulted_totalQ = []
+        self.eval = []
 
     def simulation(self, sampled_params):
 
         sampled_params_nrun = sampled_params[0]
-        sampled_params_set =  sampled_params[1]
+        sampled_params_set = sampled_params[1]
 
         print(f'Processing {sampled_params_nrun}')
 
@@ -112,7 +114,8 @@ class MyGLUE(object):
 
         # CFE model instance
         template_config_CFE = self.config_path_CFE
-        target_config_CFE = os.path.join(r"..\2_data_input\Mahurangi\parameters", f"config_cfe_{sampled_params_nrun}.json")
+        target_config_CFE = os.path.join(r"..\2_data_input\Mahurangi\parameters",
+                                         f"config_cfe_{sampled_params_nrun}.json")
         shutil.copyfile(template_config_CFE, target_config_CFE)
 
         # Get the model config file
@@ -151,11 +154,11 @@ class MyGLUE(object):
         for var_name in self.var_names:
             # Get the simulated data
             sim = sim0[["Time", var_name]].copy()
-            sim["Time"] = pd.to_datetime(sim["Time"], format="%Y-%m-%d %H:%M:%S") # Works specifically for CFE
+            sim["Time"] = pd.to_datetime(sim["Time"], format="%Y-%m-%d %H:%M:%S")  # Works specifically for CFE
 
             # Get the comparison data
             obs = obs0[["Time", var_name]].copy()
-            obs["Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M") # Works specifically for Mahurangi data
+            obs["Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M")  # Works specifically for Mahurangi data
             # obs["Time"] = pd.to_datetime(obs["Time"], format="%d-%m-%Y %H:%M:%S")
 
             # Merge observed and simulated timeseries
@@ -167,14 +170,13 @@ class MyGLUE(object):
 
             self.obs_synced = obs_synced
 
-
         # ===============================================================
         # Evalute the outputs
         # ===============================================================
 
         # Preparation
         eval_result_for_a_run = []
-        behavioral_flag = [False]*len(self.eval_criteia)
+        behavioral_flag = [False] * len(self.eval_criteia)
 
         # Loop for all evaluation metrics (multi-criteria).
         # Calculate the metrics and judge behavioral vs. non-behavioral
@@ -190,7 +192,7 @@ class MyGLUE(object):
                     behavioral_flag[i] = True
 
             # Kling-Gupta Efficiency scores
-            #　Kling-Gupta efficiencies range from -Inf to 1. Essentially, the closer to 1, the more accurate the model is
+            # 　Kling-Gupta efficiencies range from -Inf to 1. Essentially, the closer to 1, the more accurate the model is
             elif self.eval_criteia[i]['metric'] == "KGE":
                 metric_value = spotpy.objectivefunctions.kge(
                     obs_synced[self.eval_criteia[i]['variable_to_analyze']],
@@ -233,7 +235,6 @@ class MyGLUE(object):
             # Store evaluation metrics for all criteria for one run
             eval_result_for_a_run.append(metric_value)
 
-
         # ===============================================================
         # Judge behavioral vs. non-behavioral
         # ===============================================================
@@ -241,21 +242,6 @@ class MyGLUE(object):
         if all(behavioral_flag):
             # If all criteria is TRUE, the model is behavioral
             result_glue = 'Behavioral'
-
-            # Store the behavioral runs
-            # self.post_rid.append(n) # runid
-            # self.post_paras.append(self.sampled) # parameters
-            self.eval.append(eval_result_for_a_run) # evaluation metrics
-
-            # timeseires
-            if flag_behavioral == 0:
-                self.df_behavioral_Q = sim_synced["Flow"]
-                self.df_behavioral_SM = sim_synced["Soil Moisture Content"]
-                flag_behavioral = 1
-            else:
-                self.df_behavioral_Q = pd.concat([self.df_behavioral_Q, sim_synced["Flow"]], axis=1)
-                self.df_behavioral_SM = pd.concat([self.df_behavioral_SM, sim_synced["Soil Moisture Content"]], axis=1)
-
         else:
             # Discard non-behavioral runs
             result_glue = 'Non-behavioral'
@@ -263,7 +249,8 @@ class MyGLUE(object):
         print(f"{sampled_params_nrun}-th run: {result_glue}")
         print(eval_result_for_a_run)
 
-        return [sim_synced["Flow"], sim_synced["Soil Moisture Content"], sampled_params_nrun, sampled_params_set, eval_result_for_a_run, result_glue]
+        return [sim_synced["Flow"], sim_synced["Soil Moisture Content"], sampled_params_nrun, sampled_params_set,
+                eval_result_for_a_run, result_glue]
 
     # ===============================================================
     # Save results from all runs
@@ -273,9 +260,9 @@ class MyGLUE(object):
 
         # Store GLUE reuslts
         self.glue_results = [] * len(all_results)
-        j=5
+        j = 5
         for i in range(len(all_results)):
-            if all_results[i][j]=='Behavioral':
+            if all_results[i][j] == 'Behavioral':
                 boolean_glue_result = True
             else:
                 boolean_glue_result = False
@@ -284,30 +271,32 @@ class MyGLUE(object):
 
         # Store PRIOR parameters
         self.post_rid = [] * n_behavioral
-        j=2
+        j = 2
         for i in range(len(all_results)):
-            if self.glue_results[j]:
+            if self.glue_results[i]:
                 self.post_rid.append(all_results[i][j])
 
         # Flow & soil moisture
-        for j in [0,1]:
+        for j in [0, 1]:
+            flag_behavioral = 0
             for i in range(len(all_results)):
                 data = all_results[i][j]
-                result_glue = all_results[i][5]
-                if i==0:
-                    if j==0 and result_glue=='Behavioral':
-                        self.df_behavioral_Q = data
-                    elif j==1 and result_glue=='Behavioral':
-                        self.df_behavioral_SM = data
-                else:
-                    if j==0 and result_glue=='Behavioral':
-                        self.df_behavioral_Q = pd.concat([self.df_behavioral_Q, data], axis=1)
-                    elif j==1 and result_glue=='Behavioral':
-                        self.df_behavioral_SM = pd.concat([self.df_behavioral_SM, data], axis=1)
+                if self.glue_results[i]:
+                    if flag_behavioral == 0:
+                        if j == 0:
+                            self.df_behavioral_Q = data
+                        elif j == 1:
+                            self.df_behavioral_SM = data
+                        flag_behavioral = 1
+                    else:
+                        if j == 0:
+                            self.df_behavioral_Q = pd.concat([self.df_behavioral_Q, data], axis=1)
+                        elif j == 1:
+                            self.df_behavioral_SM = pd.concat([self.df_behavioral_SM, data], axis=1)
 
         # Store PRIOR parameters
         self.pri_paras = [] * len(all_results)
-        j=3
+        j = 3
         for i in range(len(all_results)):
             self.pri_paras.append(all_results[i][j])
 
@@ -322,37 +311,35 @@ class MyGLUE(object):
         self.df_pri_paras = pd.DataFrame(param_values, columns=param_names)
 
         # Store POSTERIOR paramters for behavioral runs
-        if n_behavioral!=0:
+        if n_behavioral != 0:
             # If there is any behavioral parameter
             param_values = np.empty((n_behavioral, len(param_names)))
             param_values[:] = np.nan
-            k_behavioral=0
+            k_behavioral = 0
             for j in range(len(all_results)):
                 if self.glue_results[j]:
                     for i in range(len(param_names)):
-                       param_values[k_behavioral][i] = self.pri_paras[j][i][0]
+                        param_values[k_behavioral][i] = self.pri_paras[j][i][0]
                     k_behavioral += 1
             self.df_post_paras = pd.DataFrame(param_values, index=self.post_rid, columns=param_names)
 
         # Store Evaluation metrics for behavioral runs
         self.eval = [] * len(all_results)
-        j=4
+        j = 4
         for i in range(len(all_results)):
-            self.eval.append(all_results[i][j])
+            if self.glue_results[i]:
+                self.eval.append(all_results[i][j])
 
         if n_behavioral != 0:
             eval_values = np.empty((n_behavioral, len(self.eval_names)))
             eval_values[:] = np.nan
-            k_behavioral = 0
-            for j in range(len(all_results)):
+            for j in range(len(self.eval)):
                 for i in range(len(self.eval_names)):
-                    if self.glue_results[j]:
-                        if 'season_transition' in self.eval_names[i]:
-                            eval_values[k_behavioral][i] = self.eval[j][0][i]
-                        else:
-                            eval_values[k_behavioral][i] = self.eval[j][i]
-                        k_behavioral += 1
-            self.df_post_eval = pd.DataFrame(eval_values, index=self.post_rid, columns=self.eval_names)
+                    if 'season_transition' in self.eval_names[i]:
+                        eval_values[j][i] = self.eval[j][0][i]
+                    else:
+                        eval_values[j][i] = self.eval[j][i]
+        self.df_post_eval = pd.DataFrame(eval_values, index=self.post_rid, columns=self.eval_names)
 
         # Store Observed timeseries
         # ==================================================
@@ -370,11 +357,11 @@ class MyGLUE(object):
         for var_name in self.var_names:
             # Get the simulated data
             sim = sim0[["Time", var_name]].copy()
-            sim["Time"] = pd.to_datetime(sim["Time"], format="%Y-%m-%d %H:%M:%S") # Works specifically for CFE
+            sim["Time"] = pd.to_datetime(sim["Time"], format="%Y-%m-%d %H:%M:%S")  # Works specifically for CFE
 
             # Get the comparison data
             obs = obs0[["Time", var_name]].copy()
-            obs["Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M") # Works specifically for Mahurangi data
+            obs["Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M")  # Works specifically for Mahurangi data
 
             # Merge observed and simulated timeseries
             df = pd.merge_asof(sim, obs, on="Time")
@@ -400,17 +387,20 @@ class MyGLUE(object):
 
         # Calculate weights
         weight = np.empty((len(self.df_post_eval), len(self.eval_names)))
-        j=int(0)
+        j = int(0)
         # Loop for all evaluation metrics
         for i in range(len(self.eval_criteia)):
             if self.eval_criteia[i]['metric'] == "NSE" or self.eval_criteia[i]['metric'] == "KGE":
                 # For Nash-Sutcliffe and Kling-Gupta Efficiency scores
-                weight[:,j] = ((self.df_post_eval[self.eval_names[j]] - self.eval_criteia[i]['threshold'])/sum(self.df_post_eval[self.eval_names[j]] - self.eval_criteia[i]['threshold'])).to_numpy()
+                weight[:, j] = ((self.df_post_eval[self.eval_names[j]] - self.eval_criteia[i]['threshold']) / sum(
+                    self.df_post_eval[self.eval_names[j]] - self.eval_criteia[i]['threshold'])).to_numpy()
                 j += int(1)
             elif self.eval_criteia[i]['metric'] == "season_transition":
                 for k in range(4):
                     # For seasonal transition dates
-                    weight[:, j+k] = triangle_weight(self.df_post_eval[self.eval_names[j+k]], a= -1*self.eval_criteia[i]['threshold'], b=0, c=self.eval_criteia[i]['threshold'])
+                    weight[:, j + k] = triangle_weight(self.df_post_eval[self.eval_names[j + k]],
+                                                       a=-1 * self.eval_criteia[i]['threshold'], b=0,
+                                                       c=self.eval_criteia[i]['threshold'])
                 j += int(4)
         avg_weight = np.mean(weight, axis=1)
 
@@ -428,9 +418,9 @@ class MyGLUE(object):
             quantile = np.empty((t_len, len(quantiles)))
             quantile[:] = np.nan
             for t in range(t_len):
-                values = np_behavioral[t,:] # df_behavioral.iloc[[t]].values.flatten()
+                values = np_behavioral[t, :]  # df_behavioral.iloc[[t]].values.flatten()
                 quantile[t, :] = weighted_quantile(values=values, quantiles=quantiles, sample_weight=avg_weight,
-                                  values_sorted=False, old_style=False)
+                                                   values_sorted=False, old_style=False)
             df_simrange = pd.DataFrame(quantile, index=df_behavioral.index, columns=['lowerlim', 'median', 'upperlim'])
             if var_name == "Flow":
                 self.df_Q_simrange = df_simrange.copy()
@@ -447,15 +437,20 @@ class MyGLUE(object):
         file.close
 
         # Dump the results to csv
-        self.df_pri_paras.to_csv(os.path.join(self.out_path, 'paramter_priori.csv'), sep=',', header=True, index=True, encoding='utf-8', na_rep='nan')
+        self.df_pri_paras.to_csv(os.path.join(self.out_path, 'paramter_priori.csv'), sep=',', header=True, index=True,
+                                 encoding='utf-8', na_rep='nan')
         if hasattr(self, 'df_post_paras'):
-            self.df_post_paras.to_csv(os.path.join(self.out_path, 'parameter_posterior.csv'), sep=',', header=True, index=True, encoding='utf-8', na_rep='nan')
+            self.df_post_paras.to_csv(os.path.join(self.out_path, 'parameter_posterior.csv'), sep=',', header=True,
+                                      index=True, encoding='utf-8', na_rep='nan')
         if hasattr(self, 'df_post_eval'):
-            self.df_post_eval.to_csv(os.path.join(self.out_path, 'evaluations.csv'), sep=',', header=True, index=True, encoding='utf-8', na_rep='nan')
+            self.df_post_eval.to_csv(os.path.join(self.out_path, 'evaluations.csv'), sep=',', header=True, index=True,
+                                     encoding='utf-8', na_rep='nan')
         if hasattr(self, 'df_Q_simrange'):
-            self.df_Q_simrange.to_csv(os.path.join(self.out_path, 'quantiles_Q.csv'), sep=',', header=True, index=True, encoding='utf-8', na_rep='nan')
+            self.df_Q_simrange.to_csv(os.path.join(self.out_path, 'quantiles_Q.csv'), sep=',', header=True, index=True,
+                                      encoding='utf-8', na_rep='nan')
         if hasattr(self, 'df_SM_simrange'):
-            self.df_SM_simrange.to_csv(os.path.join(self.out_path, 'quantiles_SM.csv'), sep=',', header=True, index=True, encoding='utf-8', na_rep='nan')
+            self.df_SM_simrange.to_csv(os.path.join(self.out_path, 'quantiles_SM.csv'), sep=',', header=True,
+                                       index=True, encoding='utf-8', na_rep='nan')
 
     def plot(self, plot_type=None):
         # Plot the results
@@ -465,27 +460,27 @@ class MyGLUE(object):
         # Prior vs. posterior parameter distributions
         if plot_type == "param_hist":
             nparas = len(self.df_pri_paras.columns)
-            f = plt.figure(figsize=(4*4, 4*4))
+            f = plt.figure(figsize=(4 * 4, 4 * 4))
 
             for i in range(nparas):
                 target_para = self.df_pri_paras.columns[i]
-                ax1 = f.add_subplot(4, 4, i+1)
+                ax1 = f.add_subplot(4, 4, i + 1)
 
                 self.df_pri_paras[target_para].plot.hist(bins=10, alpha=0.4, ax=ax1, color="#3182bd", label="Prior")
 
                 if hasattr(self, 'df_post_paras'):
-                    self.df_post_paras[target_para].plot.hist(bins=10, alpha=0.8, ax=ax1, color="#3182bd", label="Posterior")
+                    self.df_post_paras[target_para].plot.hist(bins=10, alpha=0.8, ax=ax1, color="#3182bd",
+                                                              label="Posterior")
 
                 ax1.set_xlabel(target_para)
                 ax1.legend()
 
-                if i !=0:
+                if i != 0:
                     ax1.yaxis.set_visible(False)
 
             # f.plot()
 
             f.savefig(os.path.join(self.out_path, 'param_dist.png'), dpi=600)
-
 
         # Dotty plot
         # Prior vs. posterior parameter distributions
@@ -500,7 +495,7 @@ class MyGLUE(object):
                     target_eval = self.df_post_eval.columns[j]
                     for i in range(nparas):
                         target_para = self.df_pri_paras.columns[i]
-                        ax1 = f.add_subplot(4, 4, i+1)
+                        ax1 = f.add_subplot(4, 4, i + 1)
                         ax1.scatter(self.df_post_paras[target_para], self.df_post_eval[target_eval], alpha=0.5)
                         ax1.tick_params(axis='both', which='major', labelsize=16)
                         ax1.set_xlabel(target_para, fontsize=16)
@@ -517,48 +512,48 @@ class MyGLUE(object):
         if plot_type == "dotty_interaction":
 
             param_interset = ['bb',
-                      'satdk',
-                      'slop',
-                      'satpsi',
-                      'smcmax',
-                      'wltsmc',
-                      'alpha_fc',
-                      'lksatfac',
-                      'D',
-                      'trigger_z_fact',
-                      'max_gw_storage',
-                      'Cgw',
-                      'expon',
-                      'refkdt',
-                      'K_nash'
-                      ]
+                              'satdk',
+                              'slop',
+                              'satpsi',
+                              'smcmax',
+                              'wltsmc',
+                              'alpha_fc',
+                              'lksatfac',
+                              'D',
+                              'trigger_z_fact',
+                              'max_gw_storage',
+                              'Cgw',
+                              'expon',
+                              'refkdt',
+                              'K_nash'
+                              ]
 
             if hasattr(self, 'df_post_paras'):
-                    f = plt.figure(figsize=(20, 20), constrained_layout=True)
-                    f.tight_layout()
-                    n_plot = 0
-                    for i in range(len(param_interset)):
-                        for j in range(len(param_interset)):
-                            n_plot += 1
-                            para0 = param_interset[j]
-                            para1 = param_interset[i]
-                            ax1 = f.add_subplot(len(param_interset), len(param_interset), n_plot)
-                            x = self.df_post_paras[para0]
-                            y = self.df_post_paras[para1]
-                            ax1.scatter(x, y, alpha=0.5)
+                f = plt.figure(figsize=(20, 20), constrained_layout=True)
+                f.tight_layout()
+                n_plot = 0
+                for i in range(len(param_interset)):
+                    for j in range(len(param_interset)):
+                        n_plot += 1
+                        para0 = param_interset[j]
+                        para1 = param_interset[i]
+                        ax1 = f.add_subplot(len(param_interset), len(param_interset), n_plot)
+                        x = self.df_post_paras[para0]
+                        y = self.df_post_paras[para1]
+                        ax1.scatter(x, y, alpha=0.5)
 
-                            if i==0:
-                                ax1.xaxis.set_label_position('top')
-                                ax1.set_xlabel(para0)
-                            if j==0:
-                                ax1.set_ylabel(para1)
-                            ax1.tick_params(direction="in")
+                        if i == 0:
+                            ax1.xaxis.set_label_position('top')
+                            ax1.set_xlabel(para0)
+                        if j == 0:
+                            ax1.set_ylabel(para1)
+                        ax1.tick_params(direction="in")
 
-                            # if i !=0:
-                            #     ax1.yaxis.set_visible(False)
+                        # if i !=0:
+                        #     ax1.yaxis.set_visible(False)
 
-                    # f.plot()
-                    f.savefig(os.path.join(self.out_path, "param_dotty_interaction.png"), dpi=600)
+                # f.plot()
+                f.savefig(os.path.join(self.out_path, "param_dotty_interaction.png"), dpi=600)
 
         # Time series of data
         # Flow and Soil Moisture Content
@@ -596,4 +591,5 @@ class MyGLUE(object):
                 ax2.set_title(title)
                 ax2.legend()
                 f2.savefig(os.path.join(self.out_path, fn), dpi=600)
+
 
