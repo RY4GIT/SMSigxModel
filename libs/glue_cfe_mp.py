@@ -11,8 +11,9 @@ import pandas as pd
 import numpy as np
 import json
 import matplotlib.pyplot as plt
-import spotpy
 
+import multiprocessing as mp
+import shutil
 
 sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/libs/SMSig")
 from sig_seasontrans import SMSig
@@ -73,22 +74,7 @@ class MyGLUE(object):
         self.nrun = nrun # Number of runs
         self.var_names = ["Flow", "Soil Moisture Content"] # Variables to be analyzed
 
-        # CFE model instance
-        cfe_instance = bmi_cfe.BMI_CFE(config_path_CFE)
-        cfe_instance.initialize()
-        self.myCFE = cfe_instance
-
-        # Parameter bounds defined from an excel file
-        df = pd.read_excel(config_path)
-        df_param_to_calibrate = df[df['calibrate'] == 1]
-        params = len(df_param_to_calibrate)*[None]
-        for i in range(len(params)):
-            params[i] = spotpy.parameter.Uniform(
-                df_param_to_calibrate['name'][i],
-                low=df_param_to_calibrate['lower_bound'][i],
-                high=df_param_to_calibrate['upper_bound'][i]
-            )
-        self.params = params
+        self.config_path_CFE = config_path_CFE
 
         # Evaluation criteria (multi-criteria allowed)
         self.eval_criteia = eval_criteria
@@ -106,221 +92,307 @@ class MyGLUE(object):
 
         # Initializations
         self.post_rid = []
-        self.pri_paras = []
-        self.post_paras = []
-        self.resulted_totalQ = []
-        self.eval = []
+        # self.pri_paras  = []
+        self.post_paras  = []
+        self.resulted_totalQ  = []
+        self.eval  = []
 
-    def simulation(self):
+    def simulation(self, sampled_params):
+
+        sampled_params_nrun = sampled_params[0]
+        sampled_params_set =  sampled_params[1]
+
+        print(f'Processing {sampled_params_nrun}')
 
         flag_behavioral = 0
-        for n in range(self.nrun):
 
-            # ===============================================================
-            # Write the randomly-generated parameters to the config json file
-            # ===============================================================
+        # ===============================================================
+        # Write the randomly-generated parameters to the config json file
+        # ===============================================================
 
-            # Generate parameters
-            self.sampled = spotpy.parameter.generate(self.params)
+        # CFE model instance
+        template_config_CFE = self.config_path_CFE
+        target_config_CFE = os.path.join(r"..\2_data_input\Mahurangi\parameters", f"config_cfe_{sampled_params_nrun}.json")
+        shutil.copyfile(template_config_CFE, target_config_CFE)
 
-            # Get the model config file
-            with open(self.myCFE.cfg_file) as data_file:
-                self.cfe_cfg = json.load(data_file)
+        # Get the model config file
+        with open(target_config_CFE) as data_file:
+            self.cfe_cfg = json.load(data_file)
 
-            # Overwrite the model config file
-            for i in range(len(self.sampled)):
-                if self.sampled[i][1] in ['bb', 'satdk', 'slop', 'satpsi', 'smcmax', 'wltsmc', 'D']:
-                    self.cfe_cfg["soil_params"][self.sampled[i][1]] = self.sampled[i][0]
-                else:
-                    self.cfe_cfg[self.sampled[i][1]] = self.sampled[i][0]
-
-            # Save the config file with new parameters
-            with open(self.myCFE.cfg_file, 'w') as out_file:
-                json.dump(self.cfe_cfg, out_file)
-
-            # Store the prior paramters
-            self.pri_paras.append(self.sampled)
-
-            # ===============================================================
-            # Actual model run
-            # ===============================================================
-            self.myCFE.initialize()
-            sim0 = self.myCFE.run_unit_test(plot=False, warm_up=True)
-            obs0 = self.myCFE.load_unit_test_data()
-
-            # ===============================================================
-            # Retrieve the simulated and observed data
-            # ===============================================================
-            sim_synced = pd.DataFrame()
-            obs_synced = pd.DataFrame()
-
-            # Get the results
-            for var_name in self.var_names:
-                # Get the simulated data
-                sim = sim0[["Time", var_name]].copy()
-                sim["Time"] = pd.to_datetime(sim["Time"], format="%Y-%m-%d %H:%M:%S") # Works specifically for CFE
-
-                # Get the comparison data
-                obs = obs0[["Time", var_name]].copy()
-                obs["Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M") # Works specifically for Mahurangi data
-                # obs["Time"] = pd.to_datetime(obs["Time"], format="%d-%m-%Y %H:%M:%S")
-
-                # Merge observed and simulated timeseries
-                df = pd.merge_asof(sim, obs, on="Time")
-
-                sim_synced[var_name] = df[var_name + "_x"].copy()
-                obs_synced[var_name] = df[var_name + "_y"].copy()
-
-
-            # ===============================================================
-            # Evalute the outputs
-            # ===============================================================
-
-            # Preparation
-            eval_result_for_a_run = []
-            behavioral_flag = [False]*len(self.eval_criteia)
-
-            # Loop for all evaluation metrics (multi-criteria).
-            # Calculate the metrics and judge behavioral vs. non-behavioral
-            for i in range(len(self.eval_criteia)):
-
-                # Nash-Sutcliffe scores
-                if self.eval_criteia[i]['metric'] == "NSE":
-                    metric_value = spotpy.objectivefunctions.nashsutcliffe(
-                        obs_synced[self.eval_criteia[i]['variable_to_analyze']],
-                        sim_synced[self.eval_criteia[i]['variable_to_analyze']]
-                    )
-                    if metric_value > self.eval_criteia[i]['threshold']:
-                        behavioral_flag[i] = True
-
-                # Kling-Gupta Efficiency scores
-                #　Kling-Gupta efficiencies range from -Inf to 1. Essentially, the closer to 1, the more accurate the model is
-                elif self.eval_criteia[i]['metric'] == "KGE":
-                    metric_value = spotpy.objectivefunctions.kge(
-                        obs_synced[self.eval_criteia[i]['variable_to_analyze']],
-                        sim_synced[self.eval_criteia[i]['variable_to_analyze']]
-                    )
-                    if metric_value > self.eval_criteia[i]['threshold']:
-                        behavioral_flag[i] = True
-
-                # Seasonal transition dates
-                elif self.eval_criteia[i]['metric'] == "season_transition":
-                    # Calculate metrics for OBSERVED timeseries as a baseline performance. Run only once
-                    if n == 0:
-                        sig_obs = SMSig(
-                            ts_time=df["Time"].to_numpy(),
-                            ts_value=obs_synced[self.eval_criteia[i]['variable_to_analyze']].to_numpy(),
-                            plot_results=False,
-                            plot_label="obs"
-                        )
-                        # sig_obs.detrend() # TODO:debug
-                        sig_obs.movmean()
-                        t_valley = sig_obs.calc_sinecurve()
-                        season_trans_obs, _, _ = sig_obs.calc_seasontrans(t_valley=t_valley)
-
-                    # Calculate metrics for SIMULATED timeseries
-                    sig_sim = SMSig(
-                        ts_time=df["Time"].to_numpy(),
-                        ts_value=sim_synced[self.eval_criteia[i]['variable_to_analyze']].to_numpy(),
-                        plot_results=False,
-                        plot_label="sim"
-                    )
-                    sig_sim.movmean()
-                    season_trans_sim, _, _ = sig_sim.calc_seasontrans(t_valley=t_valley)
-
-                    # Get the deviations in seasonal transition dates between simulated and observed timeseries
-                    diff = season_trans_sim - season_trans_obs
-                    metric_value = abs(np.nanmean(diff, axis=0))
-                    if all(metric_value < self.eval_criteia[i]['threshold']):
-                        behavioral_flag[i] = True
-
-                # Store evaluation metrics for all criteria for one run
-                eval_result_for_a_run.append(metric_value)
-
-
-            # ===============================================================
-            # Judge behavioral vs. non-behavioral
-            # ===============================================================
-
-            if all(behavioral_flag):
-                # If all criteria is TRUE, the model is behavioral
-                result_glue = 'Behavioral'
-
-                # Store the behavioral runs
-                self.post_rid.append(n) # runid
-                self.post_paras.append(self.sampled) # parameters
-                self.eval.append(eval_result_for_a_run) # evaluation metrics
-
-                # timeseires
-                if flag_behavioral == 0:
-                    self.df_behavioral_Q = sim_synced["Flow"]
-                    self.df_behavioral_SM = sim_synced["Soil Moisture Content"]
-                    flag_behavioral = 1
-                else:
-                    self.df_behavioral_Q = pd.concat([self.df_behavioral_Q, sim_synced["Flow"]], axis=1)
-                    self.df_behavioral_SM = pd.concat([self.df_behavioral_SM, sim_synced["Soil Moisture Content"]], axis=1)
-
+        # Overwrite the model config file
+        for i in range(len(sampled_params_set)):
+            if sampled_params_set[i][1] in ['bb', 'satdk', 'slop', 'satpsi', 'smcmax', 'wltsmc', 'D']:
+                self.cfe_cfg["soil_params"][sampled_params_set[i][1]] = sampled_params_set[i][0]
             else:
-                # Discard non-behavioral runs
-                result_glue = 'Non-behavioral'
+                self.cfe_cfg[sampled_params_set[i][1]] = sampled_params_set[i][0]
 
-            print(f"{n}-th run: {result_glue}")
-            print(eval_result_for_a_run)
+        # Save the config file with new parameters
+        with open(target_config_CFE, 'w') as out_file:
+            json.dump(self.cfe_cfg, out_file)
+
+        # Store the prior paramters
+        # self.pri_paras.append(sampled_params_set)
 
         # ===============================================================
-        # Save results from all runs
+        # Actual model run
         # ===============================================================
-        # Get the number of behavioral runs
-        n_behavioral = len(self.post_rid)
+        self.myCFE = bmi_cfe.BMI_CFE(target_config_CFE)
+        self.myCFE.initialize()
+        sim0 = self.myCFE.run_unit_test(plot=False, warm_up=True)
+        obs0 = self.myCFE.load_unit_test_data()
+
+        # ===============================================================
+        # Retrieve the simulated and observed data
+        # ===============================================================
+        sim_synced = pd.DataFrame()
+        obs_synced = pd.DataFrame()
+
+        # Get the results
+        for var_name in self.var_names:
+            # Get the simulated data
+            sim = sim0[["Time", var_name]].copy()
+            sim["Time"] = pd.to_datetime(sim["Time"], format="%Y-%m-%d %H:%M:%S") # Works specifically for CFE
+
+            # Get the comparison data
+            obs = obs0[["Time", var_name]].copy()
+            obs["Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M") # Works specifically for Mahurangi data
+            # obs["Time"] = pd.to_datetime(obs["Time"], format="%d-%m-%Y %H:%M:%S")
+
+            # Merge observed and simulated timeseries
+            df = pd.merge_asof(sim, obs, on="Time")
+            self.df_timeaxis = df["Time"]
+
+            sim_synced[var_name] = df[var_name + "_x"].copy()
+            obs_synced[var_name] = df[var_name + "_y"].copy()
+
+            self.obs_synced = obs_synced
+
+
+        # ===============================================================
+        # Evalute the outputs
+        # ===============================================================
+
+        # Preparation
+        eval_result_for_a_run = []
+        behavioral_flag = [False]*len(self.eval_criteia)
+
+        # Loop for all evaluation metrics (multi-criteria).
+        # Calculate the metrics and judge behavioral vs. non-behavioral
+        for i in range(len(self.eval_criteia)):
+
+            # Nash-Sutcliffe scores
+            if self.eval_criteia[i]['metric'] == "NSE":
+                metric_value = spotpy.objectivefunctions.nashsutcliffe(
+                    obs_synced[self.eval_criteia[i]['variable_to_analyze']],
+                    sim_synced[self.eval_criteia[i]['variable_to_analyze']]
+                )
+                if metric_value > self.eval_criteia[i]['threshold']:
+                    behavioral_flag[i] = True
+
+            # Kling-Gupta Efficiency scores
+            #　Kling-Gupta efficiencies range from -Inf to 1. Essentially, the closer to 1, the more accurate the model is
+            elif self.eval_criteia[i]['metric'] == "KGE":
+                metric_value = spotpy.objectivefunctions.kge(
+                    obs_synced[self.eval_criteia[i]['variable_to_analyze']],
+                    sim_synced[self.eval_criteia[i]['variable_to_analyze']]
+                )
+                if metric_value > self.eval_criteia[i]['threshold']:
+                    behavioral_flag[i] = True
+
+            # Seasonal transition dates
+            elif self.eval_criteia[i]['metric'] == "season_transition":
+                # Calculate metrics for OBSERVED timeseries as a baseline performance. Run only once
+                # if n == 0:
+                sig_obs = SMSig(
+                    ts_time=df["Time"].to_numpy(),
+                    ts_value=obs_synced[self.eval_criteia[i]['variable_to_analyze']].to_numpy(),
+                    plot_results=False,
+                    plot_label="obs"
+                )
+                # sig_obs.detrend() # TODO:debug
+                sig_obs.movmean()
+                t_valley = sig_obs.calc_sinecurve()
+                season_trans_obs, _, _ = sig_obs.calc_seasontrans(t_valley=t_valley)
+
+                # Calculate metrics for SIMULATED timeseries
+                sig_sim = SMSig(
+                    ts_time=df["Time"].to_numpy(),
+                    ts_value=sim_synced[self.eval_criteia[i]['variable_to_analyze']].to_numpy(),
+                    plot_results=False,
+                    plot_label="sim"
+                )
+                sig_sim.movmean()
+                season_trans_sim, _, _ = sig_sim.calc_seasontrans(t_valley=t_valley)
+
+                # Get the deviations in seasonal transition dates between simulated and observed timeseries
+                diff = season_trans_sim - season_trans_obs
+                metric_value = abs(np.nanmean(diff, axis=0))
+                if all(metric_value < self.eval_criteia[i]['threshold']):
+                    behavioral_flag[i] = True
+
+            # Store evaluation metrics for all criteria for one run
+            eval_result_for_a_run.append(metric_value)
+
+
+        # ===============================================================
+        # Judge behavioral vs. non-behavioral
+        # ===============================================================
+
+        if all(behavioral_flag):
+            # If all criteria is TRUE, the model is behavioral
+            result_glue = 'Behavioral'
+
+            # Store the behavioral runs
+            # self.post_rid.append(n) # runid
+            # self.post_paras.append(self.sampled) # parameters
+            self.eval.append(eval_result_for_a_run) # evaluation metrics
+
+            # timeseires
+            if flag_behavioral == 0:
+                self.df_behavioral_Q = sim_synced["Flow"]
+                self.df_behavioral_SM = sim_synced["Soil Moisture Content"]
+                flag_behavioral = 1
+            else:
+                self.df_behavioral_Q = pd.concat([self.df_behavioral_Q, sim_synced["Flow"]], axis=1)
+                self.df_behavioral_SM = pd.concat([self.df_behavioral_SM, sim_synced["Soil Moisture Content"]], axis=1)
+
+        else:
+            # Discard non-behavioral runs
+            result_glue = 'Non-behavioral'
+
+        print(f"{sampled_params_nrun}-th run: {result_glue}")
+        print(eval_result_for_a_run)
+
+        return [sim_synced["Flow"], sim_synced["Soil Moisture Content"], sampled_params_nrun, sampled_params_set, eval_result_for_a_run, result_glue]
+
+    # ===============================================================
+    # Save results from all runs
+    # ===============================================================
+    # Get the number of behavioral runs
+    def save_results_to_df(self, all_results):
+
+        # Store GLUE reuslts
+        self.glue_results = [] * len(all_results)
+        j=5
+        for i in range(len(all_results)):
+            if all_results[i][j]=='Behavioral':
+                boolean_glue_result = True
+            else:
+                boolean_glue_result = False
+            self.glue_results.append(boolean_glue_result)
+        n_behavioral = sum(self.glue_results)
 
         # Store PRIOR parameters
+        self.post_rid = [] * n_behavioral
+        j=2
+        for i in range(len(all_results)):
+            if self.glue_results[j]:
+                self.post_rid.append(all_results[i][j])
+
+        # Flow & soil moisture
+        for j in [0,1]:
+            for i in range(len(all_results)):
+                data = all_results[i][j]
+                result_glue = all_results[i][5]
+                if i==0:
+                    if j==0 and result_glue=='Behavioral':
+                        self.df_behavioral_Q = data
+                    elif j==1 and result_glue=='Behavioral':
+                        self.df_behavioral_SM = data
+                else:
+                    if j==0 and result_glue=='Behavioral':
+                        self.df_behavioral_Q = pd.concat([self.df_behavioral_Q, data], axis=1)
+                    elif j==1 and result_glue=='Behavioral':
+                        self.df_behavioral_SM = pd.concat([self.df_behavioral_SM, data], axis=1)
+
+        # Store PRIOR parameters
+        self.pri_paras = [] * len(all_results)
+        j=3
+        for i in range(len(all_results)):
+            self.pri_paras.append(all_results[i][j])
+
         param_names = []
-        for i in range(len(self.params)):
+        for i in range(len(self.pri_paras[0])):
             param_names.append(self.pri_paras[0][i][1])
         param_values = np.empty((self.nrun, len(param_names)))
         param_values[:] = np.nan
         for i in range(len(param_names)):
             for j in range(self.nrun):
                 param_values[j][i] = self.pri_paras[j][i][0]
-
         self.df_pri_paras = pd.DataFrame(param_values, columns=param_names)
 
         # Store POSTERIOR paramters for behavioral runs
-        param_names = []
         if n_behavioral!=0:
             # If there is any behavioral parameter
-            for i in range(len(self.params)):
-                param_names.append(self.post_paras[0][i][1])
             param_values = np.empty((n_behavioral, len(param_names)))
             param_values[:] = np.nan
-            for i in range(len(param_names)):
-                for j in range(n_behavioral):
-                    param_values[j][i] = self.post_paras[j][i][0]
+            k_behavioral=0
+            for j in range(len(all_results)):
+                if self.glue_results[j]:
+                    for i in range(len(param_names)):
+                       param_values[k_behavioral][i] = self.pri_paras[j][i][0]
+                    k_behavioral += 1
             self.df_post_paras = pd.DataFrame(param_values, index=self.post_rid, columns=param_names)
 
         # Store Evaluation metrics for behavioral runs
+        self.eval = [] * len(all_results)
+        j=4
+        for i in range(len(all_results)):
+            self.eval.append(all_results[i][j])
+
         if n_behavioral != 0:
             eval_values = np.empty((n_behavioral, len(self.eval_names)))
             eval_values[:] = np.nan
-            for i in range(len(self.eval_names)):
-                for j in range(n_behavioral):
-                    if 'season_transition' in self.eval_names[i]:
-                        eval_values[j][i] = self.eval[j][0][i]
-                    else:
-                        eval_values[j][i] = self.eval[j][i]
+            k_behavioral = 0
+            for j in range(len(all_results)):
+                for i in range(len(self.eval_names)):
+                    if self.glue_results[j]:
+                        if 'season_transition' in self.eval_names[i]:
+                            eval_values[k_behavioral][i] = self.eval[j][0][i]
+                        else:
+                            eval_values[k_behavioral][i] = self.eval[j][i]
+                        k_behavioral += 1
             self.df_post_eval = pd.DataFrame(eval_values, index=self.post_rid, columns=self.eval_names)
+
+        # Store Observed timeseries
+        # ==================================================
+        # One more last run to get synchd timeseries
+        # ==================================================
+        self.myCFE = bmi_cfe.BMI_CFE(self.config_path_CFE)
+        self.myCFE.initialize()
+        sim0 = self.myCFE.run_unit_test(plot=False, warm_up=True)
+        obs0 = self.myCFE.load_unit_test_data()
+
+        sim_synced = pd.DataFrame()
+        obs_synced = pd.DataFrame()
+
+        # Get the results
+        for var_name in self.var_names:
+            # Get the simulated data
+            sim = sim0[["Time", var_name]].copy()
+            sim["Time"] = pd.to_datetime(sim["Time"], format="%Y-%m-%d %H:%M:%S") # Works specifically for CFE
+
+            # Get the comparison data
+            obs = obs0[["Time", var_name]].copy()
+            obs["Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M") # Works specifically for Mahurangi data
+
+            # Merge observed and simulated timeseries
+            df = pd.merge_asof(sim, obs, on="Time")
+            self.df_timeaxis = df["Time"]
+            obs_synced[var_name] = df[var_name + "_y"].copy()
+
+        self.obs_synced = obs_synced
 
         # Store Simulated timeseries for behavioral runs
         self.df_behavioral_Q.set_axis(self.post_rid, axis=1, inplace=True)
-        self.df_behavioral_Q.set_axis(df["Time"], axis=0, inplace=True)
+        self.df_behavioral_Q.set_axis(self.df_timeaxis, axis=0, inplace=True)
         self.df_behavioral_SM.set_axis(self.post_rid, axis=1, inplace=True)
-        self.df_behavioral_SM.set_axis(df["Time"], axis=0, inplace=True)
+        self.df_behavioral_SM.set_axis(self.df_timeaxis, axis=0, inplace=True)
 
-        # Store Observed timeseries
-        self.df_obs_Q = pd.DataFrame(obs_synced["Flow"])
-        self.df_obs_Q.set_axis(df["Time"], axis=0, inplace=True)
-        self.df_obs_SM = pd.DataFrame(obs_synced["Soil Moisture Content"])
-        self.df_obs_SM.set_axis(df["Time"], axis=0, inplace=True)
+        self.df_obs_Q = pd.DataFrame(self.obs_synced["Flow"])
+        self.df_obs_Q.set_axis(self.df_timeaxis, axis=0, inplace=True)
+        self.df_obs_SM = pd.DataFrame(self.obs_synced["Soil Moisture Content"])
+        self.df_obs_SM.set_axis(self.df_timeaxis, axis=0, inplace=True)
 
     def post_process(self):
         # post-process the results
@@ -365,10 +437,11 @@ class MyGLUE(object):
             elif var_name == "Soil Moisture Content":
                 self.df_SM_simrange = df_simrange.copy()
 
-    def to_csv(self):
+    def to_csv(self, params=None):
         print('--- Saving data into csv file ---')
 
         # Dump the parameter range to txt file
+        self.params = params
         file = open(os.path.join(self.out_path, "param_bounds.txt"), "w")
         file.write("%s" % str(self.params))
         file.close

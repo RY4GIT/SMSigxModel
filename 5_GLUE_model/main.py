@@ -59,29 +59,45 @@ if __name__ == '__main__':
     # ===============================================
     # =========== GLUE ANALYSIS ==============
     # ===============================================
-    eval_criteria_NSE = {
+    eval_criteria_NSE_Q = {
+        0: {'variable_to_analyze': 'Flow', 'metric': 'NSE', 'threshold': 0.5}
+    }
+
+    eval_criteria_NSE_SM = {
         0: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'NSE', 'threshold': 0.5}
     }
 
-    eval_criteria_KGE = {
+    eval_criteria_KGE_SM = {
         0: {'variable_to_analyze': 'Flow', 'metric': 'KGE', 'threshold': 0.5}
+    }
+
+    eval_criteria_KGE_Q = {
+        0: {'variable_to_analyze': 'Flow', 'metric': 'KGE', 'threshold': 0.5}
+    }
+
+    eval_criteria_KGE_SM = {
+        0: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'KGE', 'threshold': 0.5}
     }
 
     eval_criteria_season = {
         0: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'season_transition', 'threshold': 30}
     }
 
+    eval_criteria_test = {
+        0: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'NSE', 'threshold': -1000},
+        1: {'variable_to_analyze': 'Flow', 'metric': 'NSE', 'threshold':  -1000}
+    }
 
     # variable_to_analyze: ["Flow", "Soil Moisture Content"]
     # metric = ["NSE", "KGE", "season_transition"]
 
-    main(
-        out_path='../6_out/Mahurangi/ex3',
-        config_path_CFE='../2_data_input/Mahurangi/parameters/ex1_config_cfe.json',
-        config_path_GLUE='../2_data_input/Mahurangi/parameters/ex1_GLUE_config.xlsx',
-        nrun=100,
-        eval_criteria=eval_criteria_season
-    )
+    # main(
+    #     out_path='../6_out/Mahurangi/ex4',
+    #     config_path_CFE='../2_data_input/Mahurangi/parameters/ex1_config_cfe.json',
+    #     config_path_GLUE='../2_data_input/Mahurangi/parameters/ex1_GLUE_config.xlsx',
+    #     nrun=100,
+    #     eval_criteria=eval_criteria_NSE_SM
+    # )
 
     # main(
     #     out_path='../6_out/Mahurangi/ex3',
@@ -92,36 +108,34 @@ if __name__ == '__main__':
     # )
 
 
-    # process1 = mp.Process(target=main, kwargs={'out_path': '../6_out/Mahurangi/ex1',
-    #                                             'config_path_CFE': '../2_data_input/Mahurangi/parameters/ex1_config_cfe.json',
-    #                                              'config_path_GLUE': '../2_data_input/Mahurangi/parameters/ex1_GLUE_config.xlsx',
-    #                                              'nrun':3,
-    #                                               'eval_criteria':eval_criteria})
-    #
-    # process2 = mp.Process(target=main, kwargs={'out_path': '../6_out/Mahurangi/ex1',
-    #                                            'config_path_CFE': '../2_data_input/Mahurangi/parameters/ex1_config_cfe.json',
-    #                                            'config_path_GLUE': '../2_data_input/Mahurangi/parameters/ex1_GLUE_config.xlsx',
-    #                                            'nrun': 3,
-    #                                            'eval_criteria': eval_criteria})
-    #
-    # process3 = mp.Process(target=main, kwargs={'out_path': '../6_out/Mahurangi/ex1',
-    #                                             'config_path_CFE': '../2_data_input/Mahurangi/parameters/ex1_config_cfe.json',
-    #                                              'config_path_GLUE': '../2_data_input/Mahurangi/parameters/ex1_GLUE_config.xlsx',
-    #                                              'nrun':3,
-    #                                               'eval_criteria':eval_criteria})
-    #
-    # process4 = mp.Process(target=main, kwargs={'out_path': '../6_out/Mahurangi/ex1',
-    #                                             'config_path_CFE': '../2_data_input/Mahurangi/parameters/ex1_config_cfe.json',
-    #                                              'config_path_GLUE': '../2_data_input/Mahurangi/parameters/ex1_GLUE_config.xlsx',
-    #                                              'nrun':3,
-    #                                               'eval_criteria':eval_criteria})
-    # process2 = mp.Process(target=main)
+    process1 = mp.Process(target=main, kwargs={'out_path': '../6_out/Mahurangi/ex7',
+                                                'config_path_CFE': '../2_data_input/Mahurangi/parameters/core1_config_cfe.json',
+                                                 'config_path_GLUE': '../2_data_input/Mahurangi/parameters/ex1_GLUE_config.xlsx',
+                                                 'nrun': 10000,
+                                                  'eval_criteria':eval_criteria_KGE_Q})
 
-    # process1.start()
-    # process2.start()
-    # process3.start()
+    process2 = mp.Process(target=main, kwargs={'out_path': '../6_out/Mahurangi/ex8',
+                                               'config_path_CFE': '../2_data_input/Mahurangi/parameters/core2_config_cfe.json',
+                                               'config_path_GLUE': '../2_data_input/Mahurangi/parameters/ex1_GLUE_config.xlsx',
+                                               'nrun': 10000,
+                                               'eval_criteria': eval_criteria_KGE_SM})
+
+    process3 = mp.Process(target=main, kwargs={'out_path': '../6_out/Mahurangi/ex9',
+                                                'config_path_CFE': '../2_data_input/Mahurangi/parameters/core3_config_cfe.json',
+                                                 'config_path_GLUE': '../2_data_input/Mahurangi/parameters/ex1_GLUE_config.xlsx',
+                                                 'nrun': 10000,
+                                                  'eval_criteria':eval_criteria_NSE_SM})
+    #
+    # process4 = mp.Process(target=main, kwargs={'out_path': '../6_out/Mahurangi/ex8',
+    #                                             'config_path_CFE': '../2_data_input/Mahurangi/parameters/ex1_config_cfe.json',
+    #                                              'config_path_GLUE': '../2_data_input/Mahurangi/parameters/ex1_GLUE_config.xlsx',
+    #                                              'nrun':3,
+    #                                               'eval_criteria':eval_criteria})
+
+    process1.start()
+    process2.start()
+    process3.start()
     # process4.start()
-
 
     # measure the time
     if measuretime:
