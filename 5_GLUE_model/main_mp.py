@@ -54,12 +54,6 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', nrun=1, eval_crit
     for i in range(len(sampled_params)):
         sampled_params[i] = [i, spotpy.parameter.generate(params)]
 
-    # processes = [mp.Process(target=glue_instance.simulation, args=([sampled_params[i]])) for i in range(nrun)]
-    # for process in processes:
-    #     process.start()
-    #
-    # for process in processes:
-    #     process.join()
 
     pool = mp.Pool(processes=4)
     all_results = pool.map(glue_instance.simulation, sampled_params)
@@ -70,7 +64,7 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', nrun=1, eval_crit
     glue_instance.post_process()
 
     # Output the results
-    glue_instance.to_csv(params=sampled_params)
+    glue_instance.to_csv(df_param_to_calibrate=df_param_to_calibrate)
     glue_instance.plot(plot_type="dotty")
     glue_instance.plot(plot_type="dotty_interaction")
     glue_instance.plot(plot_type="param_hist")
@@ -124,8 +118,8 @@ if __name__ == '__main__':
         out_path='../6_out/Mahurangi/ex111',
         config_path_CFE='../2_data_input/Mahurangi/parameters/config_cfe_template.json',
         config_path_GLUE='../2_data_input/Mahurangi/parameters/ex1_GLUE_config.xlsx',
-        nrun=1,
-        eval_criteria=eval_criteria_NSE_Q
+        nrun=5,
+        eval_criteria=eval_criteria_season
     )
 
     # main(

@@ -68,6 +68,7 @@ def triangle_weight(x, a, b, c):
 class MyGLUE(object):
     def __init__(self, out_path='./', config_path_CFE='', config_path='', nrun=1, eval_criteria=dict()):
 
+        self.df_pri_paras = None
         self.out_path = out_path  # Output folder path
         self.nrun = nrun  # Number of runs
         self.var_names = ["Flow", "Soil Moisture Content"]  # Variables to be analyzed
@@ -258,99 +259,13 @@ class MyGLUE(object):
     # Get the number of behavioral runs
     def save_results_to_df(self, all_results):
 
-        # Store GLUE reuslts
-        self.glue_results = [] * len(all_results)
-        j = 5
-        for i in range(len(all_results)):
-            if all_results[i][j] == 'Behavioral':
-                boolean_glue_result = True
-            else:
-                boolean_glue_result = False
-            self.glue_results.append(boolean_glue_result)
-        n_behavioral = sum(self.glue_results)
-
-        # Store PRIOR parameters
-        self.post_rid = [] * n_behavioral
-        j = 2
-        for i in range(len(all_results)):
-            if self.glue_results[i]:
-                self.post_rid.append(all_results[i][j])
-
-        # Flow & soil moisture
-        for j in [0, 1]:
-            flag_behavioral = 0
-            for i in range(len(all_results)):
-                data = all_results[i][j]
-                if self.glue_results[i]:
-                    if flag_behavioral == 0:
-                        if j == 0:
-                            self.df_behavioral_Q = data
-                        elif j == 1:
-                            self.df_behavioral_SM = data
-                        flag_behavioral = 1
-                    else:
-                        if j == 0:
-                            self.df_behavioral_Q = pd.concat([self.df_behavioral_Q, data], axis=1)
-                        elif j == 1:
-                            self.df_behavioral_SM = pd.concat([self.df_behavioral_SM, data], axis=1)
-
-        # Store PRIOR parameters
-        self.pri_paras = [] * len(all_results)
-        j = 3
-        for i in range(len(all_results)):
-            self.pri_paras.append(all_results[i][j])
-
-        param_names = []
-        for i in range(len(self.pri_paras[0])):
-            param_names.append(self.pri_paras[0][i][1])
-        param_values = np.empty((self.nrun, len(param_names)))
-        param_values[:] = np.nan
-        for i in range(len(param_names)):
-            for j in range(self.nrun):
-                param_values[j][i] = self.pri_paras[j][i][0]
-        self.df_pri_paras = pd.DataFrame(param_values, columns=param_names)
-
-        # Store POSTERIOR paramters for behavioral runs
-        if n_behavioral != 0:
-            # If there is any behavioral parameter
-            param_values = np.empty((n_behavioral, len(param_names)))
-            param_values[:] = np.nan
-            k_behavioral = 0
-            for j in range(len(all_results)):
-                if self.glue_results[j]:
-                    for i in range(len(param_names)):
-                        param_values[k_behavioral][i] = self.pri_paras[j][i][0]
-                    k_behavioral += 1
-            self.df_post_paras = pd.DataFrame(param_values, index=self.post_rid, columns=param_names)
-
-        # Store Evaluation metrics for behavioral runs
-        self.eval = [] * len(all_results)
-        j = 4
-        for i in range(len(all_results)):
-            if self.glue_results[i]:
-                self.eval.append(all_results[i][j])
-
-        if n_behavioral != 0:
-            eval_values = np.empty((n_behavioral, len(self.eval_names)))
-            eval_values[:] = np.nan
-            for j in range(len(self.eval)):
-                for i in range(len(self.eval_names)):
-                    if 'season_transition' in self.eval_names[i]:
-                        eval_values[j][i] = self.eval[j][0][i]
-                    else:
-                        eval_values[j][i] = self.eval[j][i]
-        self.df_post_eval = pd.DataFrame(eval_values, index=self.post_rid, columns=self.eval_names)
-
-        # Store Observed timeseries
         # ==================================================
-        # One more last run to get synchd timeseries
+        # One more last run to get synced observed timeseries
         # ==================================================
-        self.myCFE = bmi_cfe.BMI_CFE(self.config_path_CFE)
-        self.myCFE.initialize()
-        sim0 = self.myCFE.run_unit_test(plot=False, warm_up=True)
-        obs0 = self.myCFE.load_unit_test_data()
-
-        sim_synced = pd.DataFrame()
+        myCFE = bmi_cfe.BMI_CFE(self.config_path_CFE)
+        myCFE.initialize()
+        sim0 = myCFE.run_unit_test(plot=False, warm_up=True)
+        obs0 = myCFE.load_unit_test_data()
         obs_synced = pd.DataFrame()
 
         # Get the results
@@ -369,17 +284,81 @@ class MyGLUE(object):
             obs_synced[var_name] = df[var_name + "_y"].copy()
 
         self.obs_synced = obs_synced
-
-        # Store Simulated timeseries for behavioral runs
-        self.df_behavioral_Q.set_axis(self.post_rid, axis=1, inplace=True)
-        self.df_behavioral_Q.set_axis(self.df_timeaxis, axis=0, inplace=True)
-        self.df_behavioral_SM.set_axis(self.post_rid, axis=1, inplace=True)
-        self.df_behavioral_SM.set_axis(self.df_timeaxis, axis=0, inplace=True)
-
         self.df_obs_Q = pd.DataFrame(self.obs_synced["Flow"])
         self.df_obs_Q.set_axis(self.df_timeaxis, axis=0, inplace=True)
         self.df_obs_SM = pd.DataFrame(self.obs_synced["Soil Moisture Content"])
         self.df_obs_SM.set_axis(self.df_timeaxis, axis=0, inplace=True)
+
+        # ==================================================
+        # Store results to the dataframe
+        # ==================================================
+
+        # Store GLUE results
+        self.glue_results = [np.nan] * len(all_results)
+        self.run_id = [np.nan] * len(all_results)
+        for i in range(len(all_results)):
+            self.run_id[i] = all_results[i][2]
+            if all_results[i][5] == 'Behavioral':
+                boolean_glue_result = True
+            else:
+                boolean_glue_result = False
+            self.glue_results[i] = boolean_glue_result
+        n_behavioral = sum(self.glue_results)
+        self.df_glue_results = pd.DataFrame(self.glue_results, index=self.run_id, columns=["Behavioral"])
+        behavioral_run_id_index = self.df_glue_results.index[self.df_glue_results['Behavioral'].values]
+
+        # Store all the runs for Flow and soil moisture
+        for i in range(len(all_results)):
+            if i==0:
+                self.df_Q = all_results[i][0]
+                self.df_SM = all_results[i][1]
+            else:
+                self.df_Q = pd.concat([self.df_Q, all_results[i][0]], axis=1)
+                self.df_SM = pd.concat([self.df_SM, all_results[i][1]], axis=1)
+
+        self.df_Q.set_axis(self.run_id, axis=1, inplace=True)
+        self.df_Q.set_axis(self.df_timeaxis, axis=0, inplace=True)
+        self.df_SM.set_axis(self.run_id, axis=1, inplace=True)
+        self.df_SM.set_axis(self.df_timeaxis, axis=0, inplace=True)
+
+        # Store Behavioral runs for Flow and soil moisture
+        self.df_behavioral_Q = self.df_Q[behavioral_run_id_index].copy()
+        self.df_behavioral_SM = self.df_SM[behavioral_run_id_index].copy()
+
+        # Store PRIOR parameters
+        self.pri_paras = [np.nan] * len(all_results)
+        for i in range(len(all_results)):
+            self.pri_paras[i] = all_results[i][3]
+
+        param_names = []
+        for i in range(len(self.pri_paras[0])):
+            param_names.append(self.pri_paras[0][i][1])
+        param_values = np.empty((self.nrun, len(param_names)))
+        param_values[:] = np.nan
+        for i in range(len(param_names)):
+            for j in range(self.nrun):
+                param_values[j][i] = self.pri_paras[j][i][0]
+        self.df_pri_paras = pd.DataFrame(param_values, columns=param_names)
+
+        # Store POSTERIOR paramters for behavioral runs
+        self.df_post_paras = self.df_pri_paras.iloc[behavioral_run_id_index].copy()
+
+        # Store Evaluation metrics for all runs
+        self.eval = [np.nan] * len(all_results)
+        for i in range(len(all_results)):
+            self.eval[i] = all_results[i][4]
+
+        eval_values = np.empty((len(all_results), len(self.eval_names)))
+        eval_values[:] = np.nan
+        for j in range(len(self.eval)):
+            for i in range(len(self.eval_names)):
+                if 'season_transition' in self.eval_names[i]:
+                    eval_values[j][i] = self.eval[j][0][i]
+                else:
+                    eval_values[j][i] = self.eval[j][i]
+        self.df_eval = pd.DataFrame(eval_values, index=self.run_id, columns=self.eval_names)
+        self.df_post_eval = self.df_eval.iloc[behavioral_run_id_index].copy()
+
 
     def post_process(self):
         # post-process the results
@@ -427,24 +406,23 @@ class MyGLUE(object):
             elif var_name == "Soil Moisture Content":
                 self.df_SM_simrange = df_simrange.copy()
 
-    def to_csv(self, params=None):
+    def to_csv(self, df_param_to_calibrate=None):
         print('--- Saving data into csv file ---')
 
-        # Dump the parameter range to txt file
-        self.params = params
-        file = open(os.path.join(self.out_path, "param_bounds.txt"), "w")
-        file.write("%s" % str(self.params))
-        file.close
+        df_param_to_calibrate.to_csv(os.path.join(self.out_path, 'parameter_bounds_used.csv'), sep=',', header=True, index=True,
+                                 encoding='utf-8', na_rep='nan')
 
         # Dump the results to csv
+        self.df_glue_results.to_csv(os.path.join(self.out_path, 'glue_results.csv'), sep=',', header=True, index=True,
+                                 encoding='utf-8', na_rep='nan')
+        self.df_Q.to_csv(os.path.join(self.out_path, 'simulated_Q.csv'), sep=',', header=True, index=True,
+                                 encoding='utf-8', na_rep='nan')
+        self.df_SM.to_csv(os.path.join(self.out_path, 'simulated_SM.csv'), sep=',', header=True, index=True,
+                                 encoding='utf-8', na_rep='nan')
         self.df_pri_paras.to_csv(os.path.join(self.out_path, 'paramter_priori.csv'), sep=',', header=True, index=True,
                                  encoding='utf-8', na_rep='nan')
-        if hasattr(self, 'df_post_paras'):
-            self.df_post_paras.to_csv(os.path.join(self.out_path, 'parameter_posterior.csv'), sep=',', header=True,
-                                      index=True, encoding='utf-8', na_rep='nan')
-        if hasattr(self, 'df_post_eval'):
-            self.df_post_eval.to_csv(os.path.join(self.out_path, 'evaluations.csv'), sep=',', header=True, index=True,
-                                     encoding='utf-8', na_rep='nan')
+        self.df_eval.to_csv(os.path.join(self.out_path, 'evaluations.csv'), sep=',', header=True, index=True,
+                                 encoding='utf-8', na_rep='nan')
         if hasattr(self, 'df_Q_simrange'):
             self.df_Q_simrange.to_csv(os.path.join(self.out_path, 'quantiles_Q.csv'), sep=',', header=True, index=True,
                                       encoding='utf-8', na_rep='nan')
@@ -549,10 +527,6 @@ class MyGLUE(object):
                             ax1.set_ylabel(para1)
                         ax1.tick_params(direction="in")
 
-                        # if i !=0:
-                        #     ax1.yaxis.set_visible(False)
-
-                # f.plot()
                 f.savefig(os.path.join(self.out_path, "param_dotty_interaction.png"), dpi=600)
 
         # Time series of data
@@ -578,8 +552,8 @@ class MyGLUE(object):
                 f2 = plt.figure(figsize=(8, 6))
                 ax2 = f2.add_subplot()
 
-                df_simrange['lowerlim'].plot(color='black', alpha=0.2, ax=ax2, label='_Hidden')
-                df_simrange['upperlim'].plot(color='black', alpha=0.2, ax=ax2, label='_Hidden')
+                df_simrange['lowerlim'].plot(color='black', alpha=0.2, ax=ax2, label=f'{quantiles[0]*100} percentile')
+                df_simrange['upperlim'].plot(color='black', alpha=0.2, ax=ax2, label=f'{quantiles[2]*100} percentile')
                 df_obs[var_name].plot(color='black', alpha=1, ax=ax2, label=obs_label)
                 plt.fill_between(df_simrange.index, df_simrange['upperlim'], df_simrange['lowerlim'],
                                  facecolor='green', alpha=0.2, interpolate=True, label='Predicted range')
