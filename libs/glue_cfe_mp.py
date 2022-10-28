@@ -16,7 +16,6 @@ import shutil
 # Global variables
 quantiles = [0.05, 0.5, 0.95]
 
-
 # Global function
 def weighted_quantile(values, quantiles, sample_weight=None,
                       values_sorted=False, old_style=False):
@@ -76,7 +75,7 @@ class MyGLUE(object):
         self.config_path_CFE = config_path_CFE
 
         # Evaluation criteria (multi-criteria allowed)
-        self.eval_criteia = eval_criteria
+        self.eval_criteria = eval_criteria
         print(f"A number of criterion: {len(eval_criteria)}")
         self.eval_names = []
         for i in range(len(eval_criteria)):
@@ -177,38 +176,38 @@ class MyGLUE(object):
 
         # Preparation
         eval_result_for_a_run = []
-        behavioral_flag = [False] * len(self.eval_criteia)
+        behavioral_flag = [False] * len(self.eval_criteria)
 
         # Loop for all evaluation metrics (multi-criteria).
         # Calculate the metrics and judge behavioral vs. non-behavioral
-        for i in range(len(self.eval_criteia)):
+        for i in range(len(self.eval_criteria)):
 
             # Nash-Sutcliffe scores
-            if self.eval_criteia[i]['metric'] == "NSE":
+            if self.eval_criteria[i]['metric'] == "NSE":
                 metric_value = spotpy.objectivefunctions.nashsutcliffe(
-                    obs_synced[self.eval_criteia[i]['variable_to_analyze']],
-                    sim_synced[self.eval_criteia[i]['variable_to_analyze']]
+                    obs_synced[self.eval_criteria[i]['variable_to_analyze']],
+                    sim_synced[self.eval_criteria[i]['variable_to_analyze']]
                 )
-                if metric_value > self.eval_criteia[i]['threshold']:
+                if metric_value > self.eval_criteria[i]['threshold']:
                     behavioral_flag[i] = True
 
             # Kling-Gupta Efficiency scores
             # 　Kling-Gupta efficiencies range from -Inf to 1. Essentially, the closer to 1, the more accurate the model is
-            elif self.eval_criteia[i]['metric'] == "KGE":
+            elif self.eval_criteria[i]['metric'] == "KGE":
                 metric_value = spotpy.objectivefunctions.kge(
-                    obs_synced[self.eval_criteia[i]['variable_to_analyze']],
-                    sim_synced[self.eval_criteia[i]['variable_to_analyze']]
+                    obs_synced[self.eval_criteria[i]['variable_to_analyze']],
+                    sim_synced[self.eval_criteria[i]['variable_to_analyze']]
                 )
-                if metric_value > self.eval_criteia[i]['threshold']:
+                if metric_value > self.eval_criteria[i]['threshold']:
                     behavioral_flag[i] = True
 
             # Seasonal transition dates
-            elif self.eval_criteia[i]['metric'] == "season_transition":
+            elif self.eval_criteria[i]['metric'] == "season_transition":
                 # Calculate metrics for OBSERVED timeseries as a baseline performance. Run only once
                 # if n == 0:
                 sig_obs = SMSig(
                     ts_time=df["Time"].to_numpy(),
-                    ts_value=obs_synced[self.eval_criteia[i]['variable_to_analyze']].to_numpy(),
+                    ts_value=obs_synced[self.eval_criteria[i]['variable_to_analyze']].to_numpy(),
                     plot_results=False,
                     plot_label="obs"
                 )
@@ -220,7 +219,7 @@ class MyGLUE(object):
                 # Calculate metrics for SIMULATED timeseries
                 sig_sim = SMSig(
                     ts_time=df["Time"].to_numpy(),
-                    ts_value=sim_synced[self.eval_criteia[i]['variable_to_analyze']].to_numpy(),
+                    ts_value=sim_synced[self.eval_criteria[i]['variable_to_analyze']].to_numpy(),
                     plot_results=False,
                     plot_label="sim"
                 )
@@ -230,7 +229,7 @@ class MyGLUE(object):
                 # Get the deviations in seasonal transition dates between simulated and observed timeseries
                 diff = season_trans_sim - season_trans_obs
                 metric_value = abs(np.nanmean(diff, axis=0))
-                if all(metric_value < self.eval_criteia[i]['threshold']):
+                if all(metric_value < self.eval_criteria[i]['threshold']):
                     behavioral_flag[i] = True
 
             # Store evaluation metrics for all criteria for one run
@@ -368,18 +367,18 @@ class MyGLUE(object):
         weight = np.empty((len(self.df_post_eval), len(self.eval_names)))
         j = int(0)
         # Loop for all evaluation metrics
-        for i in range(len(self.eval_criteia)):
-            if self.eval_criteia[i]['metric'] == "NSE" or self.eval_criteia[i]['metric'] == "KGE":
+        for i in range(len(self.eval_criteria)):
+            if self.eval_criteria[i]['metric'] == "NSE" or self.eval_criteria[i]['metric'] == "KGE":
                 # For Nash-Sutcliffe and Kling-Gupta Efficiency scores
-                weight[:, j] = ((self.df_post_eval[self.eval_names[j]] - self.eval_criteia[i]['threshold']) / sum(
-                    self.df_post_eval[self.eval_names[j]] - self.eval_criteia[i]['threshold'])).to_numpy()
+                weight[:, j] = ((self.df_post_eval[self.eval_names[j]] - self.eval_criteria[i]['threshold']) / sum(
+                    self.df_post_eval[self.eval_names[j]] - self.eval_criteria[i]['threshold'])).to_numpy()
                 j += int(1)
-            elif self.eval_criteia[i]['metric'] == "season_transition":
+            elif self.eval_criteria[i]['metric'] == "season_transition":
                 for k in range(4):
                     # For seasonal transition dates
                     weight[:, j + k] = triangle_weight(self.df_post_eval[self.eval_names[j + k]],
-                                                       a=-1 * self.eval_criteia[i]['threshold'], b=0,
-                                                       c=self.eval_criteia[i]['threshold'])
+                                                       a=-1 * self.eval_criteria[i]['threshold'], b=0,
+                                                       c=self.eval_criteria[i]['threshold'])
                 j += int(4)
         avg_weight = np.mean(weight, axis=1)
 
