@@ -1,28 +1,23 @@
 # A main module to run various analysis with CFE model
-
-import sys
-sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/libs/cfe/py_cfe")
-import cfe
-import bmi_cfe
-sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/libs/SMSig")
-from sig_seasontrans import SMSig
-
-# Import libraries
 import os
 import sys
-if not sys.warnoptions:
-    import warnings
-    warnings.simplefilter("ignore")
+os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/5_GLUE_model")
+
+# Import libraries
+import spotpy
+import numpy as np
 import pandas as pd
 import shutil
 import json
-import spotpy
-import numpy as np
+sys.path.append("../libs/cfe/py_cfe")
+import cfe
+import bmi_cfe
+sys.path.append("../libs/SMSig")
+from sig_seasontrans import SMSig
 
-# Specify current directory create output directory if it does not exist
-os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/5_GLUE_model")
-os.getcwd()
-
+if not sys.warnoptions:
+    import warnings
+    warnings.simplefilter("ignore")
 
 # =======================START OF THE CODE===================== #
 # Settings

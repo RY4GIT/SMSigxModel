@@ -1,8 +1,8 @@
 import sys
-sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/libs/cfe/py_cfe")
+sys.path.append("../libs/cfe/py_cfe")
 import cfe
 import bmi_cfe
-sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/libs/SMSig")
+sys.path.append("../libs/SMSig")
 from sig_seasontrans import SMSig
 
 import spotpy
@@ -65,13 +65,11 @@ def triangle_weight(x, a, b, c):
 
 # GLUE object
 class MyGLUE(object):
-    def __init__(self, out_path='./', config_path_CFE='', config_path='', nrun=1, eval_criteria=dict()):
+    def __init__(self, out_path='./', config_path_CFE='', nrun=1, eval_criteria=dict()):
 
-        self.df_pri_paras = None
         self.out_path = out_path  # Output folder path
         self.nrun = nrun  # Number of runs
         self.var_names = ["Flow", "Soil Moisture Content"]  # Variables to be analyzed
-
         self.config_path_CFE = config_path_CFE
 
         # Evaluation criteria (multi-criteria allowed)
@@ -92,21 +90,17 @@ class MyGLUE(object):
                 self.eval_names.append(f'{eval_criteria[i]["metric"]} on {eval_criteria[i]["variable_to_analyze"]}')
             print(f'[{i + 1}] {eval_criteria[i]["metric"]}-based analysis on {eval_criteria[i]["variable_to_analyze"]}')
 
-        # Initializations
-        self.post_rid = []
-        # self.pri_paras  = []
-        self.post_paras = []
-        self.resulted_totalQ = []
-        self.eval = []
-
     def simulation(self, sampled_params):
 
-        sampled_params_nrun = sampled_params[0]
+        # ===============================================================
+        # The main model run
+        # ===============================================================
+
+        # Preparations
+        nth_run = sampled_params[0]
         sampled_params_set = sampled_params[1]
+        print(f'Processing {nth_run}/{self.nrun}')
 
-        print(f'Processing {sampled_params_nrun}')
-
-        flag_behavioral = 0
 
         # ===============================================================
         # Write the randomly-generated parameters to the config json file
@@ -115,7 +109,7 @@ class MyGLUE(object):
         # CFE model instance
         template_config_CFE = self.config_path_CFE
         target_config_CFE = os.path.join(r"..\2_data_input\Mahurangi\parameters",
-                                         f"config_cfe_{sampled_params_nrun}.json")
+                                         f"config_cfe_{nth_run}.json")
         shutil.copyfile(template_config_CFE, target_config_CFE)
 
         # Get the model config file
@@ -132,9 +126,6 @@ class MyGLUE(object):
         # Save the config file with new parameters
         with open(target_config_CFE, 'w') as out_file:
             json.dump(self.cfe_cfg, out_file)
-
-        # Store the prior paramters
-        # self.pri_paras.append(sampled_params_set)
 
         # ===============================================================
         # Actual model run
@@ -163,12 +154,10 @@ class MyGLUE(object):
 
             # Merge observed and simulated timeseries
             df = pd.merge_asof(sim, obs, on="Time")
-            self.df_timeaxis = df["Time"]
 
             sim_synced[var_name] = df[var_name + "_x"].copy()
             obs_synced[var_name] = df[var_name + "_y"].copy()
 
-            self.obs_synced = obs_synced
 
         # ===============================================================
         # Evalute the outputs
@@ -246,17 +235,17 @@ class MyGLUE(object):
             # Discard non-behavioral runs
             result_glue = 'Non-behavioral'
 
-        print(f"{sampled_params_nrun}-th run: {result_glue}")
+        print(f"{nth_run}-th run/{self.nrun}: {result_glue}")
         print(eval_result_for_a_run)
 
-        return [sim_synced["Flow"], sim_synced["Soil Moisture Content"], sampled_params_nrun, sampled_params_set,
+        return [sim_synced["Flow"], sim_synced["Soil Moisture Content"], nth_run, sampled_params_set,
                 eval_result_for_a_run, result_glue]
 
-    # ===============================================================
-    # Save results from all runs
-    # ===============================================================
-    # Get the number of behavioral runs
     def save_results_to_df(self, all_results):
+
+        # ===============================================================
+        # Save results from all runs
+        # ===============================================================
 
         # ==================================================
         # One more last run to get synced observed timeseries
@@ -281,8 +270,8 @@ class MyGLUE(object):
             df = pd.merge_asof(sim, obs, on="Time")
             self.df_timeaxis = df["Time"]
             obs_synced[var_name] = df[var_name + "_y"].copy()
-
         self.obs_synced = obs_synced
+
         self.df_obs_Q = pd.DataFrame(self.obs_synced["Flow"])
         self.df_obs_Q.set_axis(self.df_timeaxis, axis=0, inplace=True)
         self.df_obs_SM = pd.DataFrame(self.obs_synced["Soil Moisture Content"])
@@ -292,7 +281,7 @@ class MyGLUE(object):
         # Store results to the dataframe
         # ==================================================
 
-        # Store GLUE results
+        ## Store GLUE results (behavioral vs. non-behavioral)
         self.glue_results = [np.nan] * len(all_results)
         self.run_id = [np.nan] * len(all_results)
         for i in range(len(all_results)):
@@ -302,11 +291,10 @@ class MyGLUE(object):
             else:
                 boolean_glue_result = False
             self.glue_results[i] = boolean_glue_result
-        n_behavioral = sum(self.glue_results)
         self.df_glue_results = pd.DataFrame(self.glue_results, index=self.run_id, columns=["Behavioral"])
         behavioral_run_id_index = self.df_glue_results.index[self.df_glue_results['Behavioral'].values]
 
-        # Store all the runs for Flow and soil moisture
+        ## Store timeseries of flow and soil moisture
         for i in range(len(all_results)):
             if i==0:
                 self.df_Q = all_results[i][0]
@@ -324,7 +312,7 @@ class MyGLUE(object):
         self.df_behavioral_Q = self.df_Q[behavioral_run_id_index].copy()
         self.df_behavioral_SM = self.df_SM[behavioral_run_id_index].copy()
 
-        # Store PRIOR parameters
+        ## Store PRIOR parameters
         self.pri_paras = [np.nan] * len(all_results)
         for i in range(len(all_results)):
             self.pri_paras[i] = all_results[i][3]
@@ -342,7 +330,7 @@ class MyGLUE(object):
         # Store POSTERIOR paramters for behavioral runs
         self.df_post_paras = self.df_pri_paras.iloc[behavioral_run_id_index].copy()
 
-        # Store Evaluation metrics for all runs
+        ## Store Evaluation metrics for all runs
         self.eval = [np.nan] * len(all_results)
         for i in range(len(all_results)):
             self.eval[i] = all_results[i][4]
@@ -356,6 +344,8 @@ class MyGLUE(object):
                 else:
                     eval_values[j][i] = self.eval[j][i]
         self.df_eval = pd.DataFrame(eval_values, index=self.run_id, columns=self.eval_names)
+
+        # Store behavioral evaluations
         self.df_post_eval = self.df_eval.iloc[behavioral_run_id_index].copy()
 
 
@@ -410,8 +400,6 @@ class MyGLUE(object):
 
         df_param_to_calibrate.to_csv(os.path.join(self.out_path, 'parameter_bounds_used.csv'), sep=',', header=True, index=True,
                                  encoding='utf-8', na_rep='nan')
-
-        # Dump the results to csv
         self.df_glue_results.to_csv(os.path.join(self.out_path, 'glue_results.csv'), sep=',', header=True, index=True,
                                  encoding='utf-8', na_rep='nan')
         self.df_Q.to_csv(os.path.join(self.out_path, 'simulated_Q.csv'), sep=',', header=True, index=True,
