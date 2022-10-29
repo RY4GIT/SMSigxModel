@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import shutil
 
 # Global variables
-quantiles = [0.05, 0.5, 0.95]
+quantiles = [0.10, 0.5, 0.90]
 
 # Global function
 def weighted_quantile(values, quantiles, sample_weight=None,
@@ -551,6 +551,7 @@ class MyGLUE(object):
                 ax2.set_ylabel(y_label)
                 ax2.set_title(title)
                 ax2.legend()
+                f2.autofmt_xdate()
                 f2.savefig(os.path.join(self.out_path, fn), dpi=600)
 
 
