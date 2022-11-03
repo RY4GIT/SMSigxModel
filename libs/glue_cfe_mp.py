@@ -295,22 +295,22 @@ class MyGLUE(object):
         behavioral_run_id_index = self.df_glue_results.index[self.df_glue_results['Behavioral'].values]
 
         ## Store timeseries of flow and soil moisture
+        # Flow & soil moisture
         for i in range(len(all_results)):
-            if i==0:
-                self.df_Q = all_results[i][0]
-                self.df_SM = all_results[i][1]
-            else:
-                self.df_Q = pd.concat([self.df_Q, all_results[i][0]], axis=1)
-                self.df_SM = pd.concat([self.df_SM, all_results[i][1]], axis=1)
-
-        self.df_Q.set_axis(self.run_id, axis=1, inplace=True)
-        self.df_Q.set_axis(self.df_timeaxis, axis=0, inplace=True)
-        self.df_SM.set_axis(self.run_id, axis=1, inplace=True)
-        self.df_SM.set_axis(self.df_timeaxis, axis=0, inplace=True)
+            if self.glue_results[i]:
+                if not hasattr(self, 'df_behavioral_Q'):
+                    self.df_behavioral_Q = all_results[i][0]
+                    self.df_behavioral_SM = all_results[i][1]
+                else:
+                    self.df_behavioral_Q = pd.concat([self.df_behavioral_Q, all_results[i][0]], axis=1)
+                    self.df_behavioral_SM = pd.concat([self.df_behavioral_SM, all_results[i][1]], axis=1)
 
         # Store Behavioral runs for Flow and soil moisture
-        self.df_behavioral_Q = self.df_Q[behavioral_run_id_index].copy()
-        self.df_behavioral_SM = self.df_SM[behavioral_run_id_index].copy()
+        self.run_id_behavioral = self.run_id[self.glue_results]
+        self.df_behavioral_Q.set_axis(self.run_id, axis=1, inplace=True)
+        self.df_behavioral_Q.set_axis(self.df_timeaxis, axis=0, inplace=True)
+        self.df_behavioral_SM.set_axis(self.run_id, axis=1, inplace=True)
+        self.df_behavioral_SM.set_axis(self.df_timeaxis, axis=0, inplace=True)
 
         ## Store PRIOR parameters
         self.pri_paras = [np.nan] * len(all_results)
@@ -403,17 +403,19 @@ class MyGLUE(object):
         print('--- Saving data into csv file ---')
 
         df_param_to_calibrate.to_csv(os.path.join(self.out_path, 'parameter_bounds_used.csv'), sep=',', header=True, index=True,
-                                 encoding='utf-8', na_rep='nan')
+                                     encoding='utf-8', na_rep='nan')
         self.df_glue_results.to_csv(os.path.join(self.out_path, 'glue_results.csv'), sep=',', header=True, index=True,
-                                 encoding='utf-8', na_rep='nan')
-        self.df_Q.to_csv(os.path.join(self.out_path, 'simulated_Q.csv'), sep=',', header=True, index=True,
-                                 encoding='utf-8', na_rep='nan')
-        self.df_SM.to_csv(os.path.join(self.out_path, 'simulated_SM.csv'), sep=',', header=True, index=True,
-                                 encoding='utf-8', na_rep='nan')
+                                    encoding='utf-8', na_rep='nan')
         self.df_pri_paras.to_csv(os.path.join(self.out_path, 'paramter_priori.csv'), sep=',', header=True, index=True,
                                  encoding='utf-8', na_rep='nan')
         self.df_eval.to_csv(os.path.join(self.out_path, 'evaluations.csv'), sep=',', header=True, index=True,
-                                 encoding='utf-8', na_rep='nan')
+                            encoding='utf-8', na_rep='nan')
+        if hasattr(self, 'df_Q_behavioral'):
+            self.df_Q_behavioral.to_csv(os.path.join(self.out_path, 'behavioral_Q.csv'), sep=',', header=True, index=True,
+                                        encoding='utf-8', na_rep='nan')
+        if hasattr(self, 'df_SM_behavioral'):
+            self.df_SM_behavioral.to_csv(os.path.join(self.out_path, 'behavioral_SM.csv'), sep=',', header=True, index=True,
+                                         encoding='utf-8', na_rep='nan')
         if hasattr(self, 'df_Q_simrange'):
             self.df_Q_simrange.to_csv(os.path.join(self.out_path, 'quantiles_Q.csv'), sep=',', header=True, index=True,
                                       encoding='utf-8', na_rep='nan')
