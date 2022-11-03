@@ -99,7 +99,7 @@ class MyGLUE(object):
         # Preparations
         nth_run = sampled_params[0]
         sampled_params_set = sampled_params[1]
-        print(f'Processing {nth_run}/{self.nrun}')
+        print(f'Processing {nth_run}/{self.nrun-1}')
 
 
         # ===============================================================
@@ -236,10 +236,10 @@ class MyGLUE(object):
         else:
             # Discard non-behavioral runs
             result_glue = 'Non-behavioral'
-            results = [pd.DataFrame({'Flow' : []}), pd.DataFrame({'Soil Moisture Content' : []}), nth_run, sampled_params_set,
+            results = [pd.DataFrame({'Flow': []}), pd.DataFrame({'Soil Moisture Content': []}), nth_run, sampled_params_set,
                 eval_result_for_a_run, result_glue]
 
-        print(f"{nth_run}-th run/{self.nrun}: {result_glue}")
+        print(f"{nth_run}-th run/{self.nrun-1}: {result_glue}")
         print(eval_result_for_a_run)
 
         return results
@@ -309,10 +309,10 @@ class MyGLUE(object):
                     self.df_behavioral_SM = pd.concat([self.df_behavioral_SM, all_results[i][1]], axis=1)
 
         # Store Behavioral runs for Flow and soil moisture
-        self.run_id_behavioral = self.run_id[self.glue_results]
-        self.df_behavioral_Q.set_axis(self.run_id, axis=1, inplace=True)
+        self.run_id_behavioral = [self.run_id[i] for i in range(len(self.run_id)) if self.glue_results[i]]
+        self.df_behavioral_Q.set_axis(self.run_id_behavioral, axis=1, inplace=True)
         self.df_behavioral_Q.set_axis(self.df_timeaxis, axis=0, inplace=True)
-        self.df_behavioral_SM.set_axis(self.run_id, axis=1, inplace=True)
+        self.df_behavioral_SM.set_axis(self.run_id_behavioral, axis=1, inplace=True)
         self.df_behavioral_SM.set_axis(self.df_timeaxis, axis=0, inplace=True)
 
         ## Store PRIOR parameters
@@ -353,6 +353,7 @@ class MyGLUE(object):
                     eval_values[j][i] = self.eval[j][i]
 
         # Store behavioral evaluations
+        self.df_eval = pd.DataFrame(eval_values, index=self.run_id, columns=self.eval_names)
         self.df_post_eval = self.df_eval.iloc[behavioral_run_id_index].copy()
 
 
@@ -413,11 +414,11 @@ class MyGLUE(object):
                                  encoding='utf-8', na_rep='nan')
         self.df_eval.to_csv(os.path.join(self.out_path, 'evaluations.csv'), sep=',', header=True, index=True,
                             encoding='utf-8', na_rep='nan')
-        if hasattr(self, 'df_Q_behavioral'):
-            self.df_Q_behavioral.to_csv(os.path.join(self.out_path, 'behavioral_Q.csv'), sep=',', header=True, index=True,
+        if hasattr(self, 'df_behavioral_Q'):
+            self.df_behavioral_Q.to_csv(os.path.join(self.out_path, 'behavioral_Q.csv'), sep=',', header=True, index=True,
                                         encoding='utf-8', na_rep='nan')
-        if hasattr(self, 'df_SM_behavioral'):
-            self.df_SM_behavioral.to_csv(os.path.join(self.out_path, 'behavioral_SM.csv'), sep=',', header=True, index=True,
+        if hasattr(self, 'df_behavioral_SM'):
+            self.df_behavioral_SM.to_csv(os.path.join(self.out_path, 'behavioral_SM.csv'), sep=',', header=True, index=True,
                                          encoding='utf-8', na_rep='nan')
         if hasattr(self, 'df_Q_simrange'):
             self.df_Q_simrange.to_csv(os.path.join(self.out_path, 'quantiles_Q.csv'), sep=',', header=True, index=True,

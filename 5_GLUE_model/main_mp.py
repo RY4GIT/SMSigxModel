@@ -52,7 +52,7 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', nrun=1, eval_crit
         sampled_params[i] = [i, spotpy.parameter.generate(params)]
 
     # Start multiple runs in multiprocessing
-    pool = mp.Pool(processes=4)
+    pool = mp.Pool(processes=3)
     all_results = pool.map(glue_instance.simulation, sampled_params)
     pool.close()
     pool.join()
