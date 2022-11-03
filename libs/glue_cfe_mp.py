@@ -338,12 +338,16 @@ class MyGLUE(object):
         eval_values = np.empty((len(all_results), len(self.eval_names)))
         eval_values[:] = np.nan
         for j in range(len(self.eval)):
+            season_idx = -9999
             for i in range(len(self.eval_names)):
                 if 'season_transition' in self.eval_names[i]:
-                    eval_values[j][i] = self.eval[j][0][i]
+                    if season_idx == -9999:
+                        season_idx = i
+                        season_num = 0
+                    eval_values[j][i] = self.eval[j][season_idx][season_num]
+                    season_num += 1
                 else:
                     eval_values[j][i] = self.eval[j][i]
-        self.df_eval = pd.DataFrame(eval_values, index=self.run_id, columns=self.eval_names)
 
         # Store behavioral evaluations
         self.df_post_eval = self.df_eval.iloc[behavioral_run_id_index].copy()
