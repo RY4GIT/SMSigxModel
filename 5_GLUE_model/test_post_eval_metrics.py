@@ -27,6 +27,16 @@ from sig_seasontrans import SMSig
 os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/5_GLUE_model")
 os.getcwd()
 
+def calc_variability_index(df):
+    df_sorted = df.sort_values(by=['Flow'], ascending=False).copy()
+    percs = np.arange(10, 100, 10)
+    indices_percs = np.round(len(df_sorted)*percs/100)
+    flow_values = df_sorted['Flow'].values
+    flow_percs = flow_values[indices_percs.astype(int)]
+    recs = flow_percs > 0
+    VariabilityIndex = np.std(np.log10(flow_percs[recs]))
+    return VariabilityIndex
+
 def main(out_path='', config_path_CFE='', config_path_GLUE='', eval_criteria=dict()):
 
     in_path = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\6_out\Mahurangi\ex1\paramter_priori.csv"
@@ -99,6 +109,9 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', eval_criteria=dic
     df_obs_monthly.drop(df_obs_monthly.head(1).index, inplace=True)
     df_sim_monthly.drop(df_sim_monthly.tail(1).index, inplace=True)
     df_sim_monthly.drop(df_sim_monthly.head(1).index, inplace=True)
+    # for i in range(12):
+    #     data_by_month_obs = df_obs_monthly[df_obs_monthly.index.month == i+1]
+    #     data_by_month_sim = df_obs_monthly[df_obs_monthly.index.month == i+1]
 
     df_obs_runoff_ratio = df_obs_monthly["Flow"]/ df_obs_monthly["Rainfall"]
     df_sim_runoff_ratio = df_sim_monthly["Flow"] / df_obs_monthly["Rainfall"]
@@ -106,15 +119,22 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', eval_criteria=dic
 
     ## Variabiltiy index
     #  https://sebastiangnann.github.io/TOSSH_development/matlab/TOSSH_code/TOSSH_development/TOSSH_code/signature_functions/sig_VariabilityIndex.html
+    variability_index_obs = [np.nan]*len(df_obs_monthly)
+    variability_index_sim = [np.nan]*len(df_sim_monthly)
+    year_list = df_obs_monthly.index.year.unique()
+    for i, time in enumerate(df_obs_monthly.index):
+        m = time.month
+        y = time.year
+        data_by_month_obs = df_obs_monthly[(df_obs_monthly.index.month == m) & (df_obs_monthly.index.year==y)]
+        data_by_month_sim = df_sim_monthly[(df_sim_monthly.index.month == m) & (df_sim_monthly.index.year==y)]
+        if not data_by_month_obs.empty:
+            variability_index_obs[i] = calc_variability_index(data_by_month_obs)
+            variability_index_sim[i] = calc_variability_index(data_by_month_sim)
+
     df_obs_sorted = df_obs.sort_values(by=['Flow'], ascending=False).copy()
     df_sim_sorted = df_sim.sort_values(by=['Flow'], ascending=False).copy()
-    percs = np.arange(10, 100, 10)
-    indices_percs = np.round(len(df_obs_sorted)*percs/100);
-    flow_values = df_obs_sorted['Flow'].values
-    flow_percs = flow_values[indices_percs.astype(int)]
-    recs = flow_percs > 0
-    VariabilityIndex = np.std(np.log10(flow_percs[recs]))
 
+    calc_variability_index(df_obs_sorted)
 
     # Plot runoff ratio results
     df_results = pd.concat([df_obs_runoff_ratio, df_sim_runoff_ratio, bias_runoff_ratio], axis=1)
