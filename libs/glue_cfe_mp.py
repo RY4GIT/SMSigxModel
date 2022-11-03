@@ -231,15 +231,18 @@ class MyGLUE(object):
         if all(behavioral_flag):
             # If all criteria is TRUE, the model is behavioral
             result_glue = 'Behavioral'
+            results = [sim_synced["Flow"], sim_synced["Soil Moisture Content"], nth_run, sampled_params_set,
+                eval_result_for_a_run, result_glue]
         else:
             # Discard non-behavioral runs
             result_glue = 'Non-behavioral'
+            results = [pd.DataFrame({'Flow' : []}), pd.DataFrame({'Soil Moisture Content' : []}), nth_run, sampled_params_set,
+                eval_result_for_a_run, result_glue]
 
         print(f"{nth_run}-th run/{self.nrun}: {result_glue}")
         print(eval_result_for_a_run)
 
-        return [sim_synced["Flow"], sim_synced["Soil Moisture Content"], nth_run, sampled_params_set,
-                eval_result_for_a_run, result_glue]
+        return results
 
     def save_results_to_df(self, all_results):
 
