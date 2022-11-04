@@ -6,7 +6,7 @@ import sys
 if not sys.warnoptions:
     import warnings
     warnings.simplefilter("ignore")
-
+from statistics import median
 import pandas as pd
 import numpy as np
 import json
@@ -35,6 +35,7 @@ def calc_variability_index(df):
     flow_percs = flow_values[indices_percs.astype(int)]
     recs = flow_percs > 0
     VariabilityIndex = np.std(np.log10(flow_percs[recs]))
+    # Does not work well if baseflow is missing
     return VariabilityIndex
 
 def main(out_path='', config_path_CFE='', config_path_GLUE='', eval_criteria=dict()):
@@ -109,64 +110,142 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', eval_criteria=dic
     df_obs_monthly.drop(df_obs_monthly.head(1).index, inplace=True)
     df_sim_monthly.drop(df_sim_monthly.tail(1).index, inplace=True)
     df_sim_monthly.drop(df_sim_monthly.head(1).index, inplace=True)
-    # for i in range(12):
-    #     data_by_month_obs = df_obs_monthly[df_obs_monthly.index.month == i+1]
-    #     data_by_month_sim = df_obs_monthly[df_obs_monthly.index.month == i+1]
-
-    df_obs_runoff_ratio = df_obs_monthly["Flow"]/ df_obs_monthly["Rainfall"]
-    df_sim_runoff_ratio = df_sim_monthly["Flow"] / df_obs_monthly["Rainfall"]
-    bias_runoff_ratio = df_sim_runoff_ratio-df_obs_runoff_ratio
 
     ## Variabiltiy index
     #  https://sebastiangnann.github.io/TOSSH_development/matlab/TOSSH_code/TOSSH_development/TOSSH_code/signature_functions/sig_VariabilityIndex.html
-    variability_index_obs = [np.nan]*len(df_obs_monthly)
-    variability_index_sim = [np.nan]*len(df_sim_monthly)
-    year_list = df_obs_monthly.index.year.unique()
-    for i, time in enumerate(df_obs_monthly.index):
-        m = time.month
-        y = time.year
-        data_by_month_obs = df_obs_monthly[(df_obs_monthly.index.month == m) & (df_obs_monthly.index.year==y)]
-        data_by_month_sim = df_sim_monthly[(df_sim_monthly.index.month == m) & (df_sim_monthly.index.year==y)]
-        if not data_by_month_obs.empty:
-            variability_index_obs[i] = calc_variability_index(data_by_month_obs)
-            variability_index_sim[i] = calc_variability_index(data_by_month_sim)
 
-    df_obs_sorted = df_obs.sort_values(by=['Flow'], ascending=False).copy()
-    df_sim_sorted = df_sim.sort_values(by=['Flow'], ascending=False).copy()
+    eval_criteria_monthly = {
+        0: {'variable_to_analyze': 'Flow', 'metric': 'Q_mean'},
+        1: {'variable_to_analyze': 'Flow', 'metric': 'high_flow_freq'},
+        2: {'variable_to_analyze': 'Flow', 'metric': 'RR'}
+    }
+    median_flow_obs = median(df_obs['Flow'])
+    high_flow_obs = 9 * median_flow_obs
+    for k in range(len(eval_criteria_monthly)):
+        eval = eval_criteria_monthly[k]
+        eval_values_obs = [np.nan]*len(df_obs_monthly)
+        eval_values_sim = [np.nan]*len(df_obs_monthly)
+        for i, time in enumerate(df_obs_monthly.index):
+            m = time.month
+            y = time.year
+            data_by_month_obs = df_obs[(df_obs.index.month == m) & (df_obs.index.year == y)].copy()
+            data_by_month_sim = df_sim[(df_sim.index.month == m) & (df_sim.index.year == y)].copy()
+            if not data_by_month_obs.empty:
+                if eval['metric'] == 'Q_mean':
+                    eval_values_obs[i] = data_by_month_obs[eval['variable_to_analyze']].mean()
+                    eval_values_sim[i] = data_by_month_sim[eval['variable_to_analyze']].mean()
+                if eval['metric'] == 'RR':
+                    eval_values_obs[i] = data_by_month_obs[eval['variable_to_analyze']].sum()/data_by_month_obs['Rainfall'].sum()
+                    eval_values_sim[i] = data_by_month_sim[eval['variable_to_analyze']].sum()/data_by_month_obs['Rainfall'].sum()
+                if eval['metric'] == 'high_flow_freq':
+                    # https://tosshtoolbox.github.io/TOSSH/matlab/TOSSH_code/TOSSH/TOSSH_code/signature_functions/sig_x_Q_frequency.html
+                    high_Q_num_obs = sum(data_by_month_obs['Flow'].values > high_flow_obs)
+                    eval_values_obs[i] = high_Q_num_obs / len(data_by_month_obs['Flow'])
+                    high_Q_num_sim = sum(data_by_month_sim['Flow'].values > high_flow_obs)
+                    eval_values_sim[i] = high_Q_num_sim / len(data_by_month_sim['Flow'])
+        data = {eval['metric']+'_obs': eval_values_obs, eval['metric']+'_sim': eval_values_sim}
+        eval_monthly = pd.DataFrame(data, index=df_obs_monthly.index)
+        eval_monthly[eval['metric']+'_bias'] = eval_monthly[eval['metric']+'_sim'] - eval_monthly[eval['metric']+'_obs']
 
-    calc_variability_index(df_obs_sorted)
+    # # Plot out the results
+    # obs_label = 'Observed'
+    # sim_label = 'Simulated'
+    # obs_color = '#1f77b4'
+    # sim_color = '#ff7f0e'
+    #
+    # count, bins_count = np.histogram(df_obs['Flow'].values, bins=10)
+    # pdf_obs = count / sum(count)
+    # cdf_obs = np.cumsum(pdf_obs)
+    # count, bins_count = np.histogram(df_sim['Flow'].values, bins=10)
+    # pdf_sim = count / sum(count)
+    # cdf_sim = np.cumsum(pdf_sim)
+    # # plotting PDF and CDF
+    # fig = plt.figure()
+    # # plt.plot(bins_count[1:], pdf_obs, label="PDF - obs")
+    # plt.plot(bins_count[1:], cdf_obs, label="CDF - obs")
+    # # plt.plot(bins_count[1:], pdf_sim, label="PDF - sim")
+    # plt.plot(bins_count[1:], cdf_sim, label="CDF - sim")
+    # plt.legend()
+    # fig.savefig(os.path.join(out_path, 'CDF.png'))
+    #
+    # fig = plt.figure()
+    # fig.subplots_adjust(hspace=0.4, wspace=0.4)
+    # ax1 = fig.add_subplot()
+    # line2, = ax1.plot(df_sim['Flow'], label=sim_label, color=sim_color)
+    # line1, = ax1.plot(df_obs['Flow'], label=obs_label, color=obs_color)
+    # xax = ax1.xaxis
+    # ax1.set_title("Results from CFE")
+    # ax1.set_xlabel("Time")
+    # ax1.set_ylabel("Monthly runoff ratio [Q/P]")
+    # fig.autofmt_xdate()
+    # fig.savefig(os.path.join(out_path, 'timeseries.png'))
+    # del fig, ax1
+    #
+    # fig = plt.figure()
+    # fig.subplots_adjust(hspace=0.4, wspace=0.4)
+    # ax1 = fig.add_subplot()
+    # plt.hist(df_obs['Flow'].values, cumulative=True, label=obs_label,
+    #          histtype='step', alpha=0.8, color=obs_color)
+    # plt.hist(df_sim['Flow'].values, cumulative=True, label=obs_label,
+    #          histtype='step', alpha=0.8, color=obs_color)
+    # xax = ax1.xaxis
+    # ax1.set_title("Results from CFE")
+    # ax1.set_xlabel("Time")
+    # ax1.set_ylabel("Monthly runoff ratio [Q/P]")
+    # fig.autofmt_xdate()
+    # fig.savefig(os.path.join(out_path, 'cdf.png'))
+    # del fig, ax1
+    #
+    # fig = plt.figure()
+    # fig.subplots_adjust(hspace=0.4, wspace=0.4)
+    # ax1 = fig.add_subplot(2, 1, 1)
+    # line1, = ax1.plot(df_vi_obs, label=obs_label, color=obs_color)
+    # line2, = ax1.plot(df_vi_sim, label=sim_label, color=sim_color)
+    # ax2 = fig.add_subplot(2, 1, 2)
+    # bp = sns.boxplot(data=df_results.transpose(), ax=ax2)
+    # fig.legend()
+    # xax = ax1.xaxis
+    # ax1.set_title("Results from CFE")
+    # ax1.set_xlabel("Time")
+    # ax1.set_ylabel("Monthly runoff ratio [Q/P]")
+    # ax2.set_xlabel("Time")
+    # ax2.set_ylabel("Bias in runoff ratio\n[Simulated - observed]")
+    # fig.autofmt_xdate()
+    # fig.savefig(os.path.join(out_path, 'variability_index.png'))
+    # del fig, ax1, ax2
+    #
+    # # Plot runoff ratio results
+    # df_results = pd.concat([df_obs_runoff_ratio, df_sim_runoff_ratio, bias_runoff_ratio], axis=1)
+    # new_name = ['observed_runoff_ratio', 'simulated_runoff_ratio', 'bias_runoff_ratio']
+    # for i in range(len(list(df_results))):
+    #     df_results.rename(columns={list(df_results)[i]: new_name[i]}, inplace=True)
+    #
+    # df_results.to_csv(os.path.join(out_path, 'runoff_ratio.csv'), sep=',', index=True,
+    #                                      encoding='utf-8', na_rep='nan')
+    # # Plot out the results
+    # obs_label = 'Observed'
+    # sim_label = 'Simulated'
+    # obs_color = '#1f77b4'
+    # sim_color = '#ff7f0e'
+    #
+    # fig = plt.figure()
+    # fig.subplots_adjust(hspace=0.4, wspace=0.4)
+    # ax1 = fig.add_subplot(2, 1, 1)
+    # line1, = ax1.plot(df_obs_runoff_ratio, label=obs_label, color=obs_color)
+    # line2, = ax1.plot(df_sim_runoff_ratio, label=sim_label, color=sim_color)
+    # ax2 = fig.add_subplot(2, 1, 2)
+    # bp = sns.boxplot(data=df_results.transpose(), ax=ax2)
+    # fig.legend()
+    # xax = ax1.xaxis
+    # ax1.set_title("Results from CFE")
+    # ax1.set_xlabel("Time")
+    # ax1.set_ylabel("Monthly runoff ratio [Q/P]")
+    # ax2.set_xlabel("Time")
+    # ax2.set_ylabel("Bias in runoff ratio\n[Simulated - observed]")
+    # fig.autofmt_xdate()
+    # fig.savefig(os.path.join(out_path, 'runoff_ratio.png'))
+    # del fig, ax1, ax2
 
-    # Plot runoff ratio results
-    df_results = pd.concat([df_obs_runoff_ratio, df_sim_runoff_ratio, bias_runoff_ratio], axis=1)
-    new_name = ['observed_runoff_ratio', 'simulated_runoff_ratio', 'bias_runoff_ratio']
-    for i in range(len(list(df_results))):
-        df_results.rename(columns={list(df_results)[i]: new_name[i]}, inplace=True)
-
-    df_results.to_csv(os.path.join(out_path, 'runoff_ratio.csv'), sep=',', index=True,
-                                         encoding='utf-8', na_rep='nan')
-    # Plot out the results
-    obs_label = 'Observed'
-    sim_label = 'Simulated'
-    obs_color = '#1f77b4'
-    sim_color = '#ff7f0e'
-
-    fig = plt.figure()
-    fig.subplots_adjust(hspace=0.4, wspace=0.4)
-    ax1 = fig.add_subplot(2, 1, 1)
-    line1, = ax1.plot(df_obs_runoff_ratio, label=obs_label, color=obs_color)
-    line2, = ax1.plot(df_sim_runoff_ratio, label=sim_label, color=sim_color)
-    ax2 = fig.add_subplot(2, 1, 2)
-    bp = sns.boxplot(data=df_results.transpose(), ax=ax2)
-    fig.legend()
-    xax = ax1.xaxis
-    ax1.set_title("Results from CFE")
-    ax1.set_xlabel("Time")
-    ax1.set_ylabel("Monthly runoff ratio [Q/P]")
-    ax2.set_xlabel("Time")
-    ax2.set_ylabel("Bias in runoff ratio\n[Simulated - observed]")
-    fig.autofmt_xdate()
-    fig.savefig(os.path.join(out_path, 'runoff_ratio.png'))
-    del fig, ax1, ax2
 
 
     # Save the results

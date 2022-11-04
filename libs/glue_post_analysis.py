@@ -12,65 +12,30 @@ import numpy as np
 import json
 import matplotlib.pyplot as plt
 import shutil
-
-# Global variables
-quantiles = [0.10, 0.5, 0.90]
+from math import log10
+from statistics import median
 
 # Global function
-def weighted_quantile(values, quantiles, sample_weight=None,
-                      values_sorted=False, old_style=False):
-    # Code from https://stackoverflow.com/questions/21844024/weighted-percentile-using-numpy/32216049
-    """ Very close to numpy.percentile, but supports weights.
-    NOTE: quantiles should be in [0, 1]!
-    :param values: numpy.array with data
-    :param quantiles: array-like with many quantiles needed
-    :param sample_weight: array-like of the same length as `array`
-    :param values_sorted: bool, if True, then will avoid sorting of
-        initial array
-    :param old_style: if True, will correct output to be consistent
-        with numpy.percentile.
-    :return: numpy.array with computed quantiles.
-    """
-    values = np.array(values)
-    quantiles = np.array(quantiles)
-    if sample_weight is None:
-        sample_weight = np.ones(len(values))
-    sample_weight = np.array(sample_weight)
-    assert np.all(quantiles >= 0) and np.all(quantiles <= 1), 'quantiles should be in [0, 1]'
-
-    if not values_sorted:
-        sorter = np.argsort(values)
-        values = values[sorter]
-        sample_weight = sample_weight[sorter]
-
-    weighted_quantiles = np.cumsum(sample_weight) - 0.5 * sample_weight
-    if old_style:
-        # To be convenient with numpy.percentile
-        weighted_quantiles -= weighted_quantiles[0]
-        weighted_quantiles /= weighted_quantiles[-1]
-    else:
-        weighted_quantiles /= np.sum(sample_weight)
-    return np.interp(quantiles, weighted_quantiles, values)
-
-
-def triangle_weight(x, a, b, c):
-    # a: lowerlim, c:upperlim, b:midpoint
-    y = np.full((len(x),), np.nan)
-    # for i in range(len(x)):
-    y = np.where((x <= a) | (x >= c), 0, y)
-    y = np.where((a <= x) & (x <= b), (x - a) / (b - a), y)
-    y = np.where((b <= x) & (x <= c), (c - x) / (c - b), y)
-    return y
 
 
 # GLUE object
 class MyGLUEPost(object):
     def __init__(self, out_path='./', config_path_CFE=''):
+        print("Post evaluation of GLUE analysis")
 
         eval_criteria = {
         0: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'KGE', 'threshold': -1000},
         1: {'variable_to_analyze': 'Flow', 'metric': 'KGE', 'threshold':  -1000},
         2: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'season_transition', 'threshold': -1000}
+        }
+
+        ## Variabiltiy index
+        #  https://sebastiangnann.github.io/TOSSH_development/matlab/TOSSH_code/TOSSH_development/TOSSH_code/signature_functions/sig_VariabilityIndex.html
+
+        eval_criteria_monthly = {
+            0: {'variable_to_analyze': 'Flow', 'metric': 'Q_mean'},
+            1: {'variable_to_analyze': 'Flow', 'metric': 'high_flow_freq'},
+            2: {'variable_to_analyze': 'Flow', 'metric': 'RR'}
         }
 
         self.out_path = out_path  # Output folder path
@@ -79,7 +44,7 @@ class MyGLUEPost(object):
 
         # Evaluation criteria (multi-criteria allowed)
         self.eval_criteria = eval_criteria
-        print(f"A number of criterion: {len(eval_criteria)}")
+        # print(f"A number of criterion: {len(eval_criteria)}")
         self.eval_names = []
         for i in range(len(eval_criteria)):
             if eval_criteria[i]["metric"] == 'season_transition':
@@ -93,7 +58,9 @@ class MyGLUEPost(object):
                     f'{eval_criteria[i]["metric"]} on {eval_criteria[i]["variable_to_analyze"]} (w2d_end)')
             else:
                 self.eval_names.append(f'{eval_criteria[i]["metric"]} on {eval_criteria[i]["variable_to_analyze"]}')
-            print(f'[{i + 1}] {eval_criteria[i]["metric"]}-based analysis on {eval_criteria[i]["variable_to_analyze"]}')
+            # print(f'[{i + 1}] {eval_criteria[i]["metric"]}-based analysis on {eval_criteria[i]["variable_to_analyze"]}')
+
+        self.eval_criteria_monthly = eval_criteria_monthly
 
     def simulation(self, behavioral_param):
 
@@ -155,16 +122,20 @@ class MyGLUEPost(object):
             obs = obs0[["Time", var_name]].copy()
             obs["Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M")  # Works specifically for Mahurangi data
             # obs["Time"] = pd.to_datetime(obs["Time"], format="%d-%m-%Y %H:%M:%S")
+            obs_P = obs0[["Time", "Rainfall"]].copy()
+            obs_P["Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M")
 
             # Merge observed and simulated timeseries
             df = pd.merge_asof(sim, obs, on="Time")
+            df2 = pd.merge_asof(df, obs_P, on="Time")
 
             sim_synced[var_name] = df[var_name + "_x"].copy()
             obs_synced[var_name] = df[var_name + "_y"].copy()
+            obs_synced["Rainfall"] = df2["Rainfall"].copy()
 
 
         # ===============================================================
-        # Evalute the outputs
+        # Evalute the outputs (whole-period metrics)
         # ===============================================================
 
         # Preparation
@@ -228,7 +199,60 @@ class MyGLUEPost(object):
             # Store evaluation metrics for all criteria for one run
             eval_result_for_a_run.append(metric_value)
 
-        return [nth_run, eval_result_for_a_run]
+        # ===============================================================
+        # Evalute the outputs (monthly metrics)
+        # ===============================================================
+
+        df_obs = obs_synced
+        df_sim = sim_synced
+
+        df_obs.set_axis(df["Time"], axis=0, inplace=True)
+        df_sim.set_axis(df["Time"], axis=0, inplace=True)
+
+        df_obs_monthly = df_obs.resample('M').sum().copy()
+        df_sim_monthly = df_sim.resample('M').sum().copy()
+        df_obs_monthly.drop(df_obs_monthly.tail(1).index, inplace=True)
+        df_obs_monthly.drop(df_obs_monthly.head(1).index, inplace=True)
+        df_sim_monthly.drop(df_sim_monthly.tail(1).index, inplace=True)
+        df_sim_monthly.drop(df_sim_monthly.head(1).index, inplace=True)
+
+        median_flow_obs = median(df_obs['Flow'])
+        high_flow_obs = 9 * median_flow_obs
+        for k in range(len(self.eval_criteria_monthly)):
+            eval = self.eval_criteria_monthly[k]
+            eval_values_obs = [np.nan] * len(df_obs_monthly)
+            eval_values_sim = [np.nan] * len(df_obs_monthly)
+            for i, time in enumerate(df_obs_monthly.index):
+                m = time.month
+                y = time.year
+                data_by_month_obs = df_obs[(df_obs.index.month == m) & (df_obs.index.year == y)].copy()
+                data_by_month_sim = df_sim[(df_sim.index.month == m) & (df_sim.index.year == y)].copy()
+                if not data_by_month_obs.empty:
+                    if eval['metric'] == 'Q_mean':
+                        eval_values_obs[i] = data_by_month_obs[eval['variable_to_analyze']].mean()
+                        eval_values_sim[i] = data_by_month_sim[eval['variable_to_analyze']].mean()
+                    if eval['metric'] == 'RR':
+                        eval_values_obs[i] = data_by_month_obs[eval['variable_to_analyze']].sum() / \
+                                             data_by_month_obs['Rainfall'].sum()
+                        eval_values_sim[i] = data_by_month_sim[eval['variable_to_analyze']].sum() / \
+                                             data_by_month_obs['Rainfall'].sum()
+                    if eval['metric'] == 'high_flow_freq':
+                        # https://tosshtoolbox.github.io/TOSSH/matlab/TOSSH_code/TOSSH/TOSSH_code/signature_functions/sig_x_Q_frequency.html
+                        high_Q_num_obs = sum(data_by_month_obs['Flow'].values > high_flow_obs)
+                        eval_values_obs[i] = high_Q_num_obs / len(data_by_month_obs['Flow'])
+                        high_Q_num_sim = sum(data_by_month_sim['Flow'].values > high_flow_obs)
+                        eval_values_sim[i] = high_Q_num_sim / len(data_by_month_sim['Flow'])
+            if k==0:
+                data = {eval['metric'] + '_obs': eval_values_obs, eval['metric'] + '_sim': eval_values_sim,
+                        'run_id': [nth_run] * len(eval_values_sim)}
+                eval_monthly_for_a_run = pd.DataFrame(data, index=df_obs_monthly.index)
+            else:
+                eval_monthly_for_a_run[eval['metric'] + '_obs'] = eval_values_obs
+                eval_monthly_for_a_run[eval['metric'] + '_sim'] = eval_values_sim
+            eval_monthly_for_a_run[eval['metric'] + '_bias'] = eval_monthly_for_a_run[eval['metric'] + '_sim'] - eval_monthly_for_a_run[
+                eval['metric'] + '_obs']
+
+        return [nth_run, eval_result_for_a_run, eval_monthly_for_a_run]
 
     def save_results_to_df(self, all_results):
 
@@ -262,10 +286,19 @@ class MyGLUEPost(object):
                     eval_values[j][i] = self.eval[j][i]
         self.df_eval = pd.DataFrame(eval_values, index=self.run_id, columns=self.eval_names)
 
+        for i in range(len(all_results)):
+            if i==0:
+                self.df_eval_mo = all_results[i][2]
+            else:
+                self.df_eval_mo = pd.concat([self.df_eval_mo, all_results[i][2]])
+
+
     def to_csv(self, df_param_to_calibrate=None):
         print('--- Saving data into csv file ---')
 
         self.df_eval.to_csv(os.path.join(self.out_path, 'post_evaluations.csv'), sep=',', header=True, index=True,
+                                 encoding='utf-8', na_rep='nan')
+        self.df_eval_mo.to_csv(os.path.join(self.out_path, 'post_evaluations_monthly_metrics.csv'), sep=',', header=True, index=True,
                                  encoding='utf-8', na_rep='nan')
 
 

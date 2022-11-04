@@ -214,7 +214,7 @@ class SMSig():
 
                     popt, pcov = curve_fit(piecewise_linear, x, y, p0=P0, bounds=(Plb, Pub))
                     Pfit = popt
-                    print(trans_type[trans], Pfit)
+                    # print(trans_type[trans], Pfit)
                     # print(res.fun)
 
                     # Get signatures
