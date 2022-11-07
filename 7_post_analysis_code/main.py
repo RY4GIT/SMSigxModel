@@ -21,6 +21,7 @@ from glue_post_analysis import MyGLUEPost
 
 def main(out_path='', config_path_CFE='', path_GLUE_output=''):
     # To reproduce behavioral runs and evaluate
+    print("Post evaluation of GLUE analysis")
 
     # Create output directry if not exist
     if not os.path.exists(out_path):
@@ -31,6 +32,7 @@ def main(out_path='', config_path_CFE='', path_GLUE_output=''):
     df_glue_results = pd.read_csv(os.path.join(path_GLUE_output, 'glue_results.xls'), index_col=0)
     behavioral_idx = df_glue_results.index[df_glue_results['Behavioral'].values]
     df_params_behavioral = df_params.iloc[behavioral_idx].copy()
+    print(f"Total {len(behavioral_idx)} runs")
 
     # Create a GLUE instance
     glue_instance = MyGLUEPost(
@@ -47,7 +49,8 @@ def main(out_path='', config_path_CFE='', path_GLUE_output=''):
 
     # Start multiple runs in multiprocessing
     pool = mp.Pool(processes=4)
-    all_results = pool.map(glue_instance.simulation, behavioral_params[0:3])
+    all_results = pool.map(glue_instance.simulation, behavioral_params)
+    # all_results = pool.map(glue_instance.simulation, behavioral_params[0:3])
     pool.close()
     pool.join()
 
@@ -63,7 +66,7 @@ def main(out_path='', config_path_CFE='', path_GLUE_output=''):
 if __name__ == '__main__':
 
     main(
-        out_path= r'../8_out/Mahurangi/ws2_ex1',
+        out_path= r'../8_out/Mahurangi/ws2_ex2',
         config_path_CFE= r'../2_data_input/Mahurangi/parameters/config_cfe_template.json',
-        path_GLUE_output= r'../6_out/Mahurangi/ws2_ex1'
+        path_GLUE_output= r'../6_out/Mahurangi/ws2_ex2'
     )
