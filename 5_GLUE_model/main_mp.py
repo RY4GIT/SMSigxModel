@@ -50,12 +50,12 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', nrun=1, eval_crit
     for i in range(len(sampled_params)):
         sampled_params[i] = [i, spotpy.parameter.generate(params)]
 
-    glue_instance.simulation(sampled_params=sampled_params[0])
+    # glue_instance.simulation(sampled_params=sampled_params[0])
     # Start multiple runs in multiprocessing
-    # pool = mp.Pool(processes=3)
-    # all_results = pool.map(glue_instance.simulation, sampled_params)
-    # pool.close()
-    # pool.join()
+    pool = mp.Pool(processes=3)
+    all_results = pool.map(glue_instance.simulation, sampled_params)
+    pool.close()
+    pool.join()
 
     # Post-process the results
     glue_instance.save_results_to_df(all_results)

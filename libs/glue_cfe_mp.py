@@ -190,7 +190,7 @@ class MyGLUE(object):
                 if 'season_transition' in self.eval_criteria[i]['metric']:
                     trans = ['dry2wet_s', 'dry2wet_e', 'wet2dry_s', 'wet2dry_e']
                     for j in range(4):
-                        eval_result[self.eval_criteria[i]['metric']+trans[j]] = metric_value[j]
+                        eval_result[self.eval_criteria[i]['metric']+'_'+trans[j]] = metric_value[j]
                 else:
                     eval_result[eval_fullname] = metric_value
 
@@ -248,8 +248,7 @@ class MyGLUE(object):
                 eval_monthly_for_a_run[eval['metric'] + '_bias'] = eval_monthly_for_a_run[eval['metric'] + '_sim'] - eval_monthly_for_a_run[eval['metric'] + '_obs']
             
         print(f"{nth_run}-th run/{self.nrun-1}")
-        for i in range(len(self.eval_criteria)):
-            print(f"{self.eval_criteria[i]['metric']} on {self.eval_criteria[i]['variable_to_analyze']}: {eval_result[i]}")
+        print(eval_result)
         
         results = [nth_run, sampled_params_set, eval_result, eval_monthly_for_a_run]
 
