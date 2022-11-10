@@ -28,9 +28,9 @@ os.getcwd()
 def main(out_path='', config_path_CFE='', config_path_GLUE='', eval_criteria=dict()):
 
     in_path = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\6_out\Mahurangi\ex1\paramter_priori.csv"
-    config_temp = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\2_data_input\Mahurangi\parameters\ex1_config_cfe.json"
+    config_temp = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\2_data_input\Mahurangi\parameters\config_cfe_0.json"
     out_path = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\6_out\seasonsig_test"
-    i_run = 3
+    i_run = 9
 
     # Read parameters from excel sheet and create a config file
     config_all_runs = pd.read_csv(in_path)
@@ -76,7 +76,7 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', eval_criteria=dic
     sig_obs = SMSig(
         ts_time=df["Time"].to_numpy(),
         ts_value=obs_synced[var_name].to_numpy(),
-        plot_results=False,
+        plot_results=True,
         plot_label="obs"
     )
     # sig_obs.detrend() # TODO:debug
@@ -87,7 +87,7 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', eval_criteria=dic
     sig_sim = SMSig(
         ts_time=df["Time"].to_numpy(),
         ts_value=sim_synced[var_name].to_numpy(),
-        plot_results=False,
+        plot_results=True,
         plot_label="sim"
     )
     sig_sim.movmean()
@@ -96,6 +96,8 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', eval_criteria=dic
     # Get the deviations in seasonal transition dates between simulated and observed timeseries
     diff = season_trans_sim - season_trans_obs
     metric_value = abs(np.nanmean(diff, axis=0))
+    print(diff)
+    print(metric_value)
 
     # Plot out the results
     df_obs = obs_synced

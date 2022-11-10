@@ -96,7 +96,7 @@ class SMSig():
 
     def movmean(self):
         # detrend the ts_value using moving average using 1-year window
-        windowsize = 7  # 1wk just for now
+        windowsize = 30  # 1wk just for now
         halfwindow = int(np.rint(windowsize / 2))
         ts_value_movmean = np.convolve(self.ts_value, np.ones(windowsize) / (windowsize), mode='same')
 
@@ -153,8 +153,8 @@ class SMSig():
     def calc_seasontrans(self, t_valley):
         self.t_valley = t_valley
         # initialization
-        P0_d2w = [np.min(self.tt.values), 0.0005, 60, 100]
-        P0_w2d = [np.max(self.tt.values), -0.0005, 60, 100]
+        P0_d2w = [np.min(self.tt.values), 0.0001, 50, 150]
+        P0_w2d = [np.max(self.tt.values), -0.0001, 50, 150]
         trans_type = ["dry2wet", "wet2dry"]
 
         seasontrans_date = np.empty((len(self.t_valley), 4))
@@ -205,17 +205,17 @@ class SMSig():
                     y = seasonsm_value
                     if trans_type[trans] == "dry2wet":
                         P0 = P0_d2w
-                        Plb = (-5,  0,   0,   1)
-                        Pub = (5, 0.1, 150, 200)
+                        Plb = (-2,  0,   0,   30)
+                        Pub = (1, 0.1, 150, 200)
                     elif trans_type[trans] == "wet2dry":
                         P0 = P0_w2d
-                        Plb =  (-5,  -0.1, 0,      1)
-                        Pub =  (5, 0,    150,    200)
+                        Plb =  (0,  -0.1, 0,      30)
+                        Pub =  (2, 0,    150,    200)
 
                     popt, pcov = curve_fit(piecewise_linear, x, y, p0=P0, bounds=(Plb, Pub))
                     Pfit = popt
-                    # print(trans_type[trans], Pfit)
-                    # print(res.fun)
+
+                    print(trans_type[trans], Pfit)
 
                     # Get signatures
                     trans_start_result = seasonsm.axes[0][0] + datetime.timedelta(days=Pfit[2])

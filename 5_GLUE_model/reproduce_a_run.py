@@ -22,17 +22,17 @@ if not sys.warnoptions:
 # =======================START OF THE CODE===================== #
 # Settings
 config_path_CFE = '../2_data_input/Mahurangi/parameters/config_cfe_template.json'
-config_path_GLUE = '../6_out/Mahurangi/ex111/'
-run_id = 4
+config_path_GLUE = '../6_out/Mahurangi/ws2_ex1/'
+run_id = 0
 eval_criteria = {
-    0: {'variable_to_analyze': 'Flow', 'metric': 'NSE', 'threshold': 0.5}
+    0: {'variable_to_analyze': 'Flow', 'metric': 'KGE', 'threshold': 0.5}
 }
 var_names = ['Flow', 'Soil Moisture Content']
 
 
 # Parameter bounds defined from an excel file
-df_params = pd.read_csv(os.path.join(config_path_GLUE, 'paramter_priori.csv'), index_col=0)
-df_evals = pd.read_csv(os.path.join(config_path_GLUE, 'evaluations.csv'), index_col=0)
+df_params = pd.read_csv(os.path.join(config_path_GLUE, 'paramter_priori.xls'), index_col=0)
+df_evals = pd.read_csv(os.path.join(config_path_GLUE, 'evaluations.xls'), index_col=0)
 
 # Write it
 target_params = df_params.iloc[run_id].copy()

@@ -614,14 +614,45 @@ class BMI_CFE():
             plt.show()
 
             # Soil moisture and discharge (observation available)
-            for output_type in ['Flow']: #, 'SM storage']:
+            for output_type in ['Flow']:  # , 'SM storage']:
+
+                sim0 = self.cfe_output_data
+                obs0 = self.unit_test_data
+
+                sim_synced = pd.DataFrame()
+                obs_synced = pd.DataFrame()
+
+                # Get the results
+                # Get the simulated data
+                sim = sim0[["Time", output_type]].copy()
+                sim["Time"] = pd.to_datetime(sim["Time"], format="%Y-%m-%d %H:%M:%S")  # Works specifically for CFE
+
+                # Get the comparison data
+                obs = obs0[["Time", output_type]].copy()
+                try:
+                    obs["Time"] = pd.to_datetime(obs["Time"],
+                                             format="%m/%d/%Y %H:%M")  # Works specifically for Mahurangi data
+                except: 
+                    obs["Time"] = pd.to_datetime(obs["Time"], format="%d-%m-%Y %H:%M:%S")
+
+                # Merge observed and simulated timeseries
+                df = pd.merge_asof(sim, obs, on="Time")
+                self.df_timeaxis = df["Time"]
+
+                sim_synced[output_type] = df[output_type + "_x"].copy()
+                obs_synced[output_type] = df[output_type + "_y"].copy()
+
+                self.obs_synced = obs_synced
 
                 # long
-                KGE = spotpy.objectivefunctions.kge(self.unit_test_data[output_type], self.cfe_output_data[output_type])
-                NSE = spotpy.objectivefunctions.nashsutcliffe(evaluation=self.unit_test_data[output_type], simulation=self.cfe_output_data[output_type])
+                KGE = spotpy.objectivefunctions.kge(obs_synced[output_type], sim_synced[output_type])
+                NSE = spotpy.objectivefunctions.nashsutcliffe(evaluation=obs_synced[output_type],
+                                                              simulation=sim_synced[output_type])
 
                 # plt.plot(self.cfe_output_data['Rainfall'][plot_lims], label='Precipitation', c='gray', lw=.3)
-                plt.plot(self.cfe_output_data[output_type][plot_lims], label='Simulated '+ '\n(KGE = '+ '{:1.4f}'.format(KGE) +', NSE= ' +  '{:1.4f}'.format(NSE) + ')')
+                plt.plot(self.cfe_output_data[output_type][plot_lims],
+                         label='Simulated ' + '\n(KGE = ' + '{:1.4f}'.format(KGE) + ', NSE= ' + '{:1.4f}'.format(
+                             NSE) + ')')
                 plt.plot(self.unit_test_data[output_type][plot_lims], '--', label='Observed')
                 ax = plt.gca()
                 ax.set_title(output_type, loc='left', fontweight='bold')
@@ -631,7 +662,9 @@ class BMI_CFE():
                 plt.show()
 
                 if output_type == 'Flow':
-                    plt.plot(self.cfe_output_data[output_type][plot_lims], label='Simulated ' + '\n(KGE = '+ '{:1.4f}'.format(KGE) +', NSE= ' +  '{:1.4f}'.format(NSE) + ')')
+                    plt.plot(self.cfe_output_data[output_type][plot_lims],
+                             label='Simulated ' + '\n(KGE = ' + '{:1.4f}'.format(KGE) + ', NSE= ' + '{:1.4f}'.format(
+                                 NSE) + ')')
                     plt.plot(self.unit_test_data[output_type][plot_lims], '--', label='Observed')
                     plt.yscale('log')
                     ax = plt.gca()

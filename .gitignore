@@ -1,4 +1,9 @@
 0_data/*
+2_data_input/Mahurangi/parameters/*
+2_data_input/Mahurangi/plot/*
+2_data_input/Mahurangi/trash/*
+2_data_input/seasonsig_test/*
+2_data_input/trash/*
 4_out/*
 6_out/*
 8_out/*
