@@ -54,12 +54,20 @@ def main(out_path='', config_path_CFE='', path_GLUE_output=''):
     pool.close()
     pool.join()
 
+        # glue_instance.post_process()
     # Post-process the results
     glue_instance.save_results_to_df(all_results)
+    
+    
 
     # Output the results
     glue_instance.to_csv()
 
+    # glue_instance.plot(plot_type="dotty")
+    # glue_instance.plot(plot_type="dotty_interaction")
+    # glue_instance.plot(plot_type="param_hist")
+    # glue_instance.plot(plot_type="timeseries")
+    
     print(f'Finished the run')
     print(f'Saved results to: {out_path}')
 

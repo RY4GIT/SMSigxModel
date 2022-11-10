@@ -12,8 +12,6 @@ import numpy as np
 import json
 import matplotlib.pyplot as plt
 import shutil
-from math import log10
-from statistics import median
 
 # Global variables
 quantiles = [0.10, 0.5, 0.90]
@@ -63,102 +61,20 @@ def triangle_weight(x, a, b, c):
     y = np.where((a <= x) & (x <= b), (x - a) / (b - a), y)
     y = np.where((b <= x) & (x <= c), (c - x) / (c - b), y)
     return y
-# Global function
-        # ## Store timeseries of flow and soil moisture
-        # # Flow & soil moisture
-        # for i in range(len(all_results)):
-        #     if self.glue_results[i]:
-        #         if not hasattr(self, 'df_behavioral_Q'):
-        #             self.df_behavioral_Q = all_results[i][0]
-        #             self.df_behavioral_SM = all_results[i][1]
-        #         else:
-        #             self.df_behavioral_Q = pd.concat([self.df_behavioral_Q, all_results[i][0]], axis=1)
-        #             self.df_behavioral_SM = pd.concat([self.df_behavioral_SM, all_results[i][1]], axis=1)
 
-        # # Store Behavioral runs for Flow and soil moisture
-        # self.run_id_behavioral = [self.run_id[i] for i in range(len(self.run_id)) if self.glue_results[i]]
-        # self.df_behavioral_Q.set_axis(self.run_id_behavioral, axis=1, inplace=True)
-        # self.df_behavioral_Q.set_axis(self.df_timeaxis, axis=0, inplace=True)
-        # self.df_behavioral_SM.set_axis(self.run_id_behavioral, axis=1, inplace=True)
-        # self.df_behavioral_SM.set_axis(self.df_timeaxis, axis=0, inplace=True)
-                # Store POSTERIOR paramters for behavioral runs
-        # self.df_post_paras = self.df_pri_paras.iloc[behavioral_run_id_index].copy()
-        #         self.df_post_eval = self.df_eval.iloc[behavioral_run_id_index].copy()
-        
-
-    # def post_process(self):
-    #     # post-process the results
-    #     print('--- Post-processing the simulated results ---')
-
-    #     # Calculate weights
-    #     weight = np.empty((len(self.df_post_eval), len(self.eval_names)))
-    #     j = int(0)
-    #     # Loop for all evaluation metrics
-    #     for i in range(len(self.eval_criteria)):
-    #         if self.eval_criteria[i]['metric'] == "NSE" or self.eval_criteria[i]['metric'] == "KGE":
-    #             # For Nash-Sutcliffe and Kling-Gupta Efficiency scores
-    #             weight[:, j] = ((self.df_post_eval[self.eval_names[j]] - self.eval_criteria[i]['threshold']) / sum(
-    #                 self.df_post_eval[self.eval_names[j]] - self.eval_criteria[i]['threshold'])).to_numpy()
-    #             j += int(1)
-    #         elif self.eval_criteria[i]['metric'] == "season_transition":
-    #             for k in range(4):
-    #                 # For seasonal transition dates
-    #                 weight[:, j + k] = triangle_weight(self.df_post_eval[self.eval_names[j + k]],
-    #                                                    a=-1 * self.eval_criteria[i]['threshold'], b=0,
-    #                                                    c=self.eval_criteria[i]['threshold'])
-    #             j += int(4)
-    #     avg_weight = np.mean(weight, axis=1)
-
-    #     # Calculate weighted quantile
-    #     for var_name in self.var_names:
-    #         if var_name == "Flow":
-    #             df_behavioral = self.df_behavioral_Q.copy()
-    #             t_len = len(self.df_behavioral_Q)
-    #         elif var_name == "Soil Moisture Content":
-    #             df_behavioral = self.df_behavioral_SM.copy()
-    #             t_len = len(self.df_behavioral_SM)
-    #         np_behavioral = df_behavioral.to_numpy(copy=True)
-
-    #         # Get weighted quantile
-    #         quantile = np.empty((t_len, len(quantiles)))
-    #         quantile[:] = np.nan
-    #         for t in range(t_len):
-    #             values = np_behavioral[t, :]  # df_behavioral.iloc[[t]].values.flatten()
-    #             quantile[t, :] = weighted_quantile(values=values, quantiles=quantiles, sample_weight=avg_weight,
-    #                                                values_sorted=False, old_style=False)
-    #         df_simrange = pd.DataFrame(quantile, index=df_behavioral.index, columns=['lowerlim', 'median', 'upperlim'])
-    #         if var_name == "Flow":
-    #             self.df_Q_simrange = df_simrange.copy()
-    #         elif var_name == "Soil Moisture Content":
-    #             self.df_SM_simrange = df_simrange.copy()
 
 # GLUE object
-class MyGLUEPost(object):
-    def __init__(self, out_path='./', config_path_CFE=''):
-        print("Post evaluation of GLUE analysis")
-
-        eval_criteria = {
-        0: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'KGE', 'threshold': -1000},
-        1: {'variable_to_analyze': 'Flow', 'metric': 'KGE', 'threshold':  -1000},
-        2: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'season_transition', 'threshold': -1000}
-        }
-
-        ## Variabiltiy index
-        #  https://sebastiangnann.github.io/TOSSH_development/matlab/TOSSH_code/TOSSH_development/TOSSH_code/signature_functions/sig_VariabilityIndex.html
-
-        eval_criteria_monthly = {
-            0: {'variable_to_analyze': 'Flow', 'metric': 'Q_mean'},
-            1: {'variable_to_analyze': 'Flow', 'metric': 'high_flow_freq'},
-            2: {'variable_to_analyze': 'Flow', 'metric': 'RR'}
-        }
+class MyGLUE(object):
+    def __init__(self, out_path='./', config_path_CFE='', nrun=1, eval_criteria=dict()):
 
         self.out_path = out_path  # Output folder path
+        self.nrun = nrun  # Number of runs
         self.var_names = ["Flow", "Soil Moisture Content"]  # Variables to be analyzed
         self.config_path_CFE = config_path_CFE
 
         # Evaluation criteria (multi-criteria allowed)
         self.eval_criteria = eval_criteria
-        # print(f"A number of criterion: {len(eval_criteria)}")
+        print(f"A number of criterion: {len(eval_criteria)}")
         self.eval_names = []
         for i in range(len(eval_criteria)):
             if eval_criteria[i]["metric"] == 'season_transition':
@@ -172,20 +88,19 @@ class MyGLUEPost(object):
                     f'{eval_criteria[i]["metric"]} on {eval_criteria[i]["variable_to_analyze"]} (w2d_end)')
             else:
                 self.eval_names.append(f'{eval_criteria[i]["metric"]} on {eval_criteria[i]["variable_to_analyze"]}')
-            # print(f'[{i + 1}] {eval_criteria[i]["metric"]}-based analysis on {eval_criteria[i]["variable_to_analyze"]}')
+            print(f'[{i + 1}] {eval_criteria[i]["metric"]}-based analysis on {eval_criteria[i]["variable_to_analyze"]}')
 
-        self.eval_criteria_monthly = eval_criteria_monthly
-
-    def simulation(self, behavioral_param):
+    def simulation(self, sampled_params):
 
         # ===============================================================
         # The main model run
         # ===============================================================
 
         # Preparations
-        nth_run = behavioral_param[0]
-        sampled_params_set = behavioral_param[1]
-        print(f'Processing {nth_run}')
+        nth_run = sampled_params[0]
+        sampled_params_set = sampled_params[1]
+        print(f'Processing {nth_run}/{self.nrun-1}')
+
 
         # ===============================================================
         # Write the randomly-generated parameters to the config json file
@@ -202,11 +117,11 @@ class MyGLUEPost(object):
             self.cfe_cfg = json.load(data_file)
 
         # Overwrite the model config file
-        for i, target_para in enumerate(sampled_params_set.index):
-            if target_para in ['bb', 'satdk', 'slop', 'satpsi', 'smcmax', 'wltsmc', 'D']:
-                self.cfe_cfg["soil_params"][target_para] = sampled_params_set[target_para]
+        for i in range(len(sampled_params_set)):
+            if sampled_params_set[i][1] in ['bb', 'satdk', 'slop', 'satpsi', 'smcmax', 'wltsmc', 'D']:
+                self.cfe_cfg["soil_params"][sampled_params_set[i][1]] = sampled_params_set[i][0]
             else:
-                self.cfe_cfg[target_para] = sampled_params_set[target_para]
+                self.cfe_cfg[sampled_params_set[i][1]] = sampled_params_set[i][0]
 
         # Save the config file with new parameters
         with open(target_config_CFE, 'w') as out_file:
@@ -236,20 +151,16 @@ class MyGLUEPost(object):
             obs = obs0[["Time", var_name]].copy()
             obs["Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M")  # Works specifically for Mahurangi data
             # obs["Time"] = pd.to_datetime(obs["Time"], format="%d-%m-%Y %H:%M:%S")
-            obs_P = obs0[["Time", "Rainfall"]].copy()
-            obs_P["Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M")
 
             # Merge observed and simulated timeseries
             df = pd.merge_asof(sim, obs, on="Time")
-            df2 = pd.merge_asof(df, obs_P, on="Time")
 
             sim_synced[var_name] = df[var_name + "_x"].copy()
             obs_synced[var_name] = df[var_name + "_y"].copy()
-            obs_synced["Rainfall"] = df2["Rainfall"].copy()
 
 
         # ===============================================================
-        # Evalute the outputs (whole-period metrics)
+        # Evalute the outputs
         # ===============================================================
 
         # Preparation
@@ -312,7 +223,7 @@ class MyGLUEPost(object):
 
             # Store evaluation metrics for all criteria for one run
             eval_result_for_a_run.append(metric_value)
-            
+
         # ===============================================================
         # Judge behavioral vs. non-behavioral
         # ===============================================================
@@ -325,12 +236,20 @@ class MyGLUEPost(object):
         else:
             # Discard non-behavioral runs
             result_glue = 'Non-behavioral'
+            results = [pd.DataFrame({'Flow': []}), pd.DataFrame({'Soil Moisture Content': []}), nth_run, sampled_params_set,
+                eval_result_for_a_run, result_glue]
 
-        return [nth_run, eval_result_for_a_run]
+        print(f"{nth_run}-th run/{self.nrun-1}: {result_glue}")
+        print(eval_result_for_a_run)
+
+        return results
 
     def save_results_to_df(self, all_results):
 
-        
+        # ===============================================================
+        # Save results from all runs
+        # ===============================================================
+
         # ==================================================
         # One more last run to get synced observed timeseries
         # ==================================================
@@ -360,34 +279,64 @@ class MyGLUEPost(object):
         self.df_obs_Q.set_axis(self.df_timeaxis, axis=0, inplace=True)
         self.df_obs_SM = pd.DataFrame(self.obs_synced["Soil Moisture Content"])
         self.df_obs_SM.set_axis(self.df_timeaxis, axis=0, inplace=True)
-        
-                if hasattr(self, 'df_behavioral_Q'):
-            self.df_behavioral_Q.to_csv(os.path.join(self.out_path, 'behavioral_Q.csv'), sep=',', header=True, index=True,
-                                        encoding='utf-8', na_rep='nan')
-        if hasattr(self, 'df_behavioral_SM'):
-            self.df_behavioral_SM.to_csv(os.path.join(self.out_path, 'behavioral_SM.csv'), sep=',', header=True, index=True,
-                                         encoding='utf-8', na_rep='nan')
-        if hasattr(self, 'df_Q_simrange'):
-            self.df_Q_simrange.to_csv(os.path.join(self.out_path, 'quantiles_Q.csv'), sep=',', header=True, index=True,
-                                      encoding='utf-8', na_rep='nan')
-        if hasattr(self, 'df_SM_simrange'):
-            self.df_SM_simrange.to_csv(os.path.join(self.out_path, 'quantiles_SM.csv'), sep=',', header=True,
-                                       index=True, encoding='utf-8', na_rep='nan')
-        
-        # ===============================================================
-        # Save results from all runs
-        # ===============================================================
+
+        # ==================================================
+        # Store results to the dataframe
+        # ==================================================
 
         ## Store GLUE results (behavioral vs. non-behavioral)
         self.glue_results = [np.nan] * len(all_results)
         self.run_id = [np.nan] * len(all_results)
         for i in range(len(all_results)):
-            self.run_id[i] = all_results[i][0]
+            self.run_id[i] = all_results[i][2]
+            if all_results[i][5] == 'Behavioral':
+                boolean_glue_result = True
+            else:
+                boolean_glue_result = False
+            self.glue_results[i] = boolean_glue_result
+        self.df_glue_results = pd.DataFrame(self.glue_results, index=self.run_id, columns=["Behavioral"])
+        behavioral_run_id_index = self.df_glue_results.index[self.df_glue_results['Behavioral'].values]
+
+        ## Store timeseries of flow and soil moisture
+        # Flow & soil moisture
+        for i in range(len(all_results)):
+            if self.glue_results[i]:
+                if not hasattr(self, 'df_behavioral_Q'):
+                    self.df_behavioral_Q = all_results[i][0]
+                    self.df_behavioral_SM = all_results[i][1]
+                else:
+                    self.df_behavioral_Q = pd.concat([self.df_behavioral_Q, all_results[i][0]], axis=1)
+                    self.df_behavioral_SM = pd.concat([self.df_behavioral_SM, all_results[i][1]], axis=1)
+
+        # Store Behavioral runs for Flow and soil moisture
+        self.run_id_behavioral = [self.run_id[i] for i in range(len(self.run_id)) if self.glue_results[i]]
+        self.df_behavioral_Q.set_axis(self.run_id_behavioral, axis=1, inplace=True)
+        self.df_behavioral_Q.set_axis(self.df_timeaxis, axis=0, inplace=True)
+        self.df_behavioral_SM.set_axis(self.run_id_behavioral, axis=1, inplace=True)
+        self.df_behavioral_SM.set_axis(self.df_timeaxis, axis=0, inplace=True)
+
+        ## Store PRIOR parameters
+        self.pri_paras = [np.nan] * len(all_results)
+        for i in range(len(all_results)):
+            self.pri_paras[i] = all_results[i][3]
+
+        param_names = []
+        for i in range(len(self.pri_paras[0])):
+            param_names.append(self.pri_paras[0][i][1])
+        param_values = np.empty((self.nrun, len(param_names)))
+        param_values[:] = np.nan
+        for i in range(len(param_names)):
+            for j in range(self.nrun):
+                param_values[j][i] = self.pri_paras[j][i][0]
+        self.df_pri_paras = pd.DataFrame(param_values, columns=param_names)
+
+        # Store POSTERIOR paramters for behavioral runs
+        self.df_post_paras = self.df_pri_paras.iloc[behavioral_run_id_index].copy()
 
         ## Store Evaluation metrics for all runs
         self.eval = [np.nan] * len(all_results)
         for i in range(len(all_results)):
-            self.eval[i] = all_results[i][1]
+            self.eval[i] = all_results[i][4]
 
         eval_values = np.empty((len(all_results), len(self.eval_names)))
         eval_values[:] = np.nan
@@ -402,23 +351,81 @@ class MyGLUEPost(object):
                     season_num += 1
                 else:
                     eval_values[j][i] = self.eval[j][i]
+
+        # Store behavioral evaluations
         self.df_eval = pd.DataFrame(eval_values, index=self.run_id, columns=self.eval_names)
+        self.df_post_eval = self.df_eval.iloc[behavioral_run_id_index].copy()
 
-        for i in range(len(all_results)):
-            if i==0:
-                self.df_eval_mo = all_results[i][2]
-            else:
-                self.df_eval_mo = pd.concat([self.df_eval_mo, all_results[i][2]])
 
+    def post_process(self):
+        # post-process the results
+        print('--- Post-processing the simulated results ---')
+
+        # Calculate weights
+        weight = np.empty((len(self.df_post_eval), len(self.eval_names)))
+        j = int(0)
+        # Loop for all evaluation metrics
+        for i in range(len(self.eval_criteria)):
+            if self.eval_criteria[i]['metric'] == "NSE" or self.eval_criteria[i]['metric'] == "KGE":
+                # For Nash-Sutcliffe and Kling-Gupta Efficiency scores
+                weight[:, j] = ((self.df_post_eval[self.eval_names[j]] - self.eval_criteria[i]['threshold']) / sum(
+                    self.df_post_eval[self.eval_names[j]] - self.eval_criteria[i]['threshold'])).to_numpy()
+                j += int(1)
+            elif self.eval_criteria[i]['metric'] == "season_transition":
+                for k in range(4):
+                    # For seasonal transition dates
+                    weight[:, j + k] = triangle_weight(self.df_post_eval[self.eval_names[j + k]],
+                                                       a=-1 * self.eval_criteria[i]['threshold'], b=0,
+                                                       c=self.eval_criteria[i]['threshold'])
+                j += int(4)
+        avg_weight = np.mean(weight, axis=1)
+
+        # Calculate weighted quantile
+        for var_name in self.var_names:
+            if var_name == "Flow":
+                df_behavioral = self.df_behavioral_Q.copy()
+                t_len = len(self.df_behavioral_Q)
+            elif var_name == "Soil Moisture Content":
+                df_behavioral = self.df_behavioral_SM.copy()
+                t_len = len(self.df_behavioral_SM)
+            np_behavioral = df_behavioral.to_numpy(copy=True)
+
+            # Get weighted quantile
+            quantile = np.empty((t_len, len(quantiles)))
+            quantile[:] = np.nan
+            for t in range(t_len):
+                values = np_behavioral[t, :]  # df_behavioral.iloc[[t]].values.flatten()
+                quantile[t, :] = weighted_quantile(values=values, quantiles=quantiles, sample_weight=avg_weight,
+                                                   values_sorted=False, old_style=False)
+            df_simrange = pd.DataFrame(quantile, index=df_behavioral.index, columns=['lowerlim', 'median', 'upperlim'])
+            if var_name == "Flow":
+                self.df_Q_simrange = df_simrange.copy()
+            elif var_name == "Soil Moisture Content":
+                self.df_SM_simrange = df_simrange.copy()
 
     def to_csv(self, df_param_to_calibrate=None):
         print('--- Saving data into csv file ---')
 
-        self.df_eval.to_csv(os.path.join(self.out_path, 'post_evaluations.csv'), sep=',', header=True, index=True,
+        df_param_to_calibrate.to_csv(os.path.join(self.out_path, 'parameter_bounds_used.csv'), sep=',', header=True, index=True,
+                                     encoding='utf-8', na_rep='nan')
+        self.df_glue_results.to_csv(os.path.join(self.out_path, 'glue_results.csv'), sep=',', header=True, index=True,
+                                    encoding='utf-8', na_rep='nan')
+        self.df_pri_paras.to_csv(os.path.join(self.out_path, 'paramter_priori.csv'), sep=',', header=True, index=True,
                                  encoding='utf-8', na_rep='nan')
-        self.df_eval_mo.to_csv(os.path.join(self.out_path, 'post_evaluations_monthly_metrics.csv'), sep=',', header=True, index=True,
-                                 encoding='utf-8', na_rep='nan')
-
+        self.df_eval.to_csv(os.path.join(self.out_path, 'evaluations.csv'), sep=',', header=True, index=True,
+                            encoding='utf-8', na_rep='nan')
+        if hasattr(self, 'df_behavioral_Q'):
+            self.df_behavioral_Q.to_csv(os.path.join(self.out_path, 'behavioral_Q.csv'), sep=',', header=True, index=True,
+                                        encoding='utf-8', na_rep='nan')
+        if hasattr(self, 'df_behavioral_SM'):
+            self.df_behavioral_SM.to_csv(os.path.join(self.out_path, 'behavioral_SM.csv'), sep=',', header=True, index=True,
+                                         encoding='utf-8', na_rep='nan')
+        if hasattr(self, 'df_Q_simrange'):
+            self.df_Q_simrange.to_csv(os.path.join(self.out_path, 'quantiles_Q.csv'), sep=',', header=True, index=True,
+                                      encoding='utf-8', na_rep='nan')
+        if hasattr(self, 'df_SM_simrange'):
+            self.df_SM_simrange.to_csv(os.path.join(self.out_path, 'quantiles_SM.csv'), sep=',', header=True,
+                                       index=True, encoding='utf-8', na_rep='nan')
 
     def plot(self, plot_type=None):
         # Plot the results

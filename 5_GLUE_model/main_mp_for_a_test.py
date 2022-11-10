@@ -17,7 +17,7 @@ import snakeviz
 import spotpy
 import pandas as pd
 sys.path.append("../libs/")
-from glue_cfe_mp import MyGLUE
+from glue_cfe_mp_for_a_test import MyGLUE
 
 def main(out_path='', config_path_CFE='', config_path_GLUE='', nrun=1, eval_criteria=dict()):
     # To implement sensitivity analysis with GLUE.
@@ -31,7 +31,8 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', nrun=1, eval_crit
     glue_instance = MyGLUE(
         out_path=out_path,
         config_path_CFE=config_path_CFE,
-        nrun=nrun
+        nrun=nrun,
+        eval_criteria=eval_criteria
     )
 
     # Read parameter bounds defined from an excel file
@@ -50,20 +51,24 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', nrun=1, eval_crit
     for i in range(len(sampled_params)):
         sampled_params[i] = [i, spotpy.parameter.generate(params)]
 
-    glue_instance.simulation(sampled_params=sampled_params[0])
     # Start multiple runs in multiprocessing
-    # pool = mp.Pool(processes=3)
-    # all_results = pool.map(glue_instance.simulation, sampled_params)
-    # pool.close()
-    # pool.join()
+    pool = mp.Pool(processes=3)
+    all_results = pool.map(glue_instance.simulation, sampled_params)
+    pool.close()
+    pool.join()
 
     # Post-process the results
     glue_instance.save_results_to_df(all_results)
+    glue_instance.post_process()
 
     # Output the results
     glue_instance.to_csv(df_param_to_calibrate=df_param_to_calibrate)
+    glue_instance.plot(plot_type="dotty")
+    glue_instance.plot(plot_type="dotty_interaction")
+    glue_instance.plot(plot_type="param_hist")
+    glue_instance.plot(plot_type="timeseries")
 
-    print(f'Finished GLUE run ({nrun} runs)')
+    print(f'Finished GLUE run. {sum(glue_instance.glue_results)}/{nrun} runs were behavioral ({sum(glue_instance.glue_results)/nrun*100} %)')
     print(f'Saved results to: {out_path}')
 
 if __name__ == '__main__':
@@ -78,13 +83,42 @@ if __name__ == '__main__':
     # =========== GLUE ANALYSIS ==============
     # ===============================================
 
+    # Various evaluation criteria
+    # variable_to_analyze: ["Flow", "Soil Moisture Content"]
+    # metric = ["NSE", "KGE", "season_transition"]
+
+    eval_criteria_NSE_Q = {
+        0: {'variable_to_analyze': 'Flow', 'metric': 'NSE', 'threshold': 0.5}
+    }
+
+    eval_criteria_NSE_SM = {
+        0: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'NSE', 'threshold':0.5}
+    }
+
+    eval_criteria_KGE_Q = {
+        0: {'variable_to_analyze': 'Flow', 'metric': 'KGE', 'threshold': 0.5}
+    }
+
+    eval_criteria_KGE_SM = {
+        0: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'KGE', 'threshold': 0.5}
+    }
+
+    eval_criteria_season = {
+        0: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'season_transition', 'threshold': 30}
+    }
+
+    eval_criteria_test = {
+        0: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'NSE', 'threshold': -1000},
+        1: {'variable_to_analyze': 'Flow', 'metric': 'NSE', 'threshold':  -1000}
+    }
 
     # The main run
     main(
         out_path='../6_out/Mahurangi/ex111',
         config_path_CFE='../2_data_input/Mahurangi/parameters/config_cfe_template.json',
         config_path_GLUE='../2_data_input/Mahurangi/parameters/ex1_GLUE_config.xlsx',
-        nrun=3
+        nrun=5,
+        eval_criteria=eval_criteria_NSE_Q
     )
 
     # measure the time
