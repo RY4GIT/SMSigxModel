@@ -67,14 +67,18 @@ def triangle_weight(x, a, b, c):
 
 # GLUE object
 class MyGLUEPost(object):
-    def __init__(self, out_path='./', config_path_CFE='', path_GLUE_output='', eval_criteria=dict()):
-        print("Post evaluation of GLUE analysis")
+    def __init__(self, out_path='./', config_path_CFE='', path_GLUE_output='', eval_criteria=dict(), senario_id=9999):
 
         self.out_path = out_path  # Output folder path
         self.var_names = ["Flow", "Soil Moisture Content"]  # Variables to be analyzed
         self.config_path_CFE = config_path_CFE
         self.path_GLUE_output = path_GLUE_output
         self.eval_criteria = eval_criteria
+        self.senario_id = senario_id
+        self.out_path_per_senario = os.path.join(out_path, f'senario_{senario_id}')
+        
+        if not os.path.exists(self.out_path_per_senario):
+            os.mkdir(self.out_path_per_senario)
         
     def evaluation(self, plot=True):
         # Judge behavioral vs. non-behavioral
@@ -131,17 +135,21 @@ class MyGLUEPost(object):
         # Get only behavioral runs 
         self.df_post_paras = df_pri_paras.iloc[self.behavioral_idx].copy()
         self.df_post_eval = df_eval_metrics.iloc[self.behavioral_idx].copy()
-        self.df_post_eval_mo = df_eval_metrics_monthly.iloc[self.behavioral_idx].copy()
+        self.df_post_eval_mo = df_eval_metrics_monthly[df_eval_metrics_monthly['run_id'].isin(self.behavioral_idx.values)].copy()
         behavioral_params = len(self.behavioral_idx) * [None]
         for i, run_id in enumerate(self.behavioral_idx):
             behavioral_params[i] = [run_id, self.df_post_paras.loc[run_id]]
+            
+        self.df_post_eval.to_csv(os.path.join(self.out_path_per_senario, 'post_evaluations.csv'), sep=',', header=True,
+                                    index=True, encoding='utf-8', na_rep='nan')
+        self.df_post_eval_mo.to_csv(os.path.join(self.out_path_per_senario, 'post_evaluations_monthly_metrics.csv'), sep=',', header=True,
+                                    index=True, encoding='utf-8', na_rep='nan')
     
         if plot:
             
             nparas = len(df_pri_paras.columns)
             
             # Histogram
-            
             f = plt.figure(figsize=(4 * 4, 4 * 4))
             for i in range(nparas):
                 target_para = df_pri_paras.columns[i]
@@ -150,8 +158,7 @@ class MyGLUEPost(object):
                 df_pri_paras[target_para].plot.hist(bins=10, alpha=0.4, ax=ax1, color="#3182bd", label="Prior")
 
                 if hasattr(self, 'df_post_paras'):
-                    self.df_post_paras[target_para].plot.hist(bins=10, alpha=0.8, ax=ax1, color="#3182bd",
-                                                              label="Posterior")
+                    self.df_post_paras[target_para].plot.hist(bins=10, alpha=0.8, ax=ax1, color="#3182bd", label="Posterior")
 
                 ax1.set_xlabel(target_para)
                 ax1.legend()
@@ -159,7 +166,7 @@ class MyGLUEPost(object):
                 if i != 0:
                     ax1.yaxis.set_visible(False)
 
-            f.savefig(os.path.join(self.out_path, 'param_dist.png'), dpi=600)
+            f.savefig(os.path.join(self.out_path_per_senario,'param_dist.png'), dpi=600)
             del f
 
         # Dotty plot
@@ -169,20 +176,23 @@ class MyGLUEPost(object):
                 for j in range(len(self.df_post_eval.columns)):
                     f = plt.figure(figsize=(4 * 4, 4 * 4), constrained_layout=True)
                     f.tight_layout()
-                    target_eval = self.df_post_eval.columns[j]
-                    for i in range(nparas):
-                        target_para = df_pri_paras.columns[i]
-                        ax1 = f.add_subplot(4, 4, i + 1)
-                        ax1.scatter(self.df_post_paras[target_para], self.df_post_eval[target_eval], alpha=0.5)
-                        ax1.tick_params(axis='both', which='major', labelsize=16)
-                        ax1.set_xlabel(target_para, fontsize=16)
-                        ax1.set_ylabel(target_eval, fontsize=16)
+                    if '_Behavioral' in self.df_post_eval.columns[j]:
+                        None
+                    else:
+                        target_eval = self.df_post_eval.columns[j]
+                        for i in range(nparas):
+                            target_para = df_pri_paras.columns[i]
+                            ax1 = f.add_subplot(4, 4, i + 1)
+                            ax1.scatter(self.df_post_paras[target_para], self.df_post_eval[target_eval], alpha=0.5)
+                            ax1.tick_params(axis='both', which='major', labelsize=16)
+                            ax1.set_xlabel(target_para, fontsize=16)
+                            ax1.set_ylabel(target_eval, fontsize=16)
 
                     # if i !=0:
                     #     ax1.yaxis.set_visible(False)
 
                     # f.plot()
-                    f.savefig(os.path.join(self.out_path, "param_dotty_%s.png" % (target_eval)), dpi=600)
+                    f.savefig(os.path.join(self.out_path_per_senario,"param_dotty_%s.png" % (target_eval)), dpi=600)
                     
                 del f
 
@@ -226,10 +236,11 @@ class MyGLUEPost(object):
                             ax1.set_ylabel(para1)
                         ax1.tick_params(direction="in")
 
-                f.savefig(os.path.join(self.out_path, "param_dotty_interaction.png"), dpi=600)
+                f.savefig(os.path.join(self.out_path_per_senario, "param_dotty_interaction.png"), dpi=600)
                 del f
         
         return behavioral_params
+
 
     def reproduce_behavioral_run(self, behavioral_param):
 
@@ -291,85 +302,40 @@ class MyGLUEPost(object):
             obs = obs0[["Time", var_name]].copy()
             obs["Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M")  # Works specifically for Mahurangi data
             # obs["Time"] = pd.to_datetime(obs["Time"], format="%d-%m-%Y %H:%M:%S")
-            obs_P = obs0[["Time", "Rainfall"]].copy()
-            obs_P["Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M")
-
-            # Merge observed and simulated timeseries
-            df = pd.merge_asof(sim, obs, on="Time")
-            df2 = pd.merge_asof(df, obs_P, on="Time")
-
-            sim_synced[var_name] = df[var_name + "_x"].copy()
-            obs_synced[var_name] = df[var_name + "_y"].copy()
-            obs_synced["Rainfall"] = df2["Rainfall"].copy()
-
-        # ===============================================================
-        # Judge behavioral vs. non-behavioral
-        # ===============================================================
-
-        if all(behavioral_flag):
-            # If all criteria is TRUE, the model is behavioral
-            result_glue = 'Behavioral'
-            results = [sim_synced["Flow"], sim_synced["Soil Moisture Content"], nth_run, sampled_params_set,
-                eval_result_for_a_run, result_glue]
-        else:
-            # Discard non-behavioral runs
-            result_glue = 'Non-behavioral'
-
-        return [nth_run, eval_result_for_a_run]
-
-
-    def calc_uncertainty_bounds(self, all_results):
-
-        
-        # ==================================================
-        # One more last run to get synced observed timeseries
-        # ==================================================
-        myCFE = bmi_cfe.BMI_CFE(self.config_path_CFE)
-        myCFE.initialize()
-        sim0 = myCFE.run_unit_test(plot=False, warm_up=True)
-        obs0 = myCFE.load_unit_test_data()
-        obs_synced = pd.DataFrame()
-
-        # Get the results
-        for var_name in self.var_names:
-            # Get the simulated data
-            sim = sim0[["Time", var_name]].copy()
-            sim["Time"] = pd.to_datetime(sim["Time"], format="%Y-%m-%d %H:%M:%S")  # Works specifically for CFE
-
-            # Get the comparison data
-            obs = obs0[["Time", var_name]].copy()
-            obs["Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M")  # Works specifically for Mahurangi data
 
             # Merge observed and simulated timeseries
             df = pd.merge_asof(sim, obs, on="Time")
             self.df_timeaxis = df["Time"]
+
+            sim_synced[var_name] = df[var_name + "_x"].copy()
             obs_synced[var_name] = df[var_name + "_y"].copy()
-        self.obs_synced = obs_synced
+
+        self.df_behavioral_Q = sim_synced['Flow']
+        self.df_behavioral_SM = sim_synced['Soil Moisture Content']
+
+        return [nth_run, self.df_behavioral_Q, self.df_behavioral_SM]
 
 
-        ## Store timeseries of flow and soil moisture
-        # Flow & soil moisture
+    def calc_uncertainty_bounds(self, all_results, plot=True):
+        print('--- Post-processing the simulated results ---')
+        
+        # Store Behavioral runs for Flow and soil moisture in dataframe 
+        self.run_id_behavioral = []
+        for i in range(len(all_results)): 
+            self.run_id_behavioral.append(all_results[i][0])
+            
         for i in range(len(all_results)):
-            if self.glue_results[i]:
-                if not hasattr(self, 'df_behavioral_Q'):
-                    self.df_behavioral_Q = all_results[i][0]
-                    self.df_behavioral_SM = all_results[i][1]
-                else:
-                    self.df_behavioral_Q = pd.concat([self.df_behavioral_Q, all_results[i][0]], axis=1)
-                    self.df_behavioral_SM = pd.concat([self.df_behavioral_SM, all_results[i][1]], axis=1)
+            if not hasattr(self, 'df_behavioral_Q'):
+                self.df_behavioral_Q = all_results[i][1]
+                self.df_behavioral_SM = all_results[i][2]
+            else:
+                self.df_behavioral_Q = pd.concat([self.df_behavioral_Q, all_results[i][1]], axis=1)
+                self.df_behavioral_SM = pd.concat([self.df_behavioral_SM, all_results[i][2]], axis=1)
 
-        # Store Behavioral runs for Flow and soil moisture
-        self.run_id_behavioral = [self.run_id[i] for i in range(len(self.run_id)) if self.glue_results[i]]
         self.df_behavioral_Q.set_axis(self.run_id_behavioral, axis=1, inplace=True)
         self.df_behavioral_Q.set_axis(self.df_timeaxis, axis=0, inplace=True)
         self.df_behavioral_SM.set_axis(self.run_id_behavioral, axis=1, inplace=True)
         self.df_behavioral_SM.set_axis(self.df_timeaxis, axis=0, inplace=True)
-        # Store POSTERIOR parameters for behavioral runs
-        
-
-    def post_process(self):
-        # post-process the results
-        print('--- Post-processing the simulated results ---')
 
         # Calculate weights
         weight = np.empty((len(self.df_post_eval), len(self.eval_names)))
@@ -412,26 +378,48 @@ class MyGLUEPost(object):
                 self.df_Q_simrange = df_simrange.copy()
             elif var_name == "Soil Moisture Content":
                 self.df_SM_simrange = df_simrange.copy()
-    
-        self.df_obs_Q = pd.DataFrame(self.obs_synced["Flow"])
-        self.df_obs_Q.set_axis(self.df_timeaxis, axis=0, inplace=True)
-        self.df_obs_SM = pd.DataFrame(self.obs_synced["Soil Moisture Content"])
-        self.df_obs_SM.set_axis(self.df_timeaxis, axis=0, inplace=True)
         
-        if hasattr(self, 'df_behavioral_Q'):
-            self.df_behavioral_Q.to_csv(os.path.join(self.out_path, 'behavioral_Q.csv'), sep=',', header=True, index=True,
-                                        encoding='utf-8', na_rep='nan')
-        if hasattr(self, 'df_behavioral_SM'):
-            self.df_behavioral_SM.to_csv(os.path.join(self.out_path, 'behavioral_SM.csv'), sep=',', header=True, index=True,
-                                         encoding='utf-8', na_rep='nan')
         if hasattr(self, 'df_Q_simrange'):
-            self.df_Q_simrange.to_csv(os.path.join(self.out_path, 'quantiles_Q.csv'), sep=',', header=True, index=True,
+            self.df_Q_simrange.to_csv(os.path.join(self.out_path_per_senario,'quantiles_Q.csv'), sep=',', header=True, index=True,
                                       encoding='utf-8', na_rep='nan')
         if hasattr(self, 'df_SM_simrange'):
-            self.df_SM_simrange.to_csv(os.path.join(self.out_path, 'quantiles_SM.csv'), sep=',', header=True,
+            self.df_SM_simrange.to_csv(os.path.join(self.out_path_per_senario, 'quantiles_SM.csv'), sep=',', header=True,
                                        index=True, encoding='utf-8', na_rep='nan')
 
-        if plot_type == "timeseries":
+        if plot:
+            
+            # ==================================================
+            # One more last run to get synced observed timeseries
+            # ==================================================
+            myCFE = bmi_cfe.BMI_CFE(self.config_path_CFE)
+            myCFE.initialize()
+            sim0 = myCFE.run_unit_test(plot=False, warm_up=True)
+            obs0 = myCFE.load_unit_test_data()
+            obs_synced = pd.DataFrame()
+
+            # Get the results
+            for var_name in self.var_names:
+                # Get the simulated data
+                sim = sim0[["Time", var_name]].copy()
+                sim["Time"] = pd.to_datetime(sim["Time"], format="%Y-%m-%d %H:%M:%S")  # Works specifically for CFE
+
+                # Get the comparison data
+                obs = obs0[["Time", var_name]].copy()
+                obs["Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M")  # Works specifically for Mahurangi data
+
+                # Merge observed and simulated timeseries
+                df = pd.merge_asof(sim, obs, on="Time")
+                self.df_timeaxis = df["Time"]
+                obs_synced[var_name] = df[var_name + "_y"].copy()
+                
+                self.obs_synced = obs_synced
+                
+            self.df_obs_Q = pd.DataFrame(self.obs_synced["Flow"])
+            self.df_obs_Q.set_axis(self.df_timeaxis, axis=0, inplace=True)
+            self.df_obs_SM = pd.DataFrame(self.obs_synced["Soil Moisture Content"])
+            self.df_obs_SM.set_axis(self.df_timeaxis, axis=0, inplace=True)
+        
+            # Plot 
             for var_name in self.var_names:
                 if var_name == "Flow":
                     df_simrange = self.df_Q_simrange
@@ -465,6 +453,6 @@ class MyGLUEPost(object):
                 ax2.set_title(title)
                 ax2.legend()
                 f2.autofmt_xdate()
-                f2.savefig(os.path.join(self.out_path, fn), dpi=600)
+                f2.savefig(os.path.join(self.out_path_per_senario, fn), dpi=600)
 
 

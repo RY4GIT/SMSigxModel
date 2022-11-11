@@ -19,7 +19,7 @@ import pandas as pd
 sys.path.append("../libs/")
 from glue_post_analysis import MyGLUEPost
 
-def main(out_path='', config_path_CFE='', path_GLUE_output='', eval_criteria=dict()):
+def main(out_path='', config_path_CFE='', path_GLUE_output=''):
     # To reproduce behavioral runs and evaluate
     print("Post evaluation of GLUE analysis")
 
@@ -27,27 +27,33 @@ def main(out_path='', config_path_CFE='', path_GLUE_output='', eval_criteria=dic
     if not os.path.exists(out_path):
         os.mkdir(out_path)
 
+    eval_criteria_1 = {
+        0: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'KGE', 'threshold': 0},
+        1: {'variable_to_analyze': 'Flow', 'metric': 'KGE', 'threshold':  0},
+        2: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'season_transition', 'threshold': 60}
+    }
+    
+    senario_id = 1
+        
     # Create a GLUE instance
     glue_instance = MyGLUEPost(
         out_path=out_path,
         config_path_CFE=config_path_CFE,
         path_GLUE_output=path_GLUE_output,
-        eval_criteria=eval_criteria
+        eval_criteria=eval_criteria_1,
+        senario_id=senario_id
     )
     
     behavioral_params = glue_instance.evaluation(plot=False)
     
-
     # Start multiple runs in multiprocessing
-    # pool = mp.Pool(processes=pool_nprocess)
-    # all_results = pool.map(glue_instance.reproduce_behavioral_run, behavioral_params)
-    # # all_results = pool.map(glue_instance.simulation, behavioral_params[0:3])
-    # pool.close()
-    # pool.join()
+    pool = mp.Pool(processes=pool_nprocess)
+    all_results = pool.map(glue_instance.reproduce_behavioral_run, behavioral_params)
+    # all_results = pool.map(glue_instance.simulation, behavioral_params[0:3])
+    pool.close()
+    pool.join()
 
-        # glue_instance.post_process()
-    # Post-process the results
-    # glue_instance.calc_uncertainty_bounds(all_results)
+    glue_instance.calc_uncertainty_bounds(all_results, plot=True)
     
     # glue_instance.post_eval(eval_criteria_1)
     
@@ -57,16 +63,9 @@ def main(out_path='', config_path_CFE='', path_GLUE_output='', eval_criteria=dic
     print(f'Saved results to: {out_path}')
 
 if __name__ == '__main__':
-
-    eval_criteria_1 = {
-        0: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'KGE', 'threshold': 0.5},
-        1: {'variable_to_analyze': 'Flow', 'metric': 'KGE', 'threshold':  0.5},
-        2: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'season_transition', 'threshold': 30}
-    }
         
     main(
         out_path= r'../8_out/Mahurangi/ex111',
         config_path_CFE= r'../2_data_input/Mahurangi/parameters/config_cfe_template.json',
-        path_GLUE_output= r'../6_out/Mahurangi/ex111',
-        eval_criteria=eval_criteria_1
+        path_GLUE_output= r'../6_out/Mahurangi/ex111'
     )
