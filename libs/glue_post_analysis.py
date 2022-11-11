@@ -80,7 +80,7 @@ class MyGLUEPost(object):
         if not os.path.exists(self.out_path_per_senario):
             os.mkdir(self.out_path_per_senario)
         
-    def evaluation(self, plot=True):
+    def post_evaluation(self, plot=True):
         # Judge behavioral vs. non-behavioral
         
         # Parameter bounds defined from an excel file
@@ -144,6 +144,8 @@ class MyGLUEPost(object):
                                     index=True, encoding='utf-8', na_rep='nan')
         self.df_post_eval_mo.to_csv(os.path.join(self.out_path_per_senario, 'post_evaluations_monthly_metrics.csv'), sep=',', header=True,
                                     index=True, encoding='utf-8', na_rep='nan')
+        
+        print('------------- Saved post-evaluation results --------------')
     
         if plot:
             
@@ -168,6 +170,7 @@ class MyGLUEPost(object):
 
             f.savefig(os.path.join(self.out_path_per_senario,'param_dist.png'), dpi=600)
             del f
+            print('------------- Saved figures -------------------')
 
         # Dotty plot
         # Prior vs. posterior parameter distributions
@@ -195,6 +198,7 @@ class MyGLUEPost(object):
                     f.savefig(os.path.join(self.out_path_per_senario,"param_dotty_%s.png" % (target_eval)), dpi=600)
                     
                 del f
+                print('------------- Saved figures -------------------')
 
         # Dotty plot
         # Parameter interactions for the behavioral runs
@@ -238,6 +242,7 @@ class MyGLUEPost(object):
 
                 f.savefig(os.path.join(self.out_path_per_senario, "param_dotty_interaction.png"), dpi=600)
                 del f
+                print('------------- Saved figures -------------------')
         
         return behavioral_params
 
@@ -317,8 +322,39 @@ class MyGLUEPost(object):
 
 
     def calc_uncertainty_bounds(self, all_results, plot=True):
-        print('--- Post-processing the simulated results ---')
+        print('--- Post-processing the be results ---')
         
+        # ==================================================
+        # One more last run to get synced observed timeseries
+        # ==================================================
+        myCFE = bmi_cfe.BMI_CFE(self.config_path_CFE)
+        myCFE.initialize()
+        sim0 = myCFE.run_unit_test(plot=False, warm_up=True)
+        obs0 = myCFE.load_unit_test_data()
+        obs_synced = pd.DataFrame()
+
+        # Get the results
+        for var_name in self.var_names:
+            # Get the simulated data
+            sim = sim0[["Time", var_name]].copy()
+            sim["Time"] = pd.to_datetime(sim["Time"], format="%Y-%m-%d %H:%M:%S")  # Works specifically for CFE
+
+            # Get the comparison data
+            obs = obs0[["Time", var_name]].copy()
+            obs["Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M")  # Works specifically for Mahurangi data
+
+            # Merge observed and simulated timeseries
+            df = pd.merge_asof(sim, obs, on="Time")
+            self.df_timeaxis = df["Time"]
+            obs_synced[var_name] = df[var_name + "_y"].copy()
+            
+            self.obs_synced = obs_synced
+            
+        self.df_obs_Q = pd.DataFrame(self.obs_synced["Flow"])
+        self.df_obs_Q.set_axis(self.df_timeaxis, axis=0, inplace=True)
+        self.df_obs_SM = pd.DataFrame(self.obs_synced["Soil Moisture Content"])
+        self.df_obs_SM.set_axis(self.df_timeaxis, axis=0, inplace=True)
+            
         # Store Behavioral runs for Flow and soil moisture in dataframe 
         self.run_id_behavioral = []
         for i in range(len(all_results)): 
@@ -387,37 +423,6 @@ class MyGLUEPost(object):
                                        index=True, encoding='utf-8', na_rep='nan')
 
         if plot:
-            
-            # ==================================================
-            # One more last run to get synced observed timeseries
-            # ==================================================
-            myCFE = bmi_cfe.BMI_CFE(self.config_path_CFE)
-            myCFE.initialize()
-            sim0 = myCFE.run_unit_test(plot=False, warm_up=True)
-            obs0 = myCFE.load_unit_test_data()
-            obs_synced = pd.DataFrame()
-
-            # Get the results
-            for var_name in self.var_names:
-                # Get the simulated data
-                sim = sim0[["Time", var_name]].copy()
-                sim["Time"] = pd.to_datetime(sim["Time"], format="%Y-%m-%d %H:%M:%S")  # Works specifically for CFE
-
-                # Get the comparison data
-                obs = obs0[["Time", var_name]].copy()
-                obs["Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M")  # Works specifically for Mahurangi data
-
-                # Merge observed and simulated timeseries
-                df = pd.merge_asof(sim, obs, on="Time")
-                self.df_timeaxis = df["Time"]
-                obs_synced[var_name] = df[var_name + "_y"].copy()
-                
-                self.obs_synced = obs_synced
-                
-            self.df_obs_Q = pd.DataFrame(self.obs_synced["Flow"])
-            self.df_obs_Q.set_axis(self.df_timeaxis, axis=0, inplace=True)
-            self.df_obs_SM = pd.DataFrame(self.obs_synced["Soil Moisture Content"])
-            self.df_obs_SM.set_axis(self.df_timeaxis, axis=0, inplace=True)
         
             # Plot 
             for var_name in self.var_names:
