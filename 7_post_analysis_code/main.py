@@ -4,6 +4,7 @@
 import os
 import sys
 os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/5_GLUE_model")
+
 pool_nprocess = 3
 os.environ['NUMEXPR_MAX_THREADS'] = '3'
 if not sys.warnoptions:
@@ -16,7 +17,6 @@ import multiprocessing as mp
 import snakeviz
 import spotpy
 import pandas as pd
-sys.path.append("../libs/")
 from glue_post_analysis import MyGLUEPost
 
 def main(out_path='', config_path_CFE='', path_GLUE_output=''):
