@@ -23,7 +23,7 @@ def weighted_quantile(values, quantiles, sample_weight=None,
                       values_sorted=False, old_style=False):
     # Code from https://stackoverflow.com/questions/21844024/weighted-percentile-using-numpy/32216049
     """ Very close to numpy.percentile, but supports weights.
-    NOTE: quantiles should be in [0, 1]!
+    NOTE: quantiles should be within [0, 1]!
     :param values: numpy.array with data
     :param quantiles: array-like with many quantiles needed
     :param sample_weight: array-like of the same length as `array`
@@ -63,120 +63,175 @@ def triangle_weight(x, a, b, c):
     y = np.where((a <= x) & (x <= b), (x - a) / (b - a), y)
     y = np.where((b <= x) & (x <= c), (c - x) / (c - b), y)
     return y
-# Global function
-        # ## Store timeseries of flow and soil moisture
-        # # Flow & soil moisture
-        # for i in range(len(all_results)):
-        #     if self.glue_results[i]:
-        #         if not hasattr(self, 'df_behavioral_Q'):
-        #             self.df_behavioral_Q = all_results[i][0]
-        #             self.df_behavioral_SM = all_results[i][1]
-        #         else:
-        #             self.df_behavioral_Q = pd.concat([self.df_behavioral_Q, all_results[i][0]], axis=1)
-        #             self.df_behavioral_SM = pd.concat([self.df_behavioral_SM, all_results[i][1]], axis=1)
 
-        # # Store Behavioral runs for Flow and soil moisture
-        # self.run_id_behavioral = [self.run_id[i] for i in range(len(self.run_id)) if self.glue_results[i]]
-        # self.df_behavioral_Q.set_axis(self.run_id_behavioral, axis=1, inplace=True)
-        # self.df_behavioral_Q.set_axis(self.df_timeaxis, axis=0, inplace=True)
-        # self.df_behavioral_SM.set_axis(self.run_id_behavioral, axis=1, inplace=True)
-        # self.df_behavioral_SM.set_axis(self.df_timeaxis, axis=0, inplace=True)
-                # Store POSTERIOR paramters for behavioral runs
-        # self.df_post_paras = self.df_pri_paras.iloc[behavioral_run_id_index].copy()
-        #         self.df_post_eval = self.df_eval.iloc[behavioral_run_id_index].copy()
-        
-
-    # def post_process(self):
-    #     # post-process the results
-    #     print('--- Post-processing the simulated results ---')
-
-    #     # Calculate weights
-    #     weight = np.empty((len(self.df_post_eval), len(self.eval_names)))
-    #     j = int(0)
-    #     # Loop for all evaluation metrics
-    #     for i in range(len(self.eval_criteria)):
-    #         if self.eval_criteria[i]['metric'] == "NSE" or self.eval_criteria[i]['metric'] == "KGE":
-    #             # For Nash-Sutcliffe and Kling-Gupta Efficiency scores
-    #             weight[:, j] = ((self.df_post_eval[self.eval_names[j]] - self.eval_criteria[i]['threshold']) / sum(
-    #                 self.df_post_eval[self.eval_names[j]] - self.eval_criteria[i]['threshold'])).to_numpy()
-    #             j += int(1)
-    #         elif self.eval_criteria[i]['metric'] == "season_transition":
-    #             for k in range(4):
-    #                 # For seasonal transition dates
-    #                 weight[:, j + k] = triangle_weight(self.df_post_eval[self.eval_names[j + k]],
-    #                                                    a=-1 * self.eval_criteria[i]['threshold'], b=0,
-    #                                                    c=self.eval_criteria[i]['threshold'])
-    #             j += int(4)
-    #     avg_weight = np.mean(weight, axis=1)
-
-    #     # Calculate weighted quantile
-    #     for var_name in self.var_names:
-    #         if var_name == "Flow":
-    #             df_behavioral = self.df_behavioral_Q.copy()
-    #             t_len = len(self.df_behavioral_Q)
-    #         elif var_name == "Soil Moisture Content":
-    #             df_behavioral = self.df_behavioral_SM.copy()
-    #             t_len = len(self.df_behavioral_SM)
-    #         np_behavioral = df_behavioral.to_numpy(copy=True)
-
-    #         # Get weighted quantile
-    #         quantile = np.empty((t_len, len(quantiles)))
-    #         quantile[:] = np.nan
-    #         for t in range(t_len):
-    #             values = np_behavioral[t, :]  # df_behavioral.iloc[[t]].values.flatten()
-    #             quantile[t, :] = weighted_quantile(values=values, quantiles=quantiles, sample_weight=avg_weight,
-    #                                                values_sorted=False, old_style=False)
-    #         df_simrange = pd.DataFrame(quantile, index=df_behavioral.index, columns=['lowerlim', 'median', 'upperlim'])
-    #         if var_name == "Flow":
-    #             self.df_Q_simrange = df_simrange.copy()
-    #         elif var_name == "Soil Moisture Content":
-    #             self.df_SM_simrange = df_simrange.copy()
 
 # GLUE object
 class MyGLUEPost(object):
-    def __init__(self, out_path='./', config_path_CFE=''):
+    def __init__(self, out_path='./', config_path_CFE='', path_GLUE_output='', eval_criteria=dict()):
         print("Post evaluation of GLUE analysis")
-
-        eval_criteria = {
-        0: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'KGE', 'threshold': -1000},
-        1: {'variable_to_analyze': 'Flow', 'metric': 'KGE', 'threshold':  -1000},
-        2: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'season_transition', 'threshold': -1000}
-        }
-
-        ## Variabiltiy index
-        #  https://sebastiangnann.github.io/TOSSH_development/matlab/TOSSH_code/TOSSH_development/TOSSH_code/signature_functions/sig_VariabilityIndex.html
-
-        eval_criteria_monthly = {
-            0: {'variable_to_analyze': 'Flow', 'metric': 'Q_mean'},
-            1: {'variable_to_analyze': 'Flow', 'metric': 'high_flow_freq'},
-            2: {'variable_to_analyze': 'Flow', 'metric': 'RR'}
-        }
 
         self.out_path = out_path  # Output folder path
         self.var_names = ["Flow", "Soil Moisture Content"]  # Variables to be analyzed
         self.config_path_CFE = config_path_CFE
-
-        # Evaluation criteria (multi-criteria allowed)
+        self.path_GLUE_output = path_GLUE_output
         self.eval_criteria = eval_criteria
-        # print(f"A number of criterion: {len(eval_criteria)}")
+        
+    def evaluation(self, plot=True):
+        # Judge behavioral vs. non-behavioral
+        
+        # Parameter bounds defined from an excel file
+        try:
+            df_pri_paras = pd.read_csv(os.path.join(self.path_GLUE_output, 'parameter_priori.csv'), index_col=0)
+        except:
+            df_pri_paras = pd.read_csv(os.path.join(self.path_GLUE_output, 'parameter_priori.xls'), index_col=0)
+        
+        try:
+            df_eval_metrics = pd.read_csv(os.path.join(self.path_GLUE_output, 'evaluations.csv'), index_col=0)
+        except:
+            df_eval_metrics = pd.read_csv(os.path.join(self.path_GLUE_output, 'evaluations.xls'), index_col=0)
+        
+        try:
+            df_eval_metrics_monthly = pd.read_csv(os.path.join(self.path_GLUE_output, 'post_evaluations_monthly_metrics.csv'), index_col=0)
+        except:
+            df_eval_metrics_monthly = pd.read_csv(os.path.join(self.path_GLUE_output, 'post_evaluations_monthly_metrics.xls'), index_col=0)
+        
+        
         self.eval_names = []
-        for i in range(len(eval_criteria)):
-            if eval_criteria[i]["metric"] == 'season_transition':
+        self.eval_thresh = []
+        for i in range(len(self.eval_criteria)):
+            if self.eval_criteria[i]["metric"] == 'season_transition':
                 self.eval_names.append(
-                    f'{eval_criteria[i]["metric"]} on {eval_criteria[i]["variable_to_analyze"]} (d2w_start)')
+                    f'{self.eval_criteria[i]["metric"]}_dry2wet_s')
                 self.eval_names.append(
-                    f'{eval_criteria[i]["metric"]} on {eval_criteria[i]["variable_to_analyze"]} (d2w_end)')
+                    f'{self.eval_criteria[i]["metric"]}_dry2wet_e')
                 self.eval_names.append(
-                    f'{eval_criteria[i]["metric"]} on {eval_criteria[i]["variable_to_analyze"]} (w2d_start)')
+                    f'{self.eval_criteria[i]["metric"]}_wet2dry_s')
                 self.eval_names.append(
-                    f'{eval_criteria[i]["metric"]} on {eval_criteria[i]["variable_to_analyze"]} (w2d_end)')
+                    f'{self.eval_criteria[i]["metric"]}_wet2dry_e')
+                self.eval_thresh.append(self.eval_criteria[i]["threshold"])
+                self.eval_thresh.append(self.eval_criteria[i]["threshold"])
+                self.eval_thresh.append(self.eval_criteria[i]["threshold"])
+                self.eval_thresh.append(self.eval_criteria[i]["threshold"])
             else:
-                self.eval_names.append(f'{eval_criteria[i]["metric"]} on {eval_criteria[i]["variable_to_analyze"]}')
-            # print(f'[{i + 1}] {eval_criteria[i]["metric"]}-based analysis on {eval_criteria[i]["variable_to_analyze"]}')
+                self.eval_names.append(f'{self.eval_criteria[i]["metric"]} on {self.eval_criteria[i]["variable_to_analyze"]}')
+                self.eval_thresh.append(self.eval_criteria[i]["threshold"])
 
-        self.eval_criteria_monthly = eval_criteria_monthly
+        for i in range(len(self.eval_names)):
+            if ('KGE' in self.eval_names[i]) or ('NSE' in self.eval_names[i]):
+                df_eval_metrics[self.eval_names[i]+'_Behavioral'] = (df_eval_metrics[self.eval_names[i]] > self.eval_thresh[i])
+            elif 'season_transition' in self.eval_names[i]:
+                df_eval_metrics[self.eval_names[i]+'_Behavioral'] = (df_eval_metrics[self.eval_names[i]] < self.eval_thresh[i])
+        
+        glue_judge_column = df_eval_metrics.filter(like='_Behavioral').columns
+        df_eval_metrics['GLUE_results_Behavioral'] = df_eval_metrics[glue_judge_column].all(axis='columns')
+        
+        # Generate random parameters
+        self.behavioral_idx = df_eval_metrics[df_eval_metrics['GLUE_results_Behavioral']].index
+        
+        # Get only behavioral runs 
+        self.df_post_paras = df_pri_paras.iloc[self.behavioral_idx].copy()
+        self.df_post_eval = df_eval_metrics.iloc[self.behavioral_idx].copy()
+        self.df_post_eval_mo = df_eval_metrics_monthly.iloc[self.behavioral_idx].copy()
+        behavioral_params = len(self.behavioral_idx) * [None]
+        for i, run_id in enumerate(self.behavioral_idx):
+            behavioral_params[i] = [run_id, self.df_post_paras.loc[run_id]]
+    
+        if plot:
+            
+            nparas = len(df_pri_paras.columns)
+            
+            # Histogram
+            
+            f = plt.figure(figsize=(4 * 4, 4 * 4))
+            for i in range(nparas):
+                target_para = df_pri_paras.columns[i]
+                ax1 = f.add_subplot(4, 4, i + 1)
 
-    def simulation(self, behavioral_param):
+                df_pri_paras[target_para].plot.hist(bins=10, alpha=0.4, ax=ax1, color="#3182bd", label="Prior")
+
+                if hasattr(self, 'df_post_paras'):
+                    self.df_post_paras[target_para].plot.hist(bins=10, alpha=0.8, ax=ax1, color="#3182bd",
+                                                              label="Posterior")
+
+                ax1.set_xlabel(target_para)
+                ax1.legend()
+
+                if i != 0:
+                    ax1.yaxis.set_visible(False)
+
+            f.savefig(os.path.join(self.out_path, 'param_dist.png'), dpi=600)
+            del f
+
+        # Dotty plot
+        # Prior vs. posterior parameter distributions
+            if hasattr(self, 'df_post_paras'):
+
+                for j in range(len(self.df_post_eval.columns)):
+                    f = plt.figure(figsize=(4 * 4, 4 * 4), constrained_layout=True)
+                    f.tight_layout()
+                    target_eval = self.df_post_eval.columns[j]
+                    for i in range(nparas):
+                        target_para = df_pri_paras.columns[i]
+                        ax1 = f.add_subplot(4, 4, i + 1)
+                        ax1.scatter(self.df_post_paras[target_para], self.df_post_eval[target_eval], alpha=0.5)
+                        ax1.tick_params(axis='both', which='major', labelsize=16)
+                        ax1.set_xlabel(target_para, fontsize=16)
+                        ax1.set_ylabel(target_eval, fontsize=16)
+
+                    # if i !=0:
+                    #     ax1.yaxis.set_visible(False)
+
+                    # f.plot()
+                    f.savefig(os.path.join(self.out_path, "param_dotty_%s.png" % (target_eval)), dpi=600)
+                    
+                del f
+
+        # Dotty plot
+        # Parameter interactions for the behavioral runs
+            param_interest = ['bb',
+                              'satdk',
+                              'slop',
+                              'satpsi',
+                              'smcmax',
+                              'wltsmc',
+                              'alpha_fc',
+                              'lksatfac',
+                              'D',
+                              'trigger_z_fact',
+                              'max_gw_storage',
+                              'Cgw',
+                              'expon',
+                              'refkdt',
+                              'K_nash'
+                              ]
+
+            if hasattr(self, 'df_post_paras'):
+                f = plt.figure(figsize=(20, 20), constrained_layout=True)
+                f.tight_layout()
+                n_plot = 0
+                for i in range(len(param_interest)):
+                    for j in range(len(param_interest)):
+                        n_plot += 1
+                        para0 = param_interest[j]
+                        para1 = param_interest[i]
+                        ax1 = f.add_subplot(len(param_interest), len(param_interest), n_plot)
+                        x = self.df_post_paras[para0]
+                        y = self.df_post_paras[para1]
+                        ax1.scatter(x, y, alpha=0.5)
+
+                        if i == 0:
+                            ax1.xaxis.set_label_position('top')
+                            ax1.set_xlabel(para0)
+                        if j == 0:
+                            ax1.set_ylabel(para1)
+                        ax1.tick_params(direction="in")
+
+                f.savefig(os.path.join(self.out_path, "param_dotty_interaction.png"), dpi=600)
+                del f
+        
+        return behavioral_params
+
+    def reproduce_behavioral_run(self, behavioral_param):
 
         # ===============================================================
         # The main model run
@@ -247,72 +302,6 @@ class MyGLUEPost(object):
             obs_synced[var_name] = df[var_name + "_y"].copy()
             obs_synced["Rainfall"] = df2["Rainfall"].copy()
 
-
-        # ===============================================================
-        # Evalute the outputs (whole-period metrics)
-        # ===============================================================
-
-        # Preparation
-        eval_result_for_a_run = []
-        behavioral_flag = [False] * len(self.eval_criteria)
-
-        # Loop for all evaluation metrics (multi-criteria).
-        # Calculate the metrics and judge behavioral vs. non-behavioral
-        for i in range(len(self.eval_criteria)):
-
-            # Nash-Sutcliffe scores
-            if self.eval_criteria[i]['metric'] == "NSE":
-                metric_value = spotpy.objectivefunctions.nashsutcliffe(
-                    obs_synced[self.eval_criteria[i]['variable_to_analyze']],
-                    sim_synced[self.eval_criteria[i]['variable_to_analyze']]
-                )
-                if metric_value > self.eval_criteria[i]['threshold']:
-                    behavioral_flag[i] = True
-
-            # Kling-Gupta Efficiency scores
-            # 　Kling-Gupta efficiencies range from -Inf to 1. Essentially, the closer to 1, the more accurate the model is
-            elif self.eval_criteria[i]['metric'] == "KGE":
-                metric_value = spotpy.objectivefunctions.kge(
-                    obs_synced[self.eval_criteria[i]['variable_to_analyze']],
-                    sim_synced[self.eval_criteria[i]['variable_to_analyze']]
-                )
-                if metric_value > self.eval_criteria[i]['threshold']:
-                    behavioral_flag[i] = True
-
-            # Seasonal transition dates
-            elif self.eval_criteria[i]['metric'] == "season_transition":
-                # Calculate metrics for OBSERVED timeseries as a baseline performance. Run only once
-                # if n == 0:
-                sig_obs = SMSig(
-                    ts_time=df["Time"].to_numpy(),
-                    ts_value=obs_synced[self.eval_criteria[i]['variable_to_analyze']].to_numpy(),
-                    plot_results=False,
-                    plot_label="obs"
-                )
-                # sig_obs.detrend() # TODO:debug
-                sig_obs.movmean()
-                t_valley = sig_obs.calc_sinecurve()
-                season_trans_obs, _, _ = sig_obs.calc_seasontrans(t_valley=t_valley)
-
-                # Calculate metrics for SIMULATED timeseries
-                sig_sim = SMSig(
-                    ts_time=df["Time"].to_numpy(),
-                    ts_value=sim_synced[self.eval_criteria[i]['variable_to_analyze']].to_numpy(),
-                    plot_results=False,
-                    plot_label="sim"
-                )
-                sig_sim.movmean()
-                season_trans_sim, _, _ = sig_sim.calc_seasontrans(t_valley=t_valley)
-
-                # Get the deviations in seasonal transition dates between simulated and observed timeseries
-                diff = season_trans_sim - season_trans_obs
-                metric_value = abs(np.nanmean(diff, axis=0))
-                if all(metric_value < self.eval_criteria[i]['threshold']):
-                    behavioral_flag[i] = True
-
-            # Store evaluation metrics for all criteria for one run
-            eval_result_for_a_run.append(metric_value)
-            
         # ===============================================================
         # Judge behavioral vs. non-behavioral
         # ===============================================================
@@ -328,7 +317,8 @@ class MyGLUEPost(object):
 
         return [nth_run, eval_result_for_a_run]
 
-    def save_results_to_df(self, all_results):
+
+    def calc_uncertainty_bounds(self, all_results):
 
         
         # ==================================================
@@ -356,12 +346,79 @@ class MyGLUEPost(object):
             obs_synced[var_name] = df[var_name + "_y"].copy()
         self.obs_synced = obs_synced
 
+
+        ## Store timeseries of flow and soil moisture
+        # Flow & soil moisture
+        for i in range(len(all_results)):
+            if self.glue_results[i]:
+                if not hasattr(self, 'df_behavioral_Q'):
+                    self.df_behavioral_Q = all_results[i][0]
+                    self.df_behavioral_SM = all_results[i][1]
+                else:
+                    self.df_behavioral_Q = pd.concat([self.df_behavioral_Q, all_results[i][0]], axis=1)
+                    self.df_behavioral_SM = pd.concat([self.df_behavioral_SM, all_results[i][1]], axis=1)
+
+        # Store Behavioral runs for Flow and soil moisture
+        self.run_id_behavioral = [self.run_id[i] for i in range(len(self.run_id)) if self.glue_results[i]]
+        self.df_behavioral_Q.set_axis(self.run_id_behavioral, axis=1, inplace=True)
+        self.df_behavioral_Q.set_axis(self.df_timeaxis, axis=0, inplace=True)
+        self.df_behavioral_SM.set_axis(self.run_id_behavioral, axis=1, inplace=True)
+        self.df_behavioral_SM.set_axis(self.df_timeaxis, axis=0, inplace=True)
+        # Store POSTERIOR parameters for behavioral runs
+        
+
+    def post_process(self):
+        # post-process the results
+        print('--- Post-processing the simulated results ---')
+
+        # Calculate weights
+        weight = np.empty((len(self.df_post_eval), len(self.eval_names)))
+        j = int(0)
+        # Loop for all evaluation metrics
+        for i in range(len(self.eval_criteria)):
+            if self.eval_criteria[i]['metric'] == "NSE" or self.eval_criteria[i]['metric'] == "KGE":
+                # For Nash-Sutcliffe and Kling-Gupta Efficiency scores
+                weight[:, j] = ((self.df_post_eval[self.eval_names[j]] - self.eval_criteria[i]['threshold']) / sum(
+                    self.df_post_eval[self.eval_names[j]] - self.eval_criteria[i]['threshold'])).to_numpy()
+                j += int(1)
+            elif self.eval_criteria[i]['metric'] == "season_transition":
+                for k in range(4):
+                    # For seasonal transition dates
+                    weight[:, j + k] = triangle_weight(self.df_post_eval[self.eval_names[j + k]],
+                                                       a=-1 * self.eval_criteria[i]['threshold'], b=0,
+                                                       c=self.eval_criteria[i]['threshold'])
+                j += int(4)
+        avg_weight = np.mean(weight, axis=1)
+
+        # Calculate weighted quantile
+        for var_name in self.var_names:
+            if var_name == "Flow":
+                df_behavioral = self.df_behavioral_Q.copy()
+                t_len = len(self.df_behavioral_Q)
+            elif var_name == "Soil Moisture Content":
+                df_behavioral = self.df_behavioral_SM.copy()
+                t_len = len(self.df_behavioral_SM)
+            np_behavioral = df_behavioral.to_numpy(copy=True)
+
+            # Get weighted quantile
+            quantile = np.empty((t_len, len(quantiles)))
+            quantile[:] = np.nan
+            for t in range(t_len):
+                values = np_behavioral[t, :]  # df_behavioral.iloc[[t]].values.flatten()
+                quantile[t, :] = weighted_quantile(values=values, quantiles=quantiles, sample_weight=avg_weight,
+                                                   values_sorted=False, old_style=False)
+            df_simrange = pd.DataFrame(quantile, index=df_behavioral.index, columns=['lowerlim', 'median', 'upperlim'])
+            if var_name == "Flow":
+                self.df_Q_simrange = df_simrange.copy()
+            elif var_name == "Soil Moisture Content":
+                self.df_SM_simrange = df_simrange.copy()
+    
         self.df_obs_Q = pd.DataFrame(self.obs_synced["Flow"])
         self.df_obs_Q.set_axis(self.df_timeaxis, axis=0, inplace=True)
         self.df_obs_SM = pd.DataFrame(self.obs_synced["Soil Moisture Content"])
         self.df_obs_SM.set_axis(self.df_timeaxis, axis=0, inplace=True)
         
-                if hasattr(self, 'df_behavioral_Q'):
+        if hasattr(self, 'df_behavioral_Q'):
             self.df_behavioral_Q.to_csv(os.path.join(self.out_path, 'behavioral_Q.csv'), sep=',', header=True, index=True,
                                         encoding='utf-8', na_rep='nan')
         if hasattr(self, 'df_behavioral_SM'):
@@ -373,154 +430,7 @@ class MyGLUEPost(object):
         if hasattr(self, 'df_SM_simrange'):
             self.df_SM_simrange.to_csv(os.path.join(self.out_path, 'quantiles_SM.csv'), sep=',', header=True,
                                        index=True, encoding='utf-8', na_rep='nan')
-        
-        # ===============================================================
-        # Save results from all runs
-        # ===============================================================
 
-        ## Store GLUE results (behavioral vs. non-behavioral)
-        self.glue_results = [np.nan] * len(all_results)
-        self.run_id = [np.nan] * len(all_results)
-        for i in range(len(all_results)):
-            self.run_id[i] = all_results[i][0]
-
-        ## Store Evaluation metrics for all runs
-        self.eval = [np.nan] * len(all_results)
-        for i in range(len(all_results)):
-            self.eval[i] = all_results[i][1]
-
-        eval_values = np.empty((len(all_results), len(self.eval_names)))
-        eval_values[:] = np.nan
-        for j in range(len(self.eval)):
-            season_idx = -9999
-            for i in range(len(self.eval_names)):
-                if 'season_transition' in self.eval_names[i]:
-                    if season_idx == -9999:
-                        season_idx = i
-                        season_num = 0
-                    eval_values[j][i] = self.eval[j][season_idx][season_num]
-                    season_num += 1
-                else:
-                    eval_values[j][i] = self.eval[j][i]
-        self.df_eval = pd.DataFrame(eval_values, index=self.run_id, columns=self.eval_names)
-
-        for i in range(len(all_results)):
-            if i==0:
-                self.df_eval_mo = all_results[i][2]
-            else:
-                self.df_eval_mo = pd.concat([self.df_eval_mo, all_results[i][2]])
-
-
-    def to_csv(self, df_param_to_calibrate=None):
-        print('--- Saving data into csv file ---')
-
-        self.df_eval.to_csv(os.path.join(self.out_path, 'post_evaluations.csv'), sep=',', header=True, index=True,
-                                 encoding='utf-8', na_rep='nan')
-        self.df_eval_mo.to_csv(os.path.join(self.out_path, 'post_evaluations_monthly_metrics.csv'), sep=',', header=True, index=True,
-                                 encoding='utf-8', na_rep='nan')
-
-
-    def plot(self, plot_type=None):
-        # Plot the results
-        print('--- Saving the plots ---')
-
-        # Histogram
-        # Prior vs. posterior parameter distributions
-        if plot_type == "param_hist":
-            nparas = len(self.df_pri_paras.columns)
-            f = plt.figure(figsize=(4 * 4, 4 * 4))
-
-            for i in range(nparas):
-                target_para = self.df_pri_paras.columns[i]
-                ax1 = f.add_subplot(4, 4, i + 1)
-
-                self.df_pri_paras[target_para].plot.hist(bins=10, alpha=0.4, ax=ax1, color="#3182bd", label="Prior")
-
-                if hasattr(self, 'df_post_paras'):
-                    self.df_post_paras[target_para].plot.hist(bins=10, alpha=0.8, ax=ax1, color="#3182bd",
-                                                              label="Posterior")
-
-                ax1.set_xlabel(target_para)
-                ax1.legend()
-
-                if i != 0:
-                    ax1.yaxis.set_visible(False)
-
-            # f.plot()
-
-            f.savefig(os.path.join(self.out_path, 'param_dist.png'), dpi=600)
-
-        # Dotty plot
-        # Prior vs. posterior parameter distributions
-        if plot_type == "dotty":
-            if hasattr(self, 'df_post_paras'):
-
-                nparas = len(self.df_pri_paras.columns)
-
-                for j in range(len(self.df_post_eval.columns)):
-                    f = plt.figure(figsize=(4 * 4, 4 * 4), constrained_layout=True)
-                    f.tight_layout()
-                    target_eval = self.df_post_eval.columns[j]
-                    for i in range(nparas):
-                        target_para = self.df_pri_paras.columns[i]
-                        ax1 = f.add_subplot(4, 4, i + 1)
-                        ax1.scatter(self.df_post_paras[target_para], self.df_post_eval[target_eval], alpha=0.5)
-                        ax1.tick_params(axis='both', which='major', labelsize=16)
-                        ax1.set_xlabel(target_para, fontsize=16)
-                        ax1.set_ylabel(target_eval, fontsize=16)
-
-                    # if i !=0:
-                    #     ax1.yaxis.set_visible(False)
-
-                    # f.plot()
-                    f.savefig(os.path.join(self.out_path, "param_dotty_%s.png" % (target_eval)), dpi=600)
-
-        # Dotty plot
-        # Parameter interactions for the behavioral runs
-        if plot_type == "dotty_interaction":
-
-            param_interset = ['bb',
-                              'satdk',
-                              'slop',
-                              'satpsi',
-                              'smcmax',
-                              'wltsmc',
-                              'alpha_fc',
-                              'lksatfac',
-                              'D',
-                              'trigger_z_fact',
-                              'max_gw_storage',
-                              'Cgw',
-                              'expon',
-                              'refkdt',
-                              'K_nash'
-                              ]
-
-            if hasattr(self, 'df_post_paras'):
-                f = plt.figure(figsize=(20, 20), constrained_layout=True)
-                f.tight_layout()
-                n_plot = 0
-                for i in range(len(param_interset)):
-                    for j in range(len(param_interset)):
-                        n_plot += 1
-                        para0 = param_interset[j]
-                        para1 = param_interset[i]
-                        ax1 = f.add_subplot(len(param_interset), len(param_interset), n_plot)
-                        x = self.df_post_paras[para0]
-                        y = self.df_post_paras[para1]
-                        ax1.scatter(x, y, alpha=0.5)
-
-                        if i == 0:
-                            ax1.xaxis.set_label_position('top')
-                            ax1.set_xlabel(para0)
-                        if j == 0:
-                            ax1.set_ylabel(para1)
-                        ax1.tick_params(direction="in")
-
-                f.savefig(os.path.join(self.out_path, "param_dotty_interaction.png"), dpi=600)
-
-        # Time series of data
-        # Flow and Soil Moisture Content
         if plot_type == "timeseries":
             for var_name in self.var_names:
                 if var_name == "Flow":

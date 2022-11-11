@@ -4,7 +4,7 @@
 import os
 import sys
 os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/5_GLUE_model")
-
+pool_nprocess = 3
 os.environ['NUMEXPR_MAX_THREADS'] = '3'
 if not sys.warnoptions:
     import warnings
@@ -23,7 +23,7 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', nrun=1, eval_crit
     # To implement sensitivity analysis with GLUE.
     print('Start GLUE analysis')
 
-    # Create output directry if not exist
+    # Create output directly if not exist
     if not os.path.exists(out_path):
         os.mkdir(out_path)
 
@@ -52,7 +52,7 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', nrun=1, eval_crit
 
     # glue_instance.simulation(sampled_params=sampled_params[0])
     # Start multiple runs in multiprocessing
-    pool = mp.Pool(processes=3)
+    pool = mp.Pool(processes=pool_nprocess)
     all_results = pool.map(glue_instance.simulation, sampled_params)
     pool.close()
     pool.join()

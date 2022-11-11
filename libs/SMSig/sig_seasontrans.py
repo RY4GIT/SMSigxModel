@@ -20,7 +20,7 @@ def datetime_to_timestamp(ts_datetime):
     ts_timestamp_d = ts_timestamp_ns.astype('timedelta64[D]')
     return ts_timestamp_d
 
-    # Define a vairable
+    # Define a variable
     self.ts_time_d = ts_timestamp_d.astype('int')  # Timestamp array in seconds
 
 
@@ -72,7 +72,7 @@ class SMSig():
         halfwindow = int(np.rint(windowsize/2))
         y = np.convolve(self.ts_value, np.ones(windowsize)/(windowsize), mode='same')
 
-        # repeat the first and last observaions to prevent data loss
+        # repeat the first and last observations to prevent data loss
         y[0:halfwindow] = y[halfwindow]
         y[len(y)-halfwindow:-1] = y[len(y)-halfwindow]
         y[-1] = y[len(y)-halfwindow]
