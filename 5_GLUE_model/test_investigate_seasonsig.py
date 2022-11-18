@@ -30,7 +30,7 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', eval_criteria=dic
     in_path = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\6_out\Mahurangi\ex1\paramter_priori.csv"
     config_temp = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\2_data_input\Mahurangi\parameters\config_cfe_0.json"
     out_path = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\6_out\seasonsig_test"
-    i_run = 9
+    i_run = 4
 
     # Read parameters from excel sheet and create a config file
     config_all_runs = pd.read_csv(in_path)
@@ -110,8 +110,9 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', eval_criteria=dic
     title = 'Soil moisture and seasonal transition signatures'
     fn = 'timeseries.png'
 
-    f2 = plt.figure(figsize=(15, 5))
-    ax2 = f2.add_subplot()
+    # Relative values of SM 
+    f2 = plt.figure(figsize=(20, 10))
+    ax2 = f2.add_subplot(2,1,1)
     ax2.plot(sig_obs.tt.index, sig_obs.tt.values, alpha=1, label=obs_label, color=obs_color)
     ax2.plot(sig_sim.tt.index, sig_sim.tt.values, alpha=1, label=sim_label, color=sim_color)
     # ax2.plot(df["Time"].values, df_obs[var_name].values, alpha=1, label=obs_label, color=obs_color)
@@ -128,6 +129,23 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', eval_criteria=dic
     ax2.set_ylabel(y_label)
     ax2.set_title(title)
     ax2.legend()
+    
+    ax3 = f2.add_subplot(2,1,2)
+    ax3.plot(sig_obs.tt.index, (sig_obs.tt.values-min(sig_obs.tt.values))/(max(sig_obs.tt.values)-min(sig_obs.tt.values)), alpha=1, label=obs_label, color=obs_color)
+    ax3.plot(sig_sim.tt.index, (sig_sim.tt.values-min(sig_sim.tt.values))/(max(sig_sim.tt.values)-min(sig_sim.tt.values)), alpha=1, label=sim_label, color=sim_color)
+    for i in range(len(start_dates_obs)):
+        ax3.axvline(x=start_dates_obs[i], color=obs_color, label=None, alpha=0.5, linestyle='-')
+    for i in range(len(end_dates_obs)):
+        ax3.axvline(x=end_dates_obs[i], color=obs_color, label=None, alpha=0.5, linestyle='--')
+    for i in range(len(start_dates_sim)):
+        ax3.axvline(x=start_dates_sim[i], color=sim_color, label=None, alpha=0.5, linestyle='-')
+    for i in range(len(end_dates_sim)):
+        ax3.axvline(x=end_dates_sim[i], color=sim_color, label=None, alpha=0.5, linestyle='--')
+    ax3.set_xlabel('Time')
+    ax3.set_ylabel('Normalized soil moisture content')
+    # ax3.set_title(title)
+    ax3.legend()
+    
     f2.savefig(os.path.join(out_path, fn), dpi=600)
 
 
