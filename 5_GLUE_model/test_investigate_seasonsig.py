@@ -27,11 +27,11 @@ os.getcwd()
 
 def main(out_path='', config_path_CFE='', config_path_GLUE='', eval_criteria=dict()):
 
-    in_path = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\6_out\Mahurangi\ex1\paramter_priori.csv"
+    in_path = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\6_out\Mahurangi\ws2_ex0.4\parameter_priori.xls"
     config_temp = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\2_data_input\Mahurangi\parameters\config_cfe_0.json"
     out_path = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\6_out\seasonsig_test"
-    i_run = 4
-
+    i_run = 6
+    
     # Read parameters from excel sheet and create a config file
     config_all_runs = pd.read_csv(in_path)
     config_target_runs = config_all_runs.iloc[i_run]
@@ -76,7 +76,7 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', eval_criteria=dic
     sig_obs = SMSig(
         ts_time=df["Time"].to_numpy(),
         ts_value=obs_synced[var_name].to_numpy(),
-        plot_results=True,
+        plot_results=False,
         plot_label="obs"
     )
     # sig_obs.detrend() # TODO:debug
@@ -87,7 +87,7 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', eval_criteria=dic
     sig_sim = SMSig(
         ts_time=df["Time"].to_numpy(),
         ts_value=sim_synced[var_name].to_numpy(),
-        plot_results=True,
+        plot_results=False,
         plot_label="sim"
     )
     sig_sim.movmean()
@@ -111,24 +111,24 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', eval_criteria=dic
     fn = 'timeseries.png'
 
     # Relative values of SM 
-    f2 = plt.figure(figsize=(20, 10))
-    ax2 = f2.add_subplot(2,1,1)
-    ax2.plot(sig_obs.tt.index, sig_obs.tt.values, alpha=1, label=obs_label, color=obs_color)
-    ax2.plot(sig_sim.tt.index, sig_sim.tt.values, alpha=1, label=sim_label, color=sim_color)
-    # ax2.plot(df["Time"].values, df_obs[var_name].values, alpha=1, label=obs_label, color=obs_color)
-    # ax2.plot(df["Time"].values, df_sim[var_name].values, alpha=1, label=sim_label, color=sim_color)
-    for i in range(len(start_dates_obs)):
-        ax2.axvline(x=start_dates_obs[i], color=obs_color, label=None, alpha=0.5, linestyle='-')
-    for i in range(len(end_dates_obs)):
-        ax2.axvline(x=end_dates_obs[i], color=obs_color, label=None, alpha=0.5, linestyle='--')
-    for i in range(len(start_dates_sim)):
-        ax2.axvline(x=start_dates_sim[i], color=sim_color, label=None, alpha=0.5, linestyle='-')
-    for i in range(len(end_dates_sim)):
-        ax2.axvline(x=end_dates_sim[i], color=sim_color, label=None, alpha=0.5, linestyle='--')
-    ax2.set_xlabel('Time')
-    ax2.set_ylabel(y_label)
-    ax2.set_title(title)
-    ax2.legend()
+    f2 = plt.figure(figsize=(10, 20))
+    # ax2 = f2.add_subplot(2,1,1)
+    # ax2.plot(sig_obs.tt.index, sig_obs.tt.values, alpha=1, label=obs_label, color=obs_color)
+    # ax2.plot(sig_sim.tt.index, sig_sim.tt.values, alpha=1, label=sim_label, color=sim_color)
+    # # ax2.plot(df["Time"].values, df_obs[var_name].values, alpha=1, label=obs_label, color=obs_color)
+    # # ax2.plot(df["Time"].values, df_sim[var_name].values, alpha=1, label=sim_label, color=sim_color)
+    # for i in range(len(start_dates_obs)):
+    #     ax2.axvline(x=start_dates_obs[i], color=obs_color, label=None, alpha=0.5, linestyle='-')
+    # for i in range(len(end_dates_obs)):
+    #     ax2.axvline(x=end_dates_obs[i], color=obs_color, label=None, alpha=0.5, linestyle='--')
+    # for i in range(len(start_dates_sim)):
+    #     ax2.axvline(x=start_dates_sim[i], color=sim_color, label=None, alpha=0.5, linestyle='-')
+    # for i in range(len(end_dates_sim)):
+    #     ax2.axvline(x=end_dates_sim[i], color=sim_color, label=None, alpha=0.5, linestyle='--')
+    # ax2.set_xlabel('Time')
+    # ax2.set_ylabel(y_label)
+    # ax2.set_title(title)
+    # ax2.legend()
     
     ax3 = f2.add_subplot(2,1,2)
     ax3.plot(sig_obs.tt.index, (sig_obs.tt.values-min(sig_obs.tt.values))/(max(sig_obs.tt.values)-min(sig_obs.tt.values)), alpha=1, label=obs_label, color=obs_color)
