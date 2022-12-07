@@ -151,14 +151,16 @@ class CFE():
 
         # ________________________________________________
         # Solve groundwater reservoir
-        print(f"Storage ratio: {cfe_state.gw_reservoir['storage_m']/cfe_state.gw_reservoir['storage_max_m']}")
+        # print(f"Storage ratio: {cfe_state.gw_reservoir['storage_m']/cfe_state.gw_reservoir['storage_max_m']}")
+        
         self.groundwater_reservoir_flux_calc(cfe_state, cfe_state.gw_reservoir)
+        
         if cfe_state.primary_flux_m > cfe_state.gw_reservoir['storage_m']:
             cfe_state.flux_from_deep_gw_to_chan_m = cfe_state.gw_reservoir['storage_m']
         else: 
             cfe_state.flux_from_deep_gw_to_chan_m = cfe_state.primary_flux_m
         cfe_state.gw_reservoir['storage_m'] -= cfe_state.flux_from_deep_gw_to_chan_m
-        print(f"Storage{cfe_state.gw_reservoir['storage_m']}; primary_flux{cfe_state.flux_from_deep_gw_to_chan_m}")
+        # print(f"Storage{cfe_state.gw_reservoir['storage_m']}; primary_flux{cfe_state.flux_from_deep_gw_to_chan_m}")
         cfe_state.vol_from_gw += cfe_state.flux_from_deep_gw_to_chan_m
         cfe_state.volout += cfe_state.flux_from_deep_gw_to_chan_m
 
