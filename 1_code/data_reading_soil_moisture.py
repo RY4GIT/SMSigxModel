@@ -3,6 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 # %%
 # (0) Common: preparation
@@ -22,6 +23,7 @@ for n_yr in range(len(data_yrs)):
 
     dates = [file.split('a')[0] for file in file_list if file != 'README']
     sensors = [file.split('a')[1][0:3] for file in file_list if file != 'README']
+    
     # %%
     unique_dates = list(set(dates))
     unique_sensors = list(set(sensors))
@@ -71,19 +73,24 @@ for n_yr in range(len(data_yrs)):
     
 # %%
 # (2) Then, concatinete sensors for the all period. Drop nan values, make time interval regular. 
-n_yr = 0
-# Get a list of all files in the folder
-file_list = os.listdir(temp_path)
 
+# Get a list of all files in the folder
+
+temp_path_2 = rf'G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\0_data\Little Washita\data_ars_temp2'
+temp_path = rf'G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\0_data\Little Washita\data_ars_temp'
 # # Get the ones that has record from 2006
 # sensors = [file.split('0609_a')[1][0:3] for file in file_list if (file != 'README') and ('0609' in file)]
-sensors = [file.split('_a')[1][0:3] for file in file_list if (file != 'README')]
+n_yr = 0
+file_list = os.listdir(temp_path)
+print(file_list)
+sensors = [file.split('_a')[1][0:3] for file in file_list if (file != 'README') and ('0609' in file)]
 unique_sensors = list(set(sensors))
 print(unique_sensors)
 len(unique_sensors)
 # %%
+data_period_check = pd.DataFrame()
 for i, sensor in enumerate(unique_sensors):
-    data_period_check = pd.DataFrame()
+    print(f'Currently procesing sensor {i+1}/{len(unique_sensors)}')
     for n_yr in range(len(data_yrs)):
         file_path = os.path.join(temp_path, 'ars' + data_yrs[n_yr] + '_a' + sensor + '.csv')
         
@@ -101,17 +108,16 @@ for i, sensor in enumerate(unique_sensors):
         else: 
             df_allyears = pd.concat([df_allyears, df], axis=0)
     
-    if os.path.exists(file_path):
-        pass
-    else:
-        continue
+    # if os.path.exists(file_path):
+    #     pass
+    # else:
+    #     continue
         
     df_allyears.drop_duplicates() 
 
     # Resample
     sampling_freq = '60min'
     df_allyears_daily = df_allyears.resample(sampling_freq).mean()
-
 
     # Data check
     for sensor_depth in ['VW05', 'VW25', 'VW45']:
@@ -120,18 +126,51 @@ for i, sensor in enumerate(unique_sensors):
 
     # Save the results
     for sensor_depth in ['VW05', 'VW25', 'VW45']:
-        print(sensor)
         file_name = 'ars' + '_a' + str(sensor) + '_d' + sensor_depth + '.csv'
-        file_path = os.path.join(temp_path, file_name)
-        df_allyears_daily[sensor].to_csv(file_path, index=False)
+        file_path = os.path.join(temp_path_2, file_name)
+        df_allyears_daily[sensor_depth].to_csv(file_path, index=True)
         
     file_name = 'ars' + '_a' + str(sensor) + 'RAIN' + '.csv'
-    file_path = os.path.join(temp_path, file_name)
-    df_allyears_daily['RAIN'].to_csv(file_path, index=False)
+    file_path = os.path.join(temp_path_2, file_name)
+    df_allyears_daily['RAIN'].to_csv(file_path, index=True)
+    
+    # Plot and save the results
+    fig1, ax1 = plt.subplots()
+    df_allyears_daily[['VW05', 'VW25', 'VW45']].plot(ax=ax1)
+    ax1.set_title(f'Little Washita: sensor a{sensor}')
+    ax1.set_xlabel("Time")
+    ax1.set_ylabel(r"$\theta [m^3/m^3]$")
+    ax1.legend(loc='upper right')
+    
+    file_name = 'ars' + '_a' + str(sensor) + '_SM.png'
+    file_path = os.path.join(temp_path_2, file_name)
+    fig1.savefig(os.path.join(file_path))
 
+    # Precipitation
+    fig2, ax2 = plt.subplots()
+    df_allyears_daily['RAIN'].plot(ax=ax2)
+    ax2.set_xlabel("Time")
+    ax2.set_ylabel("Precip [mm/hr]")
+    ax2.legend(loc='upper right')
+    
+    file_name = 'ars' + '_a' + str(sensor) + '_RAIN.png'
+    file_path = os.path.join(temp_path_2, file_name)
+    fig2.savefig(os.path.join(file_path))
 
 file_name = 'ars_data_period_check.csv'
-file_path = os.path.join(temp_path, file_name)
+file_path = os.path.join(temp_path_2, file_name)
 data_period_check.to_csv(file_path, index=False)
 
 # %%
+last_row = {'sensor_id':'shortest', 'sensor_depth': 'na', 'start_date': data_period_check['start_date'].max(), 'end_date': data_period_check['end_date'].min()}
+data_period_check = data_period_check.append(last_row, ignore_index=True)
+file_name = 'ars_data_period_check.csv'
+file_path = os.path.join(temp_path_2, file_name)
+data_period_check.to_csv(file_path, index=False)
+
+# # %%
+# data_period_check.tail()
+# data_period_check.drop(data_period_check.tail(4).index, inplace = True)
+# # %%
+# data_period_check.tail()
+# # %%
