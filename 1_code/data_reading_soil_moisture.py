@@ -59,7 +59,13 @@ for n_yr in range(len(data_yrs)):
                 df.loc[df["QVW25"] != "g", "VW25"] = np.nan
                 df.loc[df["QVW45"] != "g", "VW45"] = np.nan
                 
-                df = df[["datetime", "RAIN", "VW05", "VW25", "VW45"]]
+                if 'TAIR' not in df.columns:
+                    # Add "TAIR" column filled with NaN if it doesn't exist
+                    df = df.assign(TAIR=np.full(len(df), np.nan))
+                else:
+                    df.loc[df["TAIR"] != "g", "QTA"] = np.nan
+
+                df = df[["datetime", "RAIN", "TAIR", "VW05", "VW25", "VW45"]]
 
                 # Concatenate the dataframe into the dataframe for the sensor
                 sensor_dataframes[sensor] = pd.concat([sensor_dataframes[sensor], df], axis=0, ignore_index=True)
@@ -102,7 +108,8 @@ for i, sensor in enumerate(unique_sensors):
         df = pd.read_csv(file_path, header=0)
         df['datetime'] = pd.to_datetime(df['datetime'])
         df = df.set_index(['datetime'])
-        df.replace(-996, np.nan, inplace=True) # somehow the error flag in VW45 is not working 
+        df.replace(-996, np.nan, inplace=True)
+        df.replace(-998, np.nan, inplace=True)# somehow the error flag in VW45 is not working 
         if n_yr == 0:
             df_allyears = df
         else: 
@@ -134,6 +141,10 @@ for i, sensor in enumerate(unique_sensors):
     file_path = os.path.join(temp_path_2, file_name)
     df_allyears_daily['RAIN'].to_csv(file_path, index=True)
     
+    file_name = 'ars' + '_a' + str(sensor) + 'TAIR' + '.csv'
+    file_path = os.path.join(temp_path_2, file_name)
+    df_allyears_daily['RAIN'].to_csv(file_path, index=True)
+    
     # Plot and save the results
     fig1, ax1 = plt.subplots()
     df_allyears_daily[['VW05', 'VW25', 'VW45']].plot(ax=ax1)
@@ -156,6 +167,17 @@ for i, sensor in enumerate(unique_sensors):
     file_name = 'ars' + '_a' + str(sensor) + '_RAIN.png'
     file_path = os.path.join(temp_path_2, file_name)
     fig2.savefig(os.path.join(file_path))
+    
+    # Precipitation
+    fig3, ax3 = plt.subplots()
+    df_allyears_daily['TAIR'].plot(ax=ax3)
+    ax3.set_xlabel("Time")
+    ax3.set_ylabel("Air Temp [C]")
+    ax3.legend(loc='upper right')
+    
+    file_name = 'ars' + '_a' + str(sensor) + '_TAIR.png'
+    file_path = os.path.join(temp_path_2, file_name)
+    fig3.savefig(os.path.join(file_path))
 
 file_name = 'ars_data_period_check.csv'
 file_path = os.path.join(temp_path_2, file_name)
