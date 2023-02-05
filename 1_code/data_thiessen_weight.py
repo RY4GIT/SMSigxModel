@@ -10,21 +10,21 @@ import numpy as np
 thiessen_filename = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\gis\LittleWashita\Littel Washita\sm_sensors_thiessen.csv"
 sitemeta_filename = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\0_data\Little Washita\site_metadata_ars.csv"
 
-# %%
-df_thiessen_area = pd.read_csv(thiessen_filename)
-print(df_thiessen_area.head())
-df_site_metadata = pd.read_csv(sitemeta_filename)
-print(df_site_metadata.head())
-# %%
-df_site_metadata_updated = pd.merge(df_site_metadata, df_thiessen_area[['stid', 'Shape_Area']], how='left', on=['stid'])
-df_site_metadata_updated.head()
-# %%
-df_site_metadata_updated['area_fraction_calculated_by_Ryoko'] = df_site_metadata_updated['Shape_Area']/df_site_metadata_updated['Shape_Area'].sum()
-# %%
-df_site_metadata_updated['area_fraction_calculated_by_Ryoko'].sum()
-# %%
-df_site_metadata_updated.to_csv(sitemeta_filename)
-# %%
+# # %%
+# df_thiessen_area = pd.read_csv(thiessen_filename)
+# print(df_thiessen_area.head())
+# df_site_metadata = pd.read_csv(sitemeta_filename)
+# print(df_site_metadata.head())
+# # %%
+# df_site_metadata_updated = pd.merge(df_site_metadata, df_thiessen_area[['stid', 'Shape_Area']], how='left', on=['stid'])
+# df_site_metadata_updated.head()
+# # %%
+# df_site_metadata_updated['area_fraction_calculated_by_Ryoko'] = df_site_metadata_updated['Shape_Area']/df_site_metadata_updated['Shape_Area'].sum()
+# # %%
+# df_site_metadata_updated['area_fraction_calculated_by_Ryoko'].sum()
+# # %%
+# df_site_metadata_updated.to_csv(sitemeta_filename)
+# # %%
 
 # %%
 # (3) Weight the rainfall and SM data according to Thiessen's polygon and take an avearge
@@ -38,7 +38,7 @@ sensors = [file.split('_a')[1][0:3] for file in file_list if (file != 'ars_data_
 unique_sensors = list(set(sensors))
 print(unique_sensors)
 len(unique_sensors)
-data_variables = ['VW05', 'VW25', 'VW45', 'RAIN']
+data_variables = ['VW05', 'VW25', 'VW45', 'RAIN', 'TS05']
 df_site_metadata_updated = pd.read_csv(r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\0_data\Little Washita\site_metadata_ars.csv")
 # %%
 
@@ -74,13 +74,12 @@ for j, data_variable in enumerate(data_variables):
 
     df_data_weighted = df_data.values * df_area_fraction_scaled.values
 
-
     import matplotlib.pyplot as plt
     nparray_data_weighted_avg = np.nansum(df_data_weighted, axis=1)
 
 
     df_data_weighted_avg = pd.DataFrame(nparray_data_weighted_avg) 
-    df_data_weighted_avg.set_index(df_data.index)
+    df_data_weighted_avg.set_index(df_data.index, inplace=True)
     if data_variable != 'RAIN':
         df_data_weighted_avg.replace(0, np.nan, inplace=True)
 
