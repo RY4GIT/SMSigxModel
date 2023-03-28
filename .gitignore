@@ -1,3 +1,7 @@
+*.xlsx
+*.pdf
+*.zip
+
 0_data/*
 2_data_input/Mahurangi/parameters/*
 2_data_input/Mahurangi/plot/*

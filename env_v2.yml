@@ -1,0 +1,19 @@
+name: CFE
+channels:
+  - conda-forge
+  - anaconda
+  - defaults
+dependencies:
+  - matplotlib
+  - multiprocess
+  - numba
+  - numpy
+  - openpyxl
+  - pandas
+  - pip
+  - scipy
+  - statistics
+  - pip:
+    - salib
+    - spotpy
+    - ipykernel

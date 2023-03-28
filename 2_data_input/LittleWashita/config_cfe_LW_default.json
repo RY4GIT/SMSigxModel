@@ -1,0 +1,36 @@
+{
+    "forcing_file": "G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/2_data_input/LittleWashita/full/little_washita_2006_2012.csv",
+    "catchment_area_km2": 610,
+    "soil_params": {
+        "bb": 4.74,
+        "satdk": 0.00005,
+        "slop": 0.02,
+        "satpsi": 0.141,
+        "smcmax": 0.4,
+        "wltsmc": 0.05,
+        "D": 2
+    },
+    "alpha_fc": 0.18,
+    "max_gw_storage": 137,
+    "Cgw": 1,
+    "expon": 1.75,
+    "lksatfac": 1000,
+    "dd": 0.00146, 
+    "refkdt": 3,
+    "K_nash": 0.03,
+    "trigger_z_fact": 0.25,
+    "nash_storage": [
+        0.0,
+        0.0
+    ],
+    "giuh_ordinates": [
+        0.1,
+        0.4,
+        0.2,
+        0.2,
+        0.1
+    ],
+    "stand_alone": 1,
+    "unit_test": 1,
+    "compare_results_file": "G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/2_data_input/LittleWashita/full/test_sm_basinavg.csv"
+}
