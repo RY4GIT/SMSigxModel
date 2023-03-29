@@ -38,7 +38,8 @@ sensors = [file.split('_a')[1][0:3] for file in file_list if (file != 'ars_data_
 unique_sensors = list(set(sensors))
 print(unique_sensors)
 len(unique_sensors)
-data_variables = ['VW05', 'VW25', 'VW45', 'RAIN', 'TS05']
+# data_variables = ['VW05', 'VW25', 'VW45', 'RAIN', 'TS05']
+data_variables = ['VW05', 'VW25', 'VW45', 'TS05']
 df_site_metadata_updated = pd.read_csv(r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\0_data\Little Washita\site_metadata_ars.csv")
 # %%
 

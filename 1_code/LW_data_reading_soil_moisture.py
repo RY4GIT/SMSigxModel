@@ -54,7 +54,7 @@ for n_yr in range(len(data_yrs)):
                 
                 df['datetime'] = pd.to_datetime(df['date'].astype(str) + ' ' + df['HR'].astype(str).str.zfill(2) + ':'+ df['MN'].astype(str).str.zfill(2), format='%Y-%m-%d %H:%M')
                 
-                df.loc[df["QRN"] != "g", "RAIN"] = np.nan
+                # df.loc[df["QRN"] != "g", "RAIN"] = np.nan
                 df.loc[df["QTS5"] != "g", "TS05"] = np.nan
                 df.loc[df["QVW5"] != "g", "VW05"] = np.nan
                 df.loc[df["QVW25"] != "g", "VW25"] = np.nan
@@ -66,7 +66,8 @@ for n_yr in range(len(data_yrs)):
                 else:
                     df.loc[df["TAIR"] != "g", "QTA"] = np.nan
 
-                df = df[["datetime", "RAIN", "TAIR", "QTS5", "VW05", "VW25", "VW45"]]
+                # df = df[["datetime", "RAIN", "TAIR", "QTS5", "VW05", "VW25", "VW45"]]
+                df = df[["datetime", "TAIR", "QTS5", "VW05", "VW25", "VW45"]]
 
                 # Concatenate the dataframe into the dataframe for the sensor
                 sensor_dataframes[sensor] = pd.concat([sensor_dataframes[sensor], df], axis=0, ignore_index=True)
@@ -138,9 +139,9 @@ for i, sensor in enumerate(unique_sensors):
         file_path = os.path.join(temp_path_2, file_name)
         df_allyears_daily[sensor_depth].to_csv(file_path, index=True)
         
-    file_name = 'ars' + '_a' + str(sensor) + '_RAIN' + '.csv'
-    file_path = os.path.join(temp_path_2, file_name)
-    df_allyears_daily['RAIN'].to_csv(file_path, index=True)
+    # file_name = 'ars' + '_a' + str(sensor) + '_RAIN' + '.csv'
+    # file_path = os.path.join(temp_path_2, file_name)
+    # df_allyears_daily['RAIN'].to_csv(file_path, index=True)
     
     file_name = 'ars' + '_a' + str(sensor) + '_TAIR' + '.csv'
     file_path = os.path.join(temp_path_2, file_name)
@@ -162,16 +163,16 @@ for i, sensor in enumerate(unique_sensors):
     file_path = os.path.join(temp_path_2, file_name)
     fig1.savefig(os.path.join(file_path))
 
-    # Precipitation
-    fig2, ax2 = plt.subplots()
-    df_allyears_daily['RAIN'].plot(ax=ax2)
-    ax2.set_xlabel("Time")
-    ax2.set_ylabel("Precip [mm/hr]")
-    ax2.legend(loc='upper right')
+    # # Precipitation
+    # fig2, ax2 = plt.subplots()
+    # df_allyears_daily['RAIN'].plot(ax=ax2)
+    # ax2.set_xlabel("Time")
+    # ax2.set_ylabel("Precip [mm/hr]")
+    # ax2.legend(loc='upper right')
     
-    file_name = 'ars' + '_a' + str(sensor) + '_RAIN.png'
-    file_path = os.path.join(temp_path_2, file_name)
-    fig2.savefig(os.path.join(file_path))
+    # file_name = 'ars' + '_a' + str(sensor) + '_RAIN.png'
+    # file_path = os.path.join(temp_path_2, file_name)
+    # fig2.savefig(os.path.join(file_path))
     
     # Precipitation
     fig3, ax3 = plt.subplots()
