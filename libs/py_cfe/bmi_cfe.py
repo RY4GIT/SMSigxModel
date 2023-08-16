@@ -12,7 +12,6 @@ import matplotlib.pyplot as plt
 from cfe import CFE
 import spotpy
 
-
 class BMI_CFE():
     def __init__(self, cfg_file=None):
         """Create a Bmi CFE model that is ready for initialization."""
