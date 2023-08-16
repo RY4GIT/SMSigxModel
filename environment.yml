@@ -135,4 +135,3 @@ dependencies:
       - numbakit-ode==0.4
       - salib==1.4.5
       - snakeviz==2.1.1
-prefix: C:\ProgramData\Anaconda3\envs\CFE
