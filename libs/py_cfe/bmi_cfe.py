@@ -9,7 +9,7 @@ import pandas as pd
 import sys
 import json
 import matplotlib.pyplot as plt
-from .cfe import CFE
+from cfe import CFE
 import spotpy
 
 
@@ -630,8 +630,7 @@ class BMI_CFE():
                 # Get the comparison data
                 obs = obs0[["Time", output_type]].copy()
                 try:
-                    obs["Time"] = pd.to_datetime(obs["Time"],
-                                             format="%m/%d/%Y %H:%M")
+                    obs["Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M")
                 except:# Works specifically for Mahurangi data
                     try:
                         obs["Time"] = pd.to_datetime(obs["Time"], format="%d-%m-%Y %H:%M:%S")
