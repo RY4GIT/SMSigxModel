@@ -3,7 +3,7 @@
     "catchment_area_km2": 46.65,
     "soil_params": {
         "bb": 2.0,
-        "satdk": 0.0001,
+        "satdk": 1e-06,
         "slop": 1,
         "satpsi": 0.78,
         "smcmax": 0.9,
