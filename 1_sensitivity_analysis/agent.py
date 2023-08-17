@@ -35,15 +35,42 @@ def read_SALib_config(config_SALib_path):
 class Agent_SALib_CFE():
 
     def __init__(self, config=None):
+        """
+        Initialize the sensitivity analysis using SALib for CFE model
+
+        Sets up the initial state of the agent
+        :param config:
+        """
         
         self.config = config
+        
+        # Setting manual seed for reproducibility
+        self.seed = 0
+        
+        # Define the parameter bounds for sensitivty analysis 
         self.problem = read_SALib_config(config['PATHS']['salib_config'])
         
+        # Define output folder
         self.out_path = os.path.join(config['PATHS']['homedir'], 'results', self.config['DATA']['site'])
         if not os.path.exists(self.out_path):
             os.makedirs(self.out_path)
-            
+    
+    ############################################
+    # Running modules 
+    ############################################
+    
     def run(self):
+        """
+        Run sensitivity analysis, select the runner function based on the configuration
+        
+        Morris output: 
+            Si : A dictionary of sensitivity indices containing the following entries.
+            mu : the mean elementary effect
+            mu_star : the absolute of the mean elementary effect
+            sigma : the standard deviation of the elementary effect
+            mu_star_conf : the bootstrapped confidence interval
+            names : the names of the parameters
+        """
         
         runtype = self.config['SALib']['method']
         
@@ -53,11 +80,12 @@ class Agent_SALib_CFE():
             print(f"Invalid runtype: {runtype}")
     
     def run_Morris(self):
+        """Run Morris sampling & analysis"""
         
         # Sample parameters 
         N = int(self.config['Morris']['N'])
         n_levels = int(self.config['Morris']['n_levels'])
-        self.sampled_params = morris_s.sample(self.problem, N=N, num_levels=n_levels)
+        self.sampled_params = morris_s.sample(self.problem, N=N, num_levels=n_levels, seed=self.seed)
         
         # Define number of runs 
         nrun = N * (self.problem['num_vars']+1)
@@ -72,7 +100,7 @@ class Agent_SALib_CFE():
             self.model.run()
             self.Y[i] = self.model.evaluate()
 
-        # Runo morris
+        # Analyze
         print("### Results ###")
         self.Si = morris_a.analyze(self.problem, self.sampled_params, self.Y, print_to_console=True)
 
@@ -85,6 +113,8 @@ class Agent_SALib_CFE():
     ############################################
 
     def finalize(self):
+        """Finalizing the sensitivity analysis, select the finalizing function based on the configuration"""
+        
         runtype = self.config['SALib']['method']
         
         if runtype == "Morris":
@@ -97,7 +127,11 @@ class Agent_SALib_CFE():
                 
 
     def plot_EET(self):
-        """Plot elementary effects and std's for Morris analysis"""
+        """
+        Plot elementary effects and std's for Morris analysis
+            X-axis: mu_star : the absolute of the mean elementary effect
+            Y-axis: sigma : the standard deviation of the elementary effect
+        """
         
         # Options for the graphic
         pltfont = {'fontname': 'DejaVu Sans', 'fontsize': 15}  # font for axes
@@ -112,18 +146,10 @@ class Agent_SALib_CFE():
         # First plot EEs mean & std as circles:
         # Check the error bar definition
         for i in range(len(self.Si['mu_star'])):
-            plt.errorbar(
-                self.Si['mu_star'][i],     # x value
-                self.Si['sigma'][i],                         # y value
-                xerr=self.Si['mu_star_conf'][i],  # horizontal error (std deviation)
-                fmt='o',                   # format for center marker
-                markersize=ms, 
-                color=clrs[i]
+            plt.plot(
+                self.Si['mu_star'][i], self.Si['sigma'][i], 'ok', markerfacecolor=clrs[i],
+                markersize=ms, markeredgecolor='k'
             )
-            # plt.plot(
-            #     self.Si['mu_star'][i], self.Si['sigma'][i], 'ok', markerfacecolor=clrs[i],
-            #     markersize=ms, markeredgecolor='k'
-            # )
 
         # Create legend:
         plt.legend(self.Si['names'], loc='best', prop=pltfont_leg)

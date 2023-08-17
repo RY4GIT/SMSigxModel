@@ -25,6 +25,12 @@ To run the code, just run the following command inside the xxxx folder:
 
 ```python  .```
 
+## Reference
+SALib documentation: https://salib.readthedocs.io/en/latest/
+    Iwanaga, T., Usher, W., & Herman, J. (2022). Toward SALib 2.0: Advancing the accessibility and interpretability of global sensitivity analyses. Socio-Environmental Systems Modelling, 4, 18155. doi:10.18174/sesmo.18155
+
+    Herman, J. and Usher, W. (2017) SALib: An open-source Python library for sensitivity analysis. Journal of Open Source Software, 2(9). doi:10.21105/joss.00097
+
 
 ## Contributing
 
