@@ -1,3 +1,29 @@
+
+"""A file to store the function where we read the input data"""
+
+import numpy as np
+import pandas as pd
+from pathlib import Path
+from datetime import datetime
+
+
+class Data(config=None):
+    def __init__(self): 
+        
+        self.start_time = None
+        self.end_time = None
+        self.observation = None
+        self.forcing = None
+        
+    def get_forcings(self):
+        
+    def get_observations(self):
+        
+    def sync_timeseries(self, observation, simulation):
+    
+    
+
+
         sim = self.cfe_instance.cfe_output_data[["Time", var_measure]]
         sim.loc[:, "Time"] = pd.to_datetime(sim["Time"], format="%Y-%m-%d %H:%M:%S")
         sim = sim.set_index("Time")

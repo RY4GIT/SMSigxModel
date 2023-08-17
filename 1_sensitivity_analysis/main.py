@@ -2,16 +2,10 @@
 # To implement sensitivity analysis with SALib. Currently this module supports Morris and Sobol analysis
 
 # Import libraries
-import os
-
 import sys
-import numpy as np
-import pandas as pd
-import sys
-if not sys.warnoptions:
-    import warnings
-    warnings.simplefilter("ignore")
-import json
+# if not sys.warnoptions:
+#     import warnings
+#     warnings.simplefilter("ignore")
 from agent import Agent_SALib_CFE
 import configparser
 import time
@@ -23,7 +17,7 @@ def main():
     config = configparser.ConfigParser()
     config.read('1_sensitivity_analysis/config.ini')
     
-    print('Start sensitivity analysis with ** %s **' % config['SALib']['method'])
+    print(f"### Start {config['SALib']['method']} sensitivity analysis ###")
 
     # Implementation
     salib_experiment = Agent_SALib_CFE(config=config)

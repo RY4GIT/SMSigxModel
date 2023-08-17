@@ -2,8 +2,8 @@
     "forcing_file": "G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/data/Mahurangi/mahurangi_1998_2001.csv",
     "catchment_area_km2": 46.65,
     "soil_params": {
-        "bb": 10,
-        "satdk": 0.00013888888,
+        "bb": 2.0,
+        "satdk": 0.0001,
         "slop": 1,
         "satpsi": 0.78,
         "smcmax": 0.9,
@@ -33,5 +33,5 @@
     "refkdt": 0.496733933,
     "stand_alone": 1,
     "unit_test": 1,
-    "compare_results_file": "G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/data/Mahurangi/full/test_sm_basinavg.csv"
+    "compare_results_file": "G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/data/Mahurangi/test_sm_basinavg.csv"
 }

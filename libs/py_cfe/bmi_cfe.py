@@ -170,7 +170,7 @@ class BMI_CFE():
         H_water_table_m = self.field_capacity_atm_press_fraction * atm_press_Pa / unit_weight_water_N_per_m3                 # Lateral flow function 1&2, Equation 3 (Ogden's document)
         
         soil_water_content_at_field_capacity = self.soil_params['smcmax'] * \
-                                     np.power(H_water_table_m/self.soil_params['satpsi'],(1.0/self.soil_params['bb']))  # Lateral flow function 1&2, Equation 3 (Ogden's document), but this equaton is not used in later process
+                                     np.power(H_water_table_m/self.soil_params['satpsi'], (1.0/self.soil_params['bb']))  # Lateral flow function 1&2, Equation 3 (Ogden's document), but this equaton is not used in later process
 
         Omega     = H_water_table_m - self.trigger_z_m                                                                       # Lateral flow function 3 (Ogden's document). Soil water storage in the soil column, when the lowest soil discretization is equal to field capacity.
         

@@ -1,7 +1,7 @@
 import spotpy
 from spotpy.parameter import Uniform
 from spotpy.objectivefunctions import rmse
-from .py_cfe import cfe
+from ..py_cfe import cfe
 import os
 import pandas as pd
 import numpy as np
