@@ -12,6 +12,7 @@
 2_GLUE_analysis/results/*
 3_post_analysis/results/*
 data/Mahurangi/parameters/*
+data/Mahurangi/temporary_parameter_files_for_GLUE/*
 dat/Mahurangi/plot/*
 data/Mahurangi/trash/*
 data/seasonsig_test/*

@@ -21,6 +21,11 @@ class MyGLUE(object):
     def __init__(self, out_path='./', config_path_CFE='', nrun=1, eval_criteria=dict()):
 
         self.out_path = out_path  # Output folder path
+        
+        # Create output directly if not exist
+        if not os.path.exists(out_path):
+            os.mkdir(out_path)
+        
         self.nrun = nrun  # Number of runs
         self.var_names = ["Flow", "Soil Moisture Content"]  # Variables to be analyzed
         self.config_path_CFE = config_path_CFE
