@@ -1,15 +1,7 @@
 import os
-import spotpy
 import pandas as pd
 pd.options.mode.chained_assignment = None
 import json
-import warnings
-
-# %matplotlib inline
-import itertools
-from math import pi
-from matplotlib.legend_handler import HandlerPatch
-
 import sys
 sys.path.append(os.path.join(os.getcwd(), 'libs', 'py_cfe'))
 from bmi_cfe import BMI_CFE
@@ -17,6 +9,7 @@ from bmi_cfe import BMI_CFE
 import shutil
 
 def duplicate_file(source_path, nth_run):
+    """Duplicate a file appending nth_run to its name and return its path."""
     # Determine the directory and make a path for the new file
     directory = os.path.dirname(source_path)
     destination_dir = os.path.join(directory, "temporary_parameter_files_for_GLUE")
@@ -69,7 +62,6 @@ class CFEmodel():
         # Returns the synchronized timeseries for the variables of interest
         obs = self.to_datetime(df=self.cfe_instance.unit_test_data, time_column="Time", format=self.config['DATA']['evaldata_time_format'])
         sim = self.to_datetime(df=self.cfe_instance.cfe_output_data, time_column="Time", format="%Y-%m-%d %H:%M:%S")
-
         df = pd.merge_asof(obs, sim, on = "Time")
         df = self.to_datetime(df, "Time", "%Y-%m-%d %H:%M:%S")
 

@@ -13,59 +13,60 @@ import spotpy
 class Evaluator():
     
     def __init__(self, simulation=None, observation=None) -> None:
-        self.soilmoisture_var_name = "Soil Moisture Content"
         self.flow_var_name = "Flow"
-                
-        self.simulation = simulation
+        self.soilmoisture_var_name = "Soil Moisture Content"
+        
         self.observation = observation
+        self.simulation = simulation
+        
         
     def evaluate(self):
-        """Evaluate simulation results"""
+        """Evaluate simulation results."""
         
-        ################################################
-        # Evaluation metrics at model (hourly) timestep
-        ################################################
+        eval_hourly = self._evaluate_hourly()
+        eval_monthly = self._evaluate_monthly()
         
-        NSE_Flow = self.calc_NSE(variable=self.flow_var_name)
-        NSE_Soil = self.calc_NSE(variable=self.soilmoisture_var_name)
-        KGE_Flow = self.calc_KGE(variable=self.flow_var_name)
-        KGE_Soil = self.calc_KGE(variable=self.soilmoisture_var_name)
-        SeasonTrans_Soil = self.calc_SeasonTrans(variable=self.soilmoisture_var_name)
+        return eval_hourly, eval_monthly
+
+    def _evaluate_hourly(self):
+        """Evaluate metrics at model (hourly) timestep."""
         
-        eval_hourly = pd.DataFrame({
-            "NSE on Flow": NSE_Flow,
-            "NSE on Soil": NSE_Soil,
-            "KGE on Flow": KGE_Flow,
-            "KGE on Soil": KGE_Soil,
-            "SeasonTrans_Soil dry2wet_start": SeasonTrans_Soil[0],
-            "SeasonTrans_Soil dry2wet_end": SeasonTrans_Soil[1],
-            "SeasonTrans_Soil wet2dry_start": SeasonTrans_Soil[2],
-            "SeasonTrans_Soil wet2dry_end": SeasonTrans_Soil[3]
+        metrics = {
+            "NSE on Flow": self.calc_NSE(self.flow_var_name),
+            "NSE on Soil": self.calc_NSE(self.soilmoisture_var_name),
+            "KGE on Flow": self.calc_KGE(self.flow_var_name),
+            "KGE on Soil": self.calc_KGE(self.soilmoisture_var_name)
+        }
+        
+        season_trans = self.calc_SeasonTrans(self.soilmoisture_var_name)
+        metrics.update({
+            "SeasonTrans of Soil dry2wet_start": season_trans[0],
+            "SeasonTrans of Soil dry2wet_end": season_trans[1],
+            "SeasonTrans of Soil wet2dry_start": season_trans[2],
+            "SeasonTrans of Soil wet2dry_end": season_trans[3]
         })
+
+        return pd.DataFrame(metrics, index=[0])
+
+    def _evaluate_monthly(self):
+        """Evaluate metrics at model (monthly) timestep."""
         
-        ################################################
-        # Evaluation metrics at model (hourly) timestep
-        ################################################
-        
-        self.simulation_monthly = self.df_to_monthly_timestep(self.simulation)
         self.observation_monthly = self.df_to_monthly_timestep(self.observation)
-        
-        # Calculate mean soil moisture
-        Q_mean_obs = self.calc_monthly_Q_mean(variable=self.flow_var_name, df=self.observation_monthly)
-        Q_mean_sim = self.calc_monthly_Q_mean(variable=self.flow_var_name, df=self.simulation_monthly)
+        self.simulation_monthly = self.df_to_monthly_timestep(self.simulation)
         
         median_flow_obs = median(self.observation['Flow'])
         high_flow_obs = 9 * median_flow_obs
         
-        high_flow_freq_obs = self.calc_monthly_high_flow_freq(variable=self.flow_var_name, df=self.observation_monthly, high_flow_criteria=high_flow_obs)
-        high_flow_freq_sim = self.calc_monthly_high_flow_freq(variable=self.flow_var_name, df=self.simulation_monthly, high_flow_criteria=high_flow_obs)
+        metrics = {
+            'Q_mean_obs': self.calc_monthly_Q_mean(self.flow_var_name, self.observation_monthly),
+            'Q_mean_sim': self.calc_monthly_Q_mean(self.flow_var_name, self.simulation_monthly),
+            'high_flow_freq_obs': self.calc_monthly_high_flow_freq(self.flow_var_name, self.observation, high_flow_obs),
+            'high_flow_freq_sim': self.calc_monthly_high_flow_freq(self.flow_var_name, self.simulation, high_flow_obs),
+            'RR_obs': self.calc_monthly_RR(self.flow_var_name, self.observation_monthly, self.observation['Rainfall']),
+            'RR_sim': self.calc_monthly_RR(self.flow_var_name, self.simulation_monthly, self.observation['Rainfall'])
+        }
         
-        RR_obs = self.calc_monthly_RR(variable=self.flow_var_name, df=self.observation_monthly, precip=self.observation['Rainfall'])
-        RR_sim = self.calc_monthly_RR(variable=self.flow_var_name, df=self.simulation_monthly, precip=self.observation['Rainfall'])
-        
-        eval_monthly = [Q_mean_obs, Q_mean_sim, high_flow_freq_obs, high_flow_freq_sim, RR_obs, RR_sim]
-        
-        return eval_hourly, eval_monthly
+        return pd.concat(metrics.values(), axis=1, keys=metrics.keys())
         
     def calc_NSE(self, variable):
         return spotpy.objectivefunctions.nashsutcliffe(self.observation[variable], self.simulation[variable])

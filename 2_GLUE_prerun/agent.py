@@ -7,6 +7,7 @@ import spotpy
 import os
 import pandas as pd
 import numpy as np
+import datetime
 
 # GLUE object
 class Agent_GLUE_CFE(object):
@@ -15,17 +16,20 @@ class Agent_GLUE_CFE(object):
         self.config=config
         
         # Define output folder
-        self.out_path = os.path.join(config['PATHS']['homedir'], 'results', self.config['DATA']['site'])
+        # Get the current date in YYYY-MM-DD format
+        current_date = datetime.date.today().strftime('%Y-%m-%d')
+        self.out_path = os.path.join(config['PATHS']['homedir'], 'results', f"{self.config['DATA']['site']}-{current_date}")
         if not os.path.exists(self.out_path):
             os.makedirs(self.out_path)
         
-        # Define GLUE configurations
-        self.seed = 0
+        # Define the random seed for reproducibility
+        np.random.seed(0)
         
+        # Define the GLUE number of runs
         if config['Multiprocessing']['run_multithreadding'] == "False":
             self.nrun = 1
         elif config['Multiprocessing']['run_multithreadding'] == 'True':
-            self.nrun = int(config['GLUE']['nrun'])  # Number of runs
+            self.nrun = int(config['GLUE']['nrun'])  
 
     def generate_params(self):
         """Generate random parameters for GLUE run
@@ -63,8 +67,7 @@ class Agent_GLUE_CFE(object):
         """One CFE run and evaluation for a sampled parameter set"""
 
         # Preparations
-        nth_run = sampled_param_set[0]
-        sampled_params_set = sampled_param_set[1]
+        nth_run, sampled_params_set = sampled_param_set
         print(f'Processing {nth_run}/{self.nrun-1}')
         
         # Run CFE
@@ -76,16 +79,15 @@ class Agent_GLUE_CFE(object):
         evaluator = Evaluator(observation=obs, simulation=sim)
         eval_hourly, eval_monthly = evaluator.evaluate()
 
-        print(f"{nth_run}-th run/{self.nrun-1}")
-        print(eval_hourly)
+        print(f'Evaluation {nth_run}/{self.nrun-1}')
+        print(eval_hourly.to_string(index=False))
         
         results = [nth_run, sampled_params_set, eval_hourly, eval_monthly]
 
         return results
 
-    def finalize(self, all_results):        
+    def finalize(self, all_results=None):        
         """ Join and save results from all runs to dataframe """
-        print('--- Saving data into csv file ---')
 
         # Store run ID
         self.run_id = [result[0] for result in all_results]
@@ -105,4 +107,4 @@ class Agent_GLUE_CFE(object):
         self.df_eval_mo = pd.concat([result[3] for result in all_results], ignore_index=True)
         self.df_eval_mo.to_csv(os.path.join(self.out_path, 'post_evaluations_monthly_metrics.csv'), sep=',', header=True, index=True, encoding='utf-8', na_rep='nan')
 
-        print(f'Saved results to: {self.out_path}')
+        print(f'--- Saved results to {self.out_path}---')

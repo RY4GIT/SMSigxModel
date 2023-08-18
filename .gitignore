@@ -9,8 +9,9 @@
 
 0_data_preprocessing/raw_data/*
 1_sensitivity_analysis/results/*
-2_GLUE_analysis/results/*
-3_post_analysis/results/*
+2_GLUE_prerun/results/*
+3_GLUE_postrun/results/*
+4_post_analysis/results/*
 data/Mahurangi/parameters/*
 data/Mahurangi/temporary_parameter_files_for_GLUE/*
 dat/Mahurangi/plot/*
