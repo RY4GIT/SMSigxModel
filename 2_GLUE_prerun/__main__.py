@@ -18,21 +18,22 @@ def main(config_path):
     # Read config
     config = read_config(config_path=config_path)
     
-    # Create a GLUE instance
+    # Create a GLUE-CFE agent
     glue_experiment = Agent_GLUE_CFE(config)
 
-    # Sample parameters
+    # Sample random parameters
     sampled_param_sets = glue_experiment.generate_params()
     
-    # Just to run one model run for a test, 
+    # Just to excute a single model run for a test
     if config['Multiprocessing']['run_multithreadding'] == 'False':
         print('--- Single run mode ---')
         all_results = [glue_experiment.simulation(sampled_param_set=sampled_param_sets[0])]
     
-    # Start multiple runs in multiprocessing
+    # To execute multiple runs in multiprocessing
     elif config['Multiprocessing']['run_multithreadding'] == 'True':
         print('--- Multithreadding mode ---')
-        # Set MP settings
+        
+        # MP settings
         print("Number of cpu : ", mp.cpu_count())
         pool_nprocess = int(config['Multiprocessing']['pool_nprocess'])
         os.environ['NUMEXPR_MAX_THREADS'] = config['Multiprocessing']['NUMEXPR_MAX_THREADS']

@@ -1,0 +1,4 @@
+eval_criterion_2 = {
+    0: {'variable_to_analyze': 'Flow', 'metric': 'KGE', 'threshold': 0.5},
+    1: {'variable_to_analyze': 'Soil Moisture Content', 'metric': 'KGE', 'threshold':  0.5}
+    }

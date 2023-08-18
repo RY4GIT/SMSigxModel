@@ -20,11 +20,19 @@ class Evaluator():
         self.simulation = simulation
         
         
-    def evaluate(self):
+    def evaluate(self, nth_run=None):
         """Evaluate simulation results."""
         
         eval_hourly = self._evaluate_hourly()
         eval_monthly = self._evaluate_monthly()
+        
+        # Convert to desired format
+        eval_hourly['run_id'] = nth_run
+        eval_hourly.set_index('run_id', inplace=True)
+        
+        eval_monthly.reset_index(inplace=True)
+        eval_monthly['run_id'] = nth_run
+        eval_monthly.set_index('run_id', inplace=True)
         
         return eval_hourly, eval_monthly
 

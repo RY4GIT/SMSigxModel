@@ -77,12 +77,12 @@ class Agent_GLUE_CFE(object):
 
         # Evaluate the outputs
         evaluator = Evaluator(observation=obs, simulation=sim)
-        eval_hourly, eval_monthly = evaluator.evaluate()
-
-        print(f'Evaluation {nth_run}/{self.nrun-1}')
-        print(eval_hourly.to_string(index=False))
+        eval_metrics, eval_metrics_monthly = evaluator.evaluate(nth_run=nth_run)
         
-        results = [nth_run, sampled_params_set, eval_hourly, eval_monthly]
+        print(f'Evaluation {nth_run}/{self.nrun-1}')
+        print(eval_metrics.to_string(index=False))
+        
+        results = [nth_run, sampled_params_set, eval_metrics, eval_metrics_monthly]
 
         return results
 
@@ -93,18 +93,20 @@ class Agent_GLUE_CFE(object):
         self.run_id = [result[0] for result in all_results]
         
         # Store prior parameters 
-        self.pri_paras = [result[1] for result in all_results]
-        param_names = [param[1] for param in self.pri_paras[0]]
-        param_values = np.array([[param_set[i][0] for i in range(len(param_names))] for param_set in self.pri_paras])
-        self.df_pri_paras = pd.DataFrame(param_values, columns=param_names)
-        self.df_pri_paras.to_csv(os.path.join(self.out_path, 'parameter_priori.csv'), sep=',', header=True, index=True, encoding='utf-8', na_rep='nan')
+        self._pri_paras = [result[1] for result in all_results]
+        param_names = [param[1] for param in self._pri_paras[0]]
+        param_values = np.array([[param_set[i][0] for i in range(len(param_names))] for param_set in self._pri_paras])
+        self.prior_params = pd.DataFrame(param_values, columns=param_names)
+        self.prior_params['run_id'] = self.run_id
+        self.prior_params.set_index('run_id', inplace=True)
+        self.prior_params.to_csv(os.path.join(self.out_path, 'prior_parameters.csv'), sep=',', header=True, index=True, encoding='utf-8', na_rep='nan')
 
         # Store Evaluation metrics (whole period)
-        self.df_eval = pd.concat([result[2] for result in all_results], ignore_index=True)
-        self.df_eval.to_csv(os.path.join(self.out_path, 'evaluations.csv'), sep=',', header=True, index=True, encoding='utf-8', na_rep='nan')
+        self.eval_metrics = pd.concat([result[2] for result in all_results])
+        self.eval_metrics.to_csv(os.path.join(self.out_path, 'evaluation_metrics.csv'), sep=',', header=True, index=True, encoding='utf-8', na_rep='nan')
 
         # Store Evaluation metrics (monthly)
-        self.df_eval_mo = pd.concat([result[3] for result in all_results], ignore_index=True)
-        self.df_eval_mo.to_csv(os.path.join(self.out_path, 'post_evaluations_monthly_metrics.csv'), sep=',', header=True, index=True, encoding='utf-8', na_rep='nan')
+        self.eval_metrics_mo = pd.concat([result[3] for result in all_results])
+        self.eval_metrics_mo.to_csv(os.path.join(self.out_path, 'evaluation_metrics_monthly.csv'), sep=',', header=True, index=True, encoding='utf-8', na_rep='nan')
 
         print(f'--- Saved results to {self.out_path}---')

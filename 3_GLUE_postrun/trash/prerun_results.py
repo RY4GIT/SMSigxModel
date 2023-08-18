@@ -66,7 +66,7 @@ def triangle_weight(x, a, b, c):
 
 
 # GLUE object
-class MyGLUEPost(object):
+class GLUE(object):
     def __init__(self, out_path='./', config_path_CFE='', path_GLUE_output='', eval_criteria=dict(), senario_id=9999):
 
         self.out_path = out_path  # Output folder path
