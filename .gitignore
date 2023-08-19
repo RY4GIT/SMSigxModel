@@ -7,6 +7,10 @@
 *.mat
 **/__pycache__/
 
+.DS_Store
+.idea
+.vscode
+
 0_data_preprocessing/raw_data/*
 1_sensitivity_analysis/results/*
 2_GLUE_prerun/results/*
