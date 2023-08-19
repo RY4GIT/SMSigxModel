@@ -101,27 +101,27 @@ class GLUE(object):
         self.behavioral_Q.set_axis(self.run_id_behavioral, axis=1, inplace=True)
         self.behavioral_SM.set_axis(self.run_id_behavioral, axis=1, inplace=True)
 
-    def calc_weights(self):
-        weights = np.empty((len(self.posterior_eval_metrics), len(self.eval_names)))
+    def calc_weights(self, eval_metrics_values, threshold, metrics_fullname):
+        if 'SeasonTrans' in metrics_fullname:
+            weight = triangle_weight(eval_metrics_values,
+                                                a=-1 * threshold, b=0,
+                                                c=threshold)
+        else:
+            weight = ((eval_metrics_values - threshold) / 
+                            sum(eval_metrics_values - threshold)).to_numpy()
+        return weight
+        
+    def get_weights_for_multi_criteria(self):
+        weights = np.empty((len(self.posterior_eval_metrics), len(self.criteria.full_criteria)))
 
-        j = 0
-        for i, criteria in enumerate(self.eval_criteria):
-            metric = criteria['metric']
-            if metric in ["NSE", "KGE"]:
-                weights[:, j] = ((self.posterior_eval_metrics[self.eval_names[j]] - criteria['threshold']) / 
-                                sum(self.posterior_eval_metrics[self.eval_names[j]] - criteria['threshold'])).to_numpy()
-                j += 1
-            elif metric == "season_transition":
-                for k in range(4):
-                    weights[:, j + k] = triangle_weight(self.posterior_eval_metrics[self.eval_names[j + k]],
-                                                        a=-1 * criteria['threshold'], b=0,
-                                                        c=criteria['threshold'])
-                j += 4
+        for i, (_, criterion) in enumerate(self.criteria.full_criteria.items()):
+            weights[:, i] = self.calc_weights(self.posterior_eval_metrics[criterion['metrics_fullname']], criterion['threshold'], criterion['metrics_fullname'])
+            
         return np.mean(weights, axis=1)
     
     def calc_uncertainty_bounds(self, plot=True):
         
-        avg_weight = self.calc_weights()
+        avg_weight = self.get_weights_for_multi_criteria()
     
         variable_map = {
             "Flow": "df_Q_simrange",
