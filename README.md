@@ -1,9 +1,8 @@
 # SMSigxModel
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) ![versions](https://img.shields.io/pypi/pyversions/hydra-core.svg) [![CodeStyle](https://img.shields.io/badge/code%20style-Black-black)]()
-To be edited.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) ![versions](https://img.shields.io/pypi/pyversions/hydra-core.svg) [![CodeStyle](https://img.shields.io/badge/code%20style-Black-black)]()  
+This project explores the application of soil moisture signature ([Branger et al., 2019](https://doi.org/10.1002/hyp.13645); [Araki et al., 2020](https://onlinelibrary.wiley.com/doi/full/10.1002/hyp.14553)) to enhance streamflow and soil moisture prediction within a rainfall-runoff model.
 
-#### Conceptual Functional Equivalent (CFE) Model
-The CFE model is designed to be a simplified and functionaly equivalent model of the National Water Model. The model code was originally written by Dr. Fred Ogden and converted to BMI-compliant format in the Next-Gen framework by NOAA-OWP. The official CFE code by Dr. Fred Oden and NOAA-OWP lives [here](https://github.com/NOAA-OWP/cfe/).  [The Python version of the code](https://github.com/NWC-CUAHSI-Summer-Institute/cfe_py) is developed for the prototyping, research, and development. This code is developed upon the Python version and for research purpose. 
+This code is currently in development and does not guarantee to run yet. 
 
 ## Installation
 Use conda to create your own env based on our ```environment.yml``` file
@@ -14,23 +13,66 @@ conda activate CFE
 ```
 
 ## Running this code
-To be edited.
+Each directory houses a package designed to run each experiment step. These packages utilize the `__main__.py` functions, and they come with configuration files (typically named `config.ini`) along with some additional configuration files.
 
-The main branch code is currently configured to run the xxxx test case. If you want to use your own case, you will need to manage three config files located here:
+The primary branch is set up to run the Mahurangi test case. If you wish to use a different case, adjust the configuration files accordingly.
+
+### 0_data_preprocessing
+Formats Mahurangi & Little Washita data. Formatted datasets are saved in the `data` folder. If you only plan to run experiments #1 through #4, this step isn't required.
+
+### 1_sensitivity_analysis
+Conducts a Morris sensitivity analysis.
+
+To run:
+```Python
+cd 1_sensitivity_analysis
+python __main__.py
+```
 
 - ```xxx```
     - The main config file. Choose appropriate xxxx
 
-To run the code, just run the following command inside the xxxx folder:
+### 2_GLUE_prerun
+Runs the rainfall-runoff model with various randomly-generated parameters in preparation for the next step. This step is not dependent on the `1_sensitivity_analysis`; If you are only interested in the GLUE experiments, start from this step.  
 
-```python  .```
+To run:
+```Python
+cd 2_GLUE_prerun
+python __main__.py
+```
+
+- ```xxx```
+    - The main config file. Choose appropriate xxxx
+
+### 3_GLUE_postrun 
+Analyzes the output from `2_GLUE_prerun` using GLUE.
+
+To run:
+```Python
+cd 3_GLUE_postrun
+python __main__.py
+```
+
+- ```xxx```
+    - The main config file. Choose appropriate xxxx
+
+### 4_post_analysis
+Executes post-analysis and visualizes the results from 3_GLUE_postrun. Follow the Jupyter Notebooks in numerical order for this step.
 
 ## Reference
+
+#### Sensitivity analysis 
 SALib documentation: https://salib.readthedocs.io/en/latest/
+
     Iwanaga, T., Usher, W., & Herman, J. (2022). Toward SALib 2.0: Advancing the accessibility and interpretability of global sensitivity analyses. Socio-Environmental Systems Modelling, 4, 18155. doi:10.18174/sesmo.18155
 
     Herman, J. and Usher, W. (2017) SALib: An open-source Python library for sensitivity analysis. Journal of Open Source Software, 2(9). doi:10.21105/joss.00097
 
+#### GLUE analysis
+    Beven KJ, Binley AM. 1992. The future of distributed models: model calibration and uncertainty prediction. Hydrological Processes 6: 279–298. 
+
+#### A rainfall-runoff model
+The CFE model is designed to be a simplified and functionaly equivalent model of the National Water Model. The model code was originally written by Dr. Fred Ogden and converted to BMI-compliant format in the Next-Gen framework by NOAA-OWP. The official CFE code by Dr. Fred Oden and NOAA-OWP lives [here](https://github.com/NOAA-OWP/cfe/).  [The Python version of the code](https://github.com/NWC-CUAHSI-Summer-Institute/cfe_py) is developed for the prototyping, research, and development. This code is developed upon the Python version and for research purpose. 
 
 ## Contributing
 
@@ -44,3 +86,6 @@ Please make sure to update tests as appropriate.
 [MIT](https://choosealicense.com/licenses/mit/)
 
 Project Template provided by: https://github.com/moemen95/Pytorch-Project-Template
+
+## Citation
+To cite this code, email the author raraki8159 at sdsu dot edu
