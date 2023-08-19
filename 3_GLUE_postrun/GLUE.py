@@ -4,6 +4,7 @@ import numpy as np
 import os
 from util import triangle_weight, weighted_quantile
 import matplotlib.pyplot as plt
+import datetime
 
 class GLUE(object):
     def __init__(self, config=None, criteria=None):
@@ -17,12 +18,22 @@ class GLUE(object):
         
         # Get the parameter sets and evaluation metrics from GLUE pre-run
         GLUEprerun_output_path = self.config['PATHS']['GLUE_prerun_output_path']
-        self.prior_params = pd.read_csv(os.path.join(GLUEprerun_output_path, 'parameter_priori.csv'), index_col=0)
-        self.prior_eval_metrics = pd.read_csv(os.path.join(GLUEprerun_output_path, 'evaluations.csv'), index_col=0)
-        self.prior_eval_metrics_monthly = pd.read_csv(os.path.join(GLUEprerun_output_path, 'post_evaluations_monthly_metrics.csv'), index_col=0)
+        self.prior_params = pd.read_csv(os.path.join(GLUEprerun_output_path, 'prior_parameters.csv'), index_col=0)
+        self.prior_eval_metrics = pd.read_csv(os.path.join(GLUEprerun_output_path, 'evaluation_metrics.csv'), index_col=0)
+        self.prior_eval_metrics_monthly = pd.read_csv(os.path.join(GLUEprerun_output_path, 'evaluation_metrics_monthly.csv'), index_col=0)
         
         # Number of runs
         self.nrun = len(self.prior_params)
+        
+        # Quantile
+        self.quantiles = [float(x.strip()) for x in self.config.get('GLUE', 'quantiles').split(',')]
+        
+        # Define output folder
+        # Get the current date in YYYY-MM-DD format
+        current_date = datetime.date.today().strftime('%Y-%m-%d')
+        self.out_path = os.path.join(config['PATHS']['homedir'], 'results', f"{self.config['DATA']['site']}-{current_date}", f"criteria_{criteria.id}")
+        if not os.path.exists(self.out_path):
+            os.makedirs(self.out_path)
     
     def judge_behavioral(self, dataseries, threshold, behavioral_logical_operation):
         if behavioral_logical_operation == "metric value is more than threshold":
@@ -38,7 +49,7 @@ class GLUE(object):
         #########################
         
         # Judget behavioral vs. non-behavioral by each criterion
-        for key, criterion in self.criteria.full_criteria.items():
+        for _, criterion in self.criteria.full_criteria.items():
             self.prior_eval_metrics[criterion['metrics_fullname'] + '_Behavioral'] = self.judge_behavioral(
                 dataseries=self.prior_eval_metrics[criterion['metrics_fullname']], 
                 threshold=criterion['threshold'], 
@@ -58,12 +69,12 @@ class GLUE(object):
         
         # Get evaluation metrics from only behavioral runs 
         self.posterior_eval_metrics = self.prior_eval_metrics.iloc[self.behavioral_run_ids].copy()
-        self.posterior_eval_metrics_mo = self.prior_eval_metrics_monthly[self.prior_eval_metrics_monthly['run_id'].isin(self.behavioral_run_ids.values)].copy()
+        self.posterior_eval_metrics_mo = self.prior_eval_metrics_monthly[self.prior_eval_metrics_monthly.index.isin(self.behavioral_run_ids.values)].copy()
         
         # Save 
-        self.posterior_eval_metrics.to_csv(os.path.join(self.out_path_per_senario, 'post_evaluations.csv'), sep=',', header=True,
+        self.posterior_eval_metrics.to_csv(os.path.join(self.out_path, 'post_evaluations.csv'), sep=',', header=True,
                                     index=True, encoding='utf-8', na_rep='nan')
-        self.posterior_eval_metrics_mo.to_csv(os.path.join(self.out_path_per_senario, 'post_evaluations_monthly_metrics.csv'), sep=',', header=True,
+        self.posterior_eval_metrics_mo.to_csv(os.path.join(self.out_path, 'post_evaluations_monthly_metrics.csv'), sep=',', header=True,
                                     index=True, encoding='utf-8', na_rep='nan')
         
         # Get only behavioral parameters 
@@ -88,9 +99,7 @@ class GLUE(object):
                 self.behavioral_SM = pd.concat([self.behavioral_SM, result[2]], axis=1)
 
         self.behavioral_Q.set_axis(self.run_id_behavioral, axis=1, inplace=True)
-        self.behavioral_Q.set_axis(self.df_timeaxis, axis=0, inplace=True)
         self.behavioral_SM.set_axis(self.run_id_behavioral, axis=1, inplace=True)
-        self.behavioral_SM.set_axis(self.df_timeaxis, axis=0, inplace=True)
 
     def calc_weights(self):
         weights = np.empty((len(self.posterior_eval_metrics), len(self.eval_names)))
@@ -112,8 +121,6 @@ class GLUE(object):
     
     def calc_uncertainty_bounds(self, plot=True):
         
-        self.quantiles = [float(x.strip()) for x in self.config.get('GLUE', 'quantiles').split(',')]
-        
         avg_weight = self.calc_weights()
     
         variable_map = {
@@ -134,7 +141,7 @@ class GLUE(object):
             setattr(self, var_attr, df_simrange)
 
             if hasattr(self, var_attr):
-                df_simrange.to_csv(os.path.join(self.out_path_per_senario, f'quantiles_{var_name[0]}.csv'), sep=',', 
+                df_simrange.to_csv(os.path.join(self.out_path, f'quantiles_{var_name[0]}.csv'), sep=',', 
                                 header=True, index=True, encoding='utf-8', na_rep='nan')
     
     def plot_parameter_distribution(self):
@@ -160,12 +167,10 @@ class GLUE(object):
                 ax.yaxis.set_visible(False)
 
         # Save figure
-        f.savefig(os.path.join(self.out_path_per_senario, 'param_dist.png'), dpi=600)
+        f.savefig(os.path.join(self.out_path, 'param_dist.png'), dpi=600)
         plt.close(f)
 
     def plot_parameter_dotty(self):
-        if not hasattr(self, 'posterior_params'):
-            return
 
         nparas = len(self.prior_params.columns)
         eval_metrics = [col for col in self.posterior_eval_metrics.columns if '_Behavioral' not in col]
@@ -180,20 +185,13 @@ class GLUE(object):
                 ax.set_xlabel(target_para, fontsize=16)
                 ax.set_ylabel(target_eval, fontsize=16)
 
-            save_path = os.path.join(self.out_path_per_senario, f"param_dotty_{target_eval}.png")
+            save_path = os.path.join(self.out_path, f"param_dotty_{target_eval}.png")
             f.savefig(save_path, dpi=600)
             plt.close(f)
                 
     def plot_parameter_interaction_dotty(self):
         # List of parameters of interest
-        param_interest = [
-            'bb', 'satdk', 'slop', 'satpsi', 'smcmax', 'wltsmc',
-            'alpha_fc', 'lksatfac', 'D', 'trigger_z_fact', 'max_gw_storage',
-            'Cgw', 'expon', 'refkdt', 'K_nash'
-        ]
-
-        if not hasattr(self, 'posterior_params'):
-            return
+        param_interest = self.posterior_params.columns.to_list()
 
         n_params = len(param_interest)
         
@@ -212,10 +210,93 @@ class GLUE(object):
                     ax.set_ylabel(para1)
                 ax.tick_params(direction="in")
 
-        save_path = os.path.join(self.out_path_per_senario, "param_dotty_interaction.png")
+        save_path = os.path.join(self.out_path, "param_dotty_interaction.png")
         f.savefig(save_path, dpi=600)
         plt.close(f)
-                
+
+        
+    def plot_uncertainty_bounds(self, observed_Q, observed_SM):
+
+        settings = {
+            "Flow": {
+                "df_simrange": self.df_Q_simrange,
+                "df_obs": self.df_obs_Q,
+                "obs_label": 'Observed flow',
+                "y_label": 'Total flow [mm/hour]',
+                "title": 'Total flow for behavioral runs',
+                "fn": 'Q_range.png',
+                "yscale": 'log',
+                "ylim": [1E-07, 1E-01]
+            },
+            "Soil Moisture Content": {
+                "df_simrange": self.df_SM_simrange,
+                "df_obs": self.df_obs_SM,
+                "obs_label": 'Observed soil moisture',
+                "y_label": 'Volumetric Soil Moisture Content [m^3/m^3]',
+                "title": 'Soil moisture for behavioral runs',
+                "fn": 'SM_range.png'
+            }
+        }
+
+        for var_name, setting in settings.items():
+            f2, ax2 = plt.subplots(figsize=(8, 6))
+            
+            setting["df_simrange"]['lowerlim'].plot(color='black', alpha=0.2, ax=ax2, label=f'{quantiles[0]*100} percentile')
+            setting["df_simrange"]['upperlim'].plot(color='black', alpha=0.2, ax=ax2, label=f'{quantiles[2]*100} percentile')
+            setting["df_obs"].plot(color='black', alpha=1, ax=ax2, label=setting["obs_label"])
+
+            plt.fill_between(setting["df_simrange"].index, setting["df_simrange"]['upperlim'], setting["df_simrange"]['lowerlim'],
+                            facecolor='green', alpha=0.2, interpolate=True, label='Predicted range')
+
+            if "yscale" in setting:
+                ax2.set_yscale(setting["yscale"])
+                ax2.set_ylim(setting["ylim"])
+
+            ax2.set_xlabel('Time')
+            ax2.set_ylabel(setting["y_label"])
+            ax2.set_title(setting["title"])
+            ax2.legend()
+
+            f2.autofmt_xdate()
+            f2.savefig(os.path.join(self.out_path, setting["fn"]), dpi=600)
+            plt.close(f2)
+        
+        # # Plot 
+        # for var_name in self.var_names:
+        #     if var_name == "Flow":
+        #         df_simrange = self.df_Q_simrange
+        #         df_obs = self.df_obs_Q
+        #         obs_label = 'Observed flow'
+        #         y_label = 'Total flow [mm/hour]'
+        #         title = 'Total flow for behavioral runs'
+        #         fn = 'Q_range.png'
+        #     elif var_name == "Soil Moisture Content":
+        #         var_name = "Soil Moisture Content"
+        #         df_simrange = self.df_SM_simrange
+        #         df_obs = self.df_obs_SM
+        #         obs_label = 'Observed soil moisture'
+        #         y_label = 'Volumetric Soil Moisture Content [m^3/m^3]'
+        #         title = 'Soil moisture for behavioral runs'
+        #         fn = 'SM_range.png'
+
+        #     f2 = plt.figure(figsize=(8, 6))
+        #     ax2 = f2.add_subplot()
+
+        #     df_simrange['lowerlim'].plot(color='black', alpha=0.2, ax=ax2, label=f'{quantiles[0]*100} percentile')
+        #     df_simrange['upperlim'].plot(color='black', alpha=0.2, ax=ax2, label=f'{quantiles[2]*100} percentile')
+        #     df_obs[var_name].plot(color='black', alpha=1, ax=ax2, label=obs_label)
+        #     plt.fill_between(df_simrange.index, df_simrange['upperlim'], df_simrange['lowerlim'],
+        #                         facecolor='green', alpha=0.2, interpolate=True, label='Predicted range')
+        #     if var_name == "Flow":
+        #         ax2.set_yscale('log')
+        #         ax2.set_ylim([1E-07, 1E-01])
+        #     ax2.set_xlabel('Time')
+        #     ax2.set_ylabel(y_label)
+        #     ax2.set_title(title)
+        #     ax2.legend()
+        #     f2.autofmt_xdate()
+        #     f2.savefig(os.path.join(self.out_path_per_senario, fn), dpi=600)
+                                
 
     
         """
@@ -273,86 +354,3 @@ class GLUE(object):
             self.df_SM_simrange.to_csv(os.path.join(self.out_path_per_senario, 'quantiles_SM.csv'), sep=',', header=True,
                                        index=True, encoding='utf-8', na_rep='nan')
         """
-        
-    def plot_uncertainty_bounds(self, observed_Q, observed_SM):
-
-        settings = {
-            "Flow": {
-                "df_simrange": self.df_Q_simrange,
-                "df_obs": self.df_obs_Q,
-                "obs_label": 'Observed flow',
-                "y_label": 'Total flow [mm/hour]',
-                "title": 'Total flow for behavioral runs',
-                "fn": 'Q_range.png',
-                "yscale": 'log',
-                "ylim": [1E-07, 1E-01]
-            },
-            "Soil Moisture Content": {
-                "df_simrange": self.df_SM_simrange,
-                "df_obs": self.df_obs_SM,
-                "obs_label": 'Observed soil moisture',
-                "y_label": 'Volumetric Soil Moisture Content [m^3/m^3]',
-                "title": 'Soil moisture for behavioral runs',
-                "fn": 'SM_range.png'
-            }
-        }
-
-        for var_name, setting in settings.items():
-            f2, ax2 = plt.subplots(figsize=(8, 6))
-            
-            setting["df_simrange"]['lowerlim'].plot(color='black', alpha=0.2, ax=ax2, label=f'{quantiles[0]*100} percentile')
-            setting["df_simrange"]['upperlim'].plot(color='black', alpha=0.2, ax=ax2, label=f'{quantiles[2]*100} percentile')
-            setting["df_obs"].plot(color='black', alpha=1, ax=ax2, label=setting["obs_label"])
-
-            plt.fill_between(setting["df_simrange"].index, setting["df_simrange"]['upperlim'], setting["df_simrange"]['lowerlim'],
-                            facecolor='green', alpha=0.2, interpolate=True, label='Predicted range')
-
-            if "yscale" in setting:
-                ax2.set_yscale(setting["yscale"])
-                ax2.set_ylim(setting["ylim"])
-
-            ax2.set_xlabel('Time')
-            ax2.set_ylabel(setting["y_label"])
-            ax2.set_title(setting["title"])
-            ax2.legend()
-
-            f2.autofmt_xdate()
-            f2.savefig(os.path.join(self.out_path_per_senario, setting["fn"]), dpi=600)
-            plt.close(f2)
-        
-        # # Plot 
-        # for var_name in self.var_names:
-        #     if var_name == "Flow":
-        #         df_simrange = self.df_Q_simrange
-        #         df_obs = self.df_obs_Q
-        #         obs_label = 'Observed flow'
-        #         y_label = 'Total flow [mm/hour]'
-        #         title = 'Total flow for behavioral runs'
-        #         fn = 'Q_range.png'
-        #     elif var_name == "Soil Moisture Content":
-        #         var_name = "Soil Moisture Content"
-        #         df_simrange = self.df_SM_simrange
-        #         df_obs = self.df_obs_SM
-        #         obs_label = 'Observed soil moisture'
-        #         y_label = 'Volumetric Soil Moisture Content [m^3/m^3]'
-        #         title = 'Soil moisture for behavioral runs'
-        #         fn = 'SM_range.png'
-
-        #     f2 = plt.figure(figsize=(8, 6))
-        #     ax2 = f2.add_subplot()
-
-        #     df_simrange['lowerlim'].plot(color='black', alpha=0.2, ax=ax2, label=f'{quantiles[0]*100} percentile')
-        #     df_simrange['upperlim'].plot(color='black', alpha=0.2, ax=ax2, label=f'{quantiles[2]*100} percentile')
-        #     df_obs[var_name].plot(color='black', alpha=1, ax=ax2, label=obs_label)
-        #     plt.fill_between(df_simrange.index, df_simrange['upperlim'], df_simrange['lowerlim'],
-        #                         facecolor='green', alpha=0.2, interpolate=True, label='Predicted range')
-        #     if var_name == "Flow":
-        #         ax2.set_yscale('log')
-        #         ax2.set_ylim([1E-07, 1E-01])
-        #     ax2.set_xlabel('Time')
-        #     ax2.set_ylabel(y_label)
-        #     ax2.set_title(title)
-        #     ax2.legend()
-        #     f2.autofmt_xdate()
-        #     f2.savefig(os.path.join(self.out_path_per_senario, fn), dpi=600)
-                

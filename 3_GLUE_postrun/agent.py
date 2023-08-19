@@ -14,13 +14,6 @@ class Agent_GLUE_CFE_PostRun(object):
         criteria = Criteria(config=config)
         self.GLUE = GLUE(config=config, criteria=criteria)
         
-        # Define output folder
-        # Get the current date in YYYY-MM-DD format
-        current_date = datetime.date.today().strftime('%Y-%m-%d')
-        self.out_path = os.path.join(config['PATHS']['homedir'], 'results', f"{self.config['DATA']['site']}-{current_date}", f"criteria_{criteria.id}")
-        if not os.path.exists(self.out_path):
-            os.makedirs(self.out_path)
-        
         # Define the GLUE number of runs
         self.nrun = self.GLUE.nrun
         
@@ -34,31 +27,32 @@ class Agent_GLUE_CFE_PostRun(object):
         # Plot figures 
         if self.plot_figures:
             self.GLUE.plot_parameter_distribution()
-            self.GLUE.plot_parametter_dotty()
+            self.GLUE.plot_parameter_dotty()
             self.GLUE.plot_parameter_interaction_dotty()
             
         return behavioral_param_sets
 
         
-    def reproduce_a_behavioral_run(self, behavioral_param):
+    def reproduce_a_behavioral_run(self, behavioral_params_set):
         
         # Preparations
-        nth_run, behavioral_params_set = behavioral_param
+        nth_run, behavioral_params_set = behavioral_params_set
         print(f'Processing {nth_run}/{self.nrun-1}')
         
         # Run CFE
         cfe_instance = CFEmodel(config=self.config)
         cfe_instance.initialize(nth_run=nth_run, behavioral_params_set=behavioral_params_set)
-        obs, sim = cfe_instance.run()
+        _, sim = cfe_instance.run()
 
-        # Get the variable of interest
-        self.sim_behavioral_Q = sim['Flow']
-        self.sim_behavioral_SM = sim['Soil Moisture Content']
-        
-        return [nth_run, self.df_behavioral_Q, self.df_behavioral_SM]
+        # Return the variable of interest
+        return [nth_run, sim['Flow'], sim['Soil Moisture Content']]
 
 
     def finalize(self, all_results):
+        
+        if len(all_results) == 0:
+            print("There was no behavioral run")
+            return 
         
         # Render the results from all GLUE runs to dataframe, store them in GLUE object
         self.GLUE.all_results_to_df(all_results)

@@ -32,7 +32,7 @@ class CFEmodel():
         self.config = config
 
 
-    def initialize(self, nth_run=0, sampled_params_set=None):
+    def initialize(self, nth_run=0, behavioral_params_set=None):
         """Initialize CFE model for the n-th GLUE run"""
         
         # Write the randomly-generated parameters to the config json file
@@ -44,11 +44,11 @@ class CFEmodel():
             self.cfe_cfg = json.load(data_file)
 
         # Overwrite the model config file
-        for i in range(len(sampled_params_set)):
-            if sampled_params_set[i][1] in ['bb', 'satdk', 'slop', 'satpsi', 'smcmax', 'wltsmc', 'D']:
-                self.cfe_cfg["soil_params"][sampled_params_set[i][1]] = sampled_params_set[i][0]
+        for param_name, param_value in behavioral_params_set.items():
+            if param_name in ['bb', 'satdk', 'slop', 'satpsi', 'smcmax', 'wltsmc', 'D']:
+                self.cfe_cfg["soil_params"][param_name] = param_value
             else:
-                self.cfe_cfg[sampled_params_set[i][1]] = sampled_params_set[i][0]
+                self.cfe_cfg[param_name] = param_value
                 
         # Save the config file with new parameters
         with open(destination_path, 'w') as out_file:

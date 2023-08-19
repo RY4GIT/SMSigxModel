@@ -41,7 +41,7 @@ def main(config_path):
         all_results = pool.map(glue_experiment.reproduce_a_behavioral_run, behavioral_param_sets)
         pool.close()
         pool.join()
-        print(f"--- Finished GLUE runs (n = {config['GLUE']['nrun']}) ---")
+        print(f"--- Finished GLUE runs ---")
         
     elif glue_experiment.nrun == 1:
         print('--- Single run mode ---')
