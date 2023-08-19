@@ -24,7 +24,7 @@ Formats Mahurangi & Little Washita data. Formatted datasets are saved in the `da
 Conducts a Morris sensitivity analysis.
 
 To run:
-```Python
+```bash
 cd 1_sensitivity_analysis
 python __main__.py
 ```
@@ -36,7 +36,7 @@ python __main__.py
 Runs the rainfall-runoff model with various randomly-generated parameters in preparation for the next step. This step is not dependent on the `1_sensitivity_analysis`; If you are only interested in the GLUE experiments, start from this step.  
 
 To run:
-```Python
+```bash
 cd 2_GLUE_prerun
 python __main__.py
 ```
@@ -48,7 +48,7 @@ python __main__.py
 Analyzes the output from `2_GLUE_prerun` using GLUE.
 
 To run:
-```Python
+```bash
 cd 3_GLUE_postrun
 python __main__.py
 ```
