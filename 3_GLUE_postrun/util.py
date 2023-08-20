@@ -1,12 +1,15 @@
 import numpy as np
 import pandas as pd
 
+
 # Global function
-def weighted_quantile(values, quantiles, sample_weight=None, values_sorted=False, old_style=False):
+def weighted_quantile(
+    values, quantiles, sample_weight=None, values_sorted=False, old_style=False
+):
     # Code from https://stackoverflow.com/questions/21844024/weighted-percentile-using-numpy/32216049
     # Equation was taken from here "The weighted percentile method": https://en.wikipedia.org/wiki/Percentile#Definition_of_the_Weighted_Percentile_method
-    
-    """ Very close to numpy.percentile, but supports weights.
+
+    """Very close to numpy.percentile, but supports weights.
     NOTE: quantiles should be within [0, 1]!
     :param values: numpy.array with data
     :param quantiles: array-like with many quantiles needed
@@ -17,18 +20,20 @@ def weighted_quantile(values, quantiles, sample_weight=None, values_sorted=False
         with numpy.percentile.
     :return: numpy.array with computed quantiles.
     """
-    
+
     # Check input variables
     values = np.array(values)
-    
+
     quantiles = np.array(quantiles)
-    assert np.all(quantiles >= 0) and np.all(quantiles <= 1), 'quantiles should be in [0, 1]'
-    
+    assert np.all(quantiles >= 0) and np.all(
+        quantiles <= 1
+    ), "quantiles should be in [0, 1]"
+
     if sample_weight is None:
         sample_weight = np.ones(len(values))
     sample_weight = np.array(sample_weight)
-    
-    # Sort values 
+
+    # Sort values
     if not values_sorted:
         sorter = np.argsort(values)
         values = values[sorter]
@@ -42,7 +47,7 @@ def weighted_quantile(values, quantiles, sample_weight=None, values_sorted=False
         weighted_quantiles /= weighted_quantiles[-1]
     else:
         weighted_quantiles /= np.sum(sample_weight)
-    
+
     # Get the data corresponding to desired quantiles
     # Interpolate the values (y) x weighted quantiles (x1) relationship to quantiles (x2)
     return np.interp(quantiles, weighted_quantiles, values)
