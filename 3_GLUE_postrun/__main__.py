@@ -2,7 +2,6 @@
 
 # Import libraries
 import os
-import sys
 import configparser
 from agent import Agent_GLUE_CFE_PostRun
 import multiprocessing as mp
@@ -36,12 +35,12 @@ def main(config_path):
         os.environ['NUMEXPR_MAX_THREADS'] = config['Multiprocessing']['NUMEXPR_MAX_THREADS']
         
         # Run MP
-        print('--- Simulation started ---')
+        print('--- Reproducing behavioral runs started ---')
         pool = mp.Pool(processes=pool_nprocess)
         all_results = pool.map(glue_experiment.reproduce_a_behavioral_run, behavioral_param_sets)
         pool.close()
         pool.join()
-        print(f"--- Finished GLUE runs ---")
+        print(f"--- Finished reproducing runs ---")
         
     elif glue_experiment.nrun == 1:
         print('--- Single run mode ---')

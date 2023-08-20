@@ -49,7 +49,9 @@ class Agent_GLUE_CFE_PostRun(object):
 
 
     def finalize(self, all_results):
+        """Finalize"""
         
+        # Check if there are behavioral runs 
         if len(all_results) == 0:
             print("There was no behavioral run")
             return 
@@ -58,16 +60,16 @@ class Agent_GLUE_CFE_PostRun(object):
         self.GLUE.all_results_to_df(all_results)
         
         # Calculate the uncertainty bounds
-        self.GLUE.calc_uncertainty_bounds()
+        self.GLUE.get_uncertainty_bounds_for_all_variables()
         
         if self.plot_figures:
             
             # Get observed timeseries for a reference, use CFE BMI
             cfe_instance = CFEmodel(config=self.config)
-            self.df_obs_Q, self.df_obs_SM = cfe_instance.get_observed_timeseries()
+            self.obs_Q, self.obs_SM = cfe_instance.get_observed_timeseries()
         
             # Plot the figure
-            self.GLUE.plot_uncertainty_bounds(self.df_obs_Q, self.df_obs_SM)
+            self.GLUE.plot_uncertainty_bounds(self.obs_Q, self.obs_SM)
 
 
 

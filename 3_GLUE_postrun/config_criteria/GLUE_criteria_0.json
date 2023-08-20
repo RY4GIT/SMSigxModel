@@ -1,8 +1,0 @@
-{
-    "0": {
-        "variable_to_analyze": "Flow",
-        "metric": "KGE",
-        "threshold": -9999,
-        "operation": "metric value is more than threshold"
-    }
-}

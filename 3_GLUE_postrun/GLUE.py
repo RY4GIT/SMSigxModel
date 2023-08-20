@@ -11,10 +11,35 @@ class GLUE(object):
         
         self.config = config
         
+        ################################
+        # Get configuration for GLUE analysis
+        ################################
+        
+        # Quantile
+        self.quantiles = [float(x.strip()) for x in self.config.get('GLUE', 'quantiles').split(',')]
+        
         # Get GLUE criteria
         self.criteria = criteria
-        
-        # Get previous GLUE configuration
+    
+        # Define output folder
+        # Get the current date in YYYY-MM-DD format
+        current_date = datetime.date.today().strftime('%Y-%m-%d')
+        self.out_path = os.path.join(config['PATHS']['homedir'], 'results', f"{self.config['DATA']['site']}-{current_date}", f"criteria_{criteria.id}")
+        if not os.path.exists(self.out_path):
+            os.makedirs(self.out_path)
+            
+        # Keyword arguments for to_csv
+        self.kwargs_dict_csv = {
+            "sep": ',',
+            "header": True,
+            "index": True,
+            "encoding": 'utf-8',
+            "na_rep": 'nan'
+        }
+            
+        ################################
+        # Get configuration used in GLUE prerun
+        ################################
         
         # Get the parameter sets and evaluation metrics from GLUE pre-run
         GLUEprerun_output_path = self.config['PATHS']['GLUE_prerun_output_path']
@@ -24,22 +49,13 @@ class GLUE(object):
         
         # Number of runs
         self.nrun = len(self.prior_params)
-        
-        # Quantile
-        self.quantiles = [float(x.strip()) for x in self.config.get('GLUE', 'quantiles').split(',')]
-        
-        # Define output folder
-        # Get the current date in YYYY-MM-DD format
-        current_date = datetime.date.today().strftime('%Y-%m-%d')
-        self.out_path = os.path.join(config['PATHS']['homedir'], 'results', f"{self.config['DATA']['site']}-{current_date}", f"criteria_{criteria.id}")
-        if not os.path.exists(self.out_path):
-            os.makedirs(self.out_path)
+
     
-    def judge_behavioral(self, dataseries, threshold, behavioral_logical_operation):
+    def judge_behavioral(self, metric_values, threshold, behavioral_logical_operation):
         if behavioral_logical_operation == "metric value is more than threshold":
-            return dataseries > threshold
+            return metric_values > threshold
         elif behavioral_logical_operation == "metric value is less than threshold":
-            return dataseries < threshold
+            return metric_values < threshold
     
     def apply_criteria(self):
         """Evaluate GLUE prerun reuslts based on the criteria"""
@@ -48,10 +64,10 @@ class GLUE(object):
         # Main GLUE procedure 
         #########################
         
-        # Judget behavioral vs. non-behavioral by each criterion
+        # Judget behavioral vs. non-behavioral for all criterion
         for _, criterion in self.criteria.full_criteria.items():
             self.prior_eval_metrics[criterion['metrics_fullname'] + '_Behavioral'] = self.judge_behavioral(
-                dataseries=self.prior_eval_metrics[criterion['metrics_fullname']], 
+                metric_values=self.prior_eval_metrics[criterion['metrics_fullname']], 
                 threshold=criterion['threshold'], 
                 behavioral_logical_operation=criterion['operation']
             )
@@ -72,10 +88,8 @@ class GLUE(object):
         self.posterior_eval_metrics_mo = self.prior_eval_metrics_monthly[self.prior_eval_metrics_monthly.index.isin(self.behavioral_run_ids.values)].copy()
         
         # Save 
-        self.posterior_eval_metrics.to_csv(os.path.join(self.out_path, 'post_evaluations.csv'), sep=',', header=True,
-                                    index=True, encoding='utf-8', na_rep='nan')
-        self.posterior_eval_metrics_mo.to_csv(os.path.join(self.out_path, 'post_evaluations_monthly_metrics.csv'), sep=',', header=True,
-                                    index=True, encoding='utf-8', na_rep='nan')
+        self.posterior_eval_metrics.to_csv(os.path.join(self.out_path, 'post_evaluations.csv'), **self.kwargs_dict_csv)
+        self.posterior_eval_metrics_mo.to_csv(os.path.join(self.out_path, 'post_evaluations_monthly_metrics.csv'), **self.kwargs_dict_csv)
         
         # Get only behavioral parameters 
         self.posterior_params = self.prior_params.iloc[self.behavioral_run_ids].copy()
@@ -112,37 +126,49 @@ class GLUE(object):
         return weight
         
     def get_weights_for_multi_criteria(self):
-        weights = np.empty((len(self.posterior_eval_metrics), len(self.criteria.full_criteria)))
+        # Weight matrix: [number of behavioral runs] - by - [number of criterial]
+        weights = np.empty((len(self.behavioral_run_ids), len(self.criteria.full_criteria)))
 
+        # Get weights for each criteria
         for i, (_, criterion) in enumerate(self.criteria.full_criteria.items()):
             weights[:, i] = self.calc_weights(self.posterior_eval_metrics[criterion['metrics_fullname']], criterion['threshold'], criterion['metrics_fullname'])
             
+        # Average weight for all criteria
         return np.mean(weights, axis=1)
     
-    def calc_uncertainty_bounds(self, plot=True):
+    def calc_uncertainty_bounds(self, var_attr, avg_weight):
         
+        # Get the dataseries based on the variable attribute names
+        df_behavioral = getattr(self, f'behavioral_{var_attr}').copy()
+        np_behavioral = df_behavioral.to_numpy(copy=True)
+
+        # Get the quantiles of dataseries for each timstep
+        _dataseries_quantiles = np.array([
+            weighted_quantile(values=row, quantiles=self.quantiles, sample_weight=avg_weight) 
+            for row in np_behavioral
+        ])
+        
+        # Render them as pandas dataframe
+        dataseries_quantiles = pd.DataFrame(_dataseries_quantiles, index=df_behavioral.index, columns=['lowerlim', 'median', 'upperlim'])
+        setattr(self, f"quantile_{var_attr}", dataseries_quantiles)
+
+        # Save results
+        if hasattr(self, f"quantile_{var_attr}"):
+            dataseries_quantiles.to_csv(os.path.join(self.out_path, f'quantiles_{var_attr}.csv'), **self.kwargs_dict_csv)
+        
+    def get_uncertainty_bounds_for_all_variables(self):
+        
+        # Calculate average weight for multi-criteria
         avg_weight = self.get_weights_for_multi_criteria()
     
         variable_map = {
-            "Flow": "df_Q_simrange",
-            "Soil Moisture Content": "df_SM_simrange"
+            "Flow": "Q",
+            "Soil Moisture Content": "SM"
         }
 
-        for var_name, var_attr in variable_map.items():
-            df_behavioral = getattr(self, f'df_behavioral_{var_name[0]}').copy()
-            np_behavioral = df_behavioral.to_numpy(copy=True)
-
-            quantile = np.array([
-                weighted_quantile(values=row, quantiles=self.quantiles, sample_weight=avg_weight) 
-                for row in np_behavioral
-            ])
-            
-            df_simrange = pd.DataFrame(quantile, index=df_behavioral.index, columns=['lowerlim', 'median', 'upperlim'])
-            setattr(self, var_attr, df_simrange)
-
-            if hasattr(self, var_attr):
-                df_simrange.to_csv(os.path.join(self.out_path, f'quantiles_{var_name[0]}.csv'), sep=',', 
-                                header=True, index=True, encoding='utf-8', na_rep='nan')
+        # Calculate uncertainty bounds for each variables of interest
+        for _, var_attr in variable_map.items():
+            self.calc_uncertainty_bounds(var_attr, avg_weight)
     
     def plot_parameter_distribution(self):
         
@@ -219,30 +245,30 @@ class GLUE(object):
 
         settings = {
             "Flow": {
-                "df_simrange": self.df_Q_simrange,
-                "df_obs": self.df_obs_Q,
+                "df_simrange": self.quantile_Q,
+                "df_obs": observed_Q,
                 "obs_label": 'Observed flow',
                 "y_label": 'Total flow [mm/hour]',
                 "title": 'Total flow for behavioral runs',
-                "fn": 'Q_range.png',
+                "fn": 'quantiles_Q.png',
                 "yscale": 'log',
                 "ylim": [1E-07, 1E-01]
             },
             "Soil Moisture Content": {
-                "df_simrange": self.df_SM_simrange,
-                "df_obs": self.df_obs_SM,
+                "df_simrange": self.quantile_SM,
+                "df_obs": observed_SM,
                 "obs_label": 'Observed soil moisture',
                 "y_label": 'Volumetric Soil Moisture Content [m^3/m^3]',
                 "title": 'Soil moisture for behavioral runs',
-                "fn": 'SM_range.png'
+                "fn": 'quantiles_SM.png'
             }
         }
 
-        for var_name, setting in settings.items():
+        for _, setting in settings.items():
             f2, ax2 = plt.subplots(figsize=(8, 6))
             
-            setting["df_simrange"]['lowerlim'].plot(color='black', alpha=0.2, ax=ax2, label=f'{quantiles[0]*100} percentile')
-            setting["df_simrange"]['upperlim'].plot(color='black', alpha=0.2, ax=ax2, label=f'{quantiles[2]*100} percentile')
+            setting["df_simrange"]['lowerlim'].plot(color='black', alpha=0.2, ax=ax2, label=f'{self.quantiles[0]*100} percentile')
+            setting["df_simrange"]['upperlim'].plot(color='black', alpha=0.2, ax=ax2, label=f'{self.quantiles[2]*100} percentile')
             setting["df_obs"].plot(color='black', alpha=1, ax=ax2, label=setting["obs_label"])
 
             plt.fill_between(setting["df_simrange"].index, setting["df_simrange"]['upperlim'], setting["df_simrange"]['lowerlim'],

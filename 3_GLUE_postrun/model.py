@@ -82,11 +82,12 @@ class CFEmodel():
             # ==================================================
         # One more last run to get synced observed timeseries
         # ==================================================
-        myCFE = BMI_CFE(self.config['PATHS']['cfe_config'])
-        myCFE.initialize()
+        cfe_instance = BMI_CFE(self.config['PATHS']['cfe_config'])
+        cfe_instance.initialize()
+        cfe_instance.run_unit_test(plot=False, warm_up=True)
         
-        obs = to_datetime(df=self.cfe_instance.unit_test_data, time_column="Time", format=self.config['DATA']['evaldata_time_format'])
-        sim = to_datetime(df=self.cfe_instance.cfe_output_data, time_column="Time", format="%Y-%m-%d %H:%M:%S")
+        obs = to_datetime(df=cfe_instance.unit_test_data, time_column="Time", format=self.config['DATA']['evaldata_time_format'])
+        sim = to_datetime(df=cfe_instance.cfe_output_data, time_column="Time", format="%Y-%m-%d %H:%M:%S")
         obs_synced = pd.DataFrame()
         
         df = pd.merge_asof(obs, sim, on = "Time")
@@ -100,9 +101,7 @@ class CFEmodel():
             obs_synced[var_name] = df[var_name + "_x"].copy()
             sim_synced[var_name] = df[var_name + "_y"].copy()
             
-        self.df_obs_Q = pd.DataFrame(self.obs_synced["Flow"])
-        self.df_obs_Q.set_axis(self.df_timeaxis, axis=0, inplace=True)
-        self.df_obs_SM = pd.DataFrame(self.obs_synced["Soil Moisture Content"])
-        self.df_obs_SM.set_axis(self.df_timeaxis, axis=0, inplace=True)
+        obs_Q = pd.DataFrame(obs_synced["Flow"])
+        obs_SM = pd.DataFrame(obs_synced["Soil Moisture Content"])
         
-        return [self.df_obs_Q,  self.df_obs_SM]
+        return obs_Q,  obs_SM
