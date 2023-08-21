@@ -84,7 +84,7 @@ class Agent_GLUE_CFE(object):
         obs, sim = cfe_instance.run()
 
         # Evaluate the outputs
-        evaluator = Evaluator(observation=obs, simulation=sim)
+        evaluator = Evaluator(config=self.config, observation=obs, simulation=sim)
         eval_metrics, eval_metrics_monthly = evaluator.evaluate(nth_run=nth_run)
 
         print(f"Evaluation {nth_run}/{self.nrun-1}")

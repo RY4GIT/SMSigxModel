@@ -1,5 +1,5 @@
 {
-    "forcing_file": "G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/2_data_input/LittleWashita/full/little_washita_2006_2012.csv",
+    "forcing_file": "G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/data/LittleWashita/little_washita_2006_2012.csv",
     "catchment_area_km2": 610,
     "soil_params": {
         "bb": 4.74,
@@ -32,5 +32,5 @@
     ],
     "stand_alone": 1,
     "unit_test": 1,
-    "compare_results_file": "G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/2_data_input/LittleWashita/full/test_sm_basinavg.csv"
+    "compare_results_file": "G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/data/LittleWashita/test_sm_basinavg.csv"
 }

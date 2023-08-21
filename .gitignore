@@ -18,7 +18,8 @@
 4_post_analysis/results/*
 data/Mahurangi/parameters/*
 data/Mahurangi/temporary_parameter_files_for_GLUE/*
-dat/Mahurangi/plot/*
+data/LittleWashita/temporary_parameter_files_for_GLUE/*
+data/Mahurangi/plot/*
 data/Mahurangi/trash/*
 data/seasonsig_test/*
 data/trash/*

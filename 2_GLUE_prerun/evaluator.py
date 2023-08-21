@@ -12,10 +12,11 @@ import spotpy
 
 
 class Evaluator:
-    def __init__(self, simulation=None, observation=None) -> None:
+    def __init__(self, config=None, simulation=None, observation=None) -> None:
         self.flow_var_name = "Flow"
         self.soilmoisture_var_name = "Soil Moisture Content"
 
+        self.config = config
         self.observation = observation
         self.simulation = simulation
 
@@ -111,8 +112,8 @@ class Evaluator:
             plot_results=False,
             plot_label="obs",
         )
-        sig_obs.movmean()
-        t_valley = sig_obs.calc_sinecurve()
+
+        t_valley = self.get_t_valley()
         season_trans_obs, _, _ = sig_obs.calc_seasontrans(t_valley=t_valley)
 
         # Calculate metrics for SIMULATED timeseries
@@ -122,7 +123,6 @@ class Evaluator:
             plot_results=False,
             plot_label="sim",
         )
-        sig_sim.movmean()
         season_trans_sim, _, _ = sig_sim.calc_seasontrans(t_valley=t_valley)
 
         # Get the deviations in seasonal transition dates between simulated and observed timeseries
@@ -130,6 +130,14 @@ class Evaluator:
         abs_diff_SeasonTransDate = abs(np.nanmean(diff, axis=0))
 
         return abs_diff_SeasonTransDate
+
+    def get_t_valley(self):
+        data_directory = os.path.dirname(self.config["PATHS"]["cfe_config"])
+        _t_valley_manual_input = pd.read_csv(
+            os.path.join(data_directory, "seasonal_cycel_valleys.csv"), header=None
+        )
+        t_valley_manual_input = pd.to_datetime(_t_valley_manual_input[0])
+        return t_valley_manual_input
 
     def df_to_monthly_timestep(self, df):
         df_monthly = df.resample("M").sum().copy()
