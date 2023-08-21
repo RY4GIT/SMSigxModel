@@ -63,7 +63,7 @@ def triangle_weight(x, a, b, c):
     return y
 
 
-def to_datetime(df, time_column, format):
+def to_datetime(df, time_column, format="%Y-%m-%d %H:%M:%S"):
     df = df.copy()
     df[time_column] = pd.to_datetime(df[time_column], format=format)
     return df.set_index(time_column)
