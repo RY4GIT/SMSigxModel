@@ -8,7 +8,7 @@ The original observation data were obtained via personal communication.
 Request and download data from [ARC Mesonet Grazing Lands Research Laboratory](https://ars.mesonet.org/data-files/data-request/) before running the code `LW-1-load_and_thiessen_RAIN.ipynb` and `LW-3-load_SOILMOISTURE.py`. Select ARS Network: Little Washite, Site ID(s) Request all sites, Interval 5 minutes, starting date 01/01/2006 and ending date 12/31/2014. 
 
 ### PET data
-Download daily potential evapotranspiration data from the source below (`NARR_day_etp_9313.csv`) before running the code `LW-2-load_PET.py`
+Download daily potential evapotranspiration data from [Picourlat et al., (2021)](https://doi.org/10.5281/zenodo.5503735) (`NARR_day_etp_9313.csv`) before running the code `LW-2-load_PET.py`
 
     Fanny Picourlat, Emmanuel Mouche, & Claude Mügler. (2021). Capturing the Little Washita watershed water balance with a physically-based two-hydrologic-variable model (Version v1) [Data set]. Zenodo. https://doi.org/10.5281/zenodo.5503735
 
