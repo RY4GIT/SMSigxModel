@@ -60,7 +60,7 @@ python __main__.py
 - ```config.ini```
     - The main config file. Copy `example_config_xxx.ini` and change it to your desired setting
 - ```.3_GLUE_postrun\config_criteria\GLUE_criteria_{criteria_id}.json```
-    - The configuration file that defines the criteria of GLUE behavioral threshold. The criteria_id in the filename corresponding to config["GLUE"]["criteria_id"]
+    - The configuration file that defines the criteria of GLUE behavioral threshold. The `criteria_id` in the filename corresponding to `config["GLUE"]["criteria_id"]`
 
 ### 4_post_analysis
 Executes post-analysis and visualizes the results from 3_GLUE_postrun. Follow the Jupyter Notebooks in numerical order for this step.
