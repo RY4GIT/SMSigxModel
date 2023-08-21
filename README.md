@@ -59,7 +59,20 @@ python __main__.py
 ### 4_post_analysis
 Executes post-analysis and visualizes the results from 3_GLUE_postrun. Follow the Jupyter Notebooks in numerical order for this step.
 
-## Reference
+## Data
+- Input data requirements
+  - `time`: hourly time interval
+  - `precip_rate`: preipictation in [m/hr]
+  - `PET`: potential evapotranspiration in [m/hr]
+- Observation data requirements
+  - `Time`: hourly time interval
+  - `Rainfall`: preipictation in [m/hr]
+  - `Flow`: streamflow discharge in [m/hr]
+  - `Soil Moisture Content`: volumetrics soil water content in [m3/m3]
+  - `Direct runoff` `GIUH Runoff` `Lateral Flow`` `Base Flow`: not used in analysis but BMI_CFE requires it. All values set `0` as default. 
+  - `Total Discharge`: streamflow discharge in [m3/s] (`Flow` multiplied by area and time conversion)
+
+## Resources
 
 #### Sensitivity analysis 
 SALib documentation: https://salib.readthedocs.io/en/latest/
@@ -74,18 +87,16 @@ SALib documentation: https://salib.readthedocs.io/en/latest/
 #### A rainfall-runoff model
 The CFE model is designed to be a simplified and functionaly equivalent model of the National Water Model. The model code was originally written by Dr. Fred Ogden and converted to BMI-compliant format in the Next-Gen framework by NOAA-OWP. The official CFE code by Dr. Fred Oden and NOAA-OWP lives [here](https://github.com/NOAA-OWP/cfe/).  [The Python version of the code](https://github.com/NWC-CUAHSI-Summer-Institute/cfe_py) is developed for the prototyping, research, and development. This code is developed upon the Python version and for research purpose. 
 
+### License
+[MIT](https://choosealicense.com/licenses/mit/)
+Project Template provided by: https://github.com/moemen95/Pytorch-Project-Template
+
 ## Contributing
 
 Pull requests are welcome. For major changes, please open an issue first
 to discuss what you would like to change.
 
 Please make sure to update tests as appropriate.
-
-## License
-
-[MIT](https://choosealicense.com/licenses/mit/)
-
-Project Template provided by: https://github.com/moemen95/Pytorch-Project-Template
 
 ## Citation
 To cite this code, email the author raraki8159 at sdsu dot edu
