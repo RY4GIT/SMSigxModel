@@ -143,4 +143,4 @@ class Agent_GLUE_CFE(object):
             na_rep="nan",
         )
 
-        print(f"--- Saved results to {self.out_path}---")
+        print(f"--- Saved results to {self.out_path} ---")

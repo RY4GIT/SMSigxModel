@@ -95,14 +95,16 @@ class Evaluator:
         return pd.concat(metrics.values(), axis=1, keys=metrics.keys())
 
     def calc_NSE(self, variable):
+        obs = self.observation[variable]
+        sim = self.simulation[variable]
         return spotpy.objectivefunctions.nashsutcliffe(
-            self.observation[variable], self.simulation[variable]
+            obs[~np.isnan(obs)], sim[~np.isnan(obs)]
         )
 
     def calc_KGE(self, variable):
-        return spotpy.objectivefunctions.kge(
-            self.observation[variable], self.simulation[variable]
-        )
+        obs = self.observation[variable]
+        sim = self.simulation[variable]
+        return spotpy.objectivefunctions.kge(obs[~np.isnan(obs)], sim[~np.isnan(obs)])
 
     def calc_SeasonTrans(self, variable):
         # Calculate metrics for observed timeseries

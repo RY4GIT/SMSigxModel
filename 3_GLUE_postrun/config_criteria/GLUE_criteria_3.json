@@ -14,7 +14,7 @@
     "2": {
         "variable_to_analyze": "Soil",
         "metric": "season_transition",
-        "threshold": 100,
+        "threshold": 200,
         "operation": "metric value is less than threshold"
     }
 }
