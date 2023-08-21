@@ -29,8 +29,10 @@ cd 1_sensitivity_analysis
 python __main__.py
 ```
 
-- ```xxx```
-    - The main config file. Choose appropriate xxxx
+- ```config.ini```
+    - The main config file. Copy `example_config.ini` and change it to your desired setting
+- ```config_SALib.csv```
+    - The configuration file that defines the calibrated parameter and its bounds
 
 ### 2_GLUE_prerun
 Runs the rainfall-runoff model with various randomly-generated parameters in preparation for the next step. This step is not dependent on the `1_sensitivity_analysis`; If you are only interested in the GLUE experiments, start from this step.  
@@ -41,8 +43,10 @@ cd 2_GLUE_prerun
 python __main__.py
 ```
 
-- ```xxx```
-    - The main config file. Choose appropriate xxxx
+- ```config.ini```
+    - The main config file. Copy `example_config_xxx.ini` and change it to your desired setting
+- ```config_GLUE.csv```
+    - The configuration file that defines the calibrated parameter and its bounds
 
 ### 3_GLUE_postrun 
 Analyzes the output from `2_GLUE_prerun` using GLUE.
@@ -53,8 +57,10 @@ cd 3_GLUE_postrun
 python __main__.py
 ```
 
-- ```xxx```
-    - The main config file. Choose appropriate xxxx
+- ```config.ini```
+    - The main config file. Copy `example_config_xxx.ini` and change it to your desired setting
+- ```.3_GLUE_postrun\config_criteria\GLUE_criteria_{criteria_id}.json```
+    - The configuration file that defines the criteria of GLUE behavioral threshold. The criteria_id in the filename corresponding to config["GLUE"]["criteria_id"]
 
 ### 4_post_analysis
 Executes post-analysis and visualizes the results from 3_GLUE_postrun. Follow the Jupyter Notebooks in numerical order for this step.
@@ -69,7 +75,7 @@ Executes post-analysis and visualizes the results from 3_GLUE_postrun. Follow th
   - `Rainfall`: preipictation in [m/hr]
   - `Flow`: streamflow discharge in [m/hr]
   - `Soil Moisture Content`: volumetrics soil water content in [m3/m3]
-  - `Direct runoff` `GIUH Runoff` `Lateral Flow`` `Base Flow`: not used in analysis but BMI_CFE requires it. All values set `0` as default. 
+  - `Direct runoff` `GIUH Runoff` `Lateral Flow` `Base Flow`: not used in analysis but BMI_CFE requires it. All values set `0` as default. 
   - `Total Discharge`: streamflow discharge in [m3/s] (`Flow` multiplied by area and time conversion)
 
 ## Resources
