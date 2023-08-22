@@ -206,15 +206,28 @@ class BMI_CFE:
             H_water_table_m - self.trigger_z_m
         )  # Lateral flow function 3 (Ogden's document). Soil water storage in the soil column, when the lowest soil discretization is equal to field capacity.
 
-        lower_lim = np.power(Omega, (1.0 - 1.0 / self.soil_params["bb"])) / (
-            1.0 - 1.0 / self.soil_params["bb"]
-        )  # Upper limit of the integral in equation 4 (Ogden's document).
+        if Omega < 0:
+            integral_lower_lim_m = 0
+            integral_upper_lim_m = (
+                self.soil_params["D"] - self.trigger_z_m + H_water_table_m
+            )
+            additional_term = self.trigger_z_m - H_water_table_m
+        else:
+            integral_lower_lim_m = Omega
+            integral_upper_lim_m = Omega + self.soil_params["D"]
+            additional_term = 0
 
-        upper_lim = np.power(
-            Omega + self.soil_params["D"], (1.0 - 1.0 / self.soil_params["bb"])
+        lower_lim = np.power(
+            integral_lower_lim_m, (1.0 - 1.0 / self.soil_params["bb"])
         ) / (
             1.0 - 1.0 / self.soil_params["bb"]
         )  # Lower limit of the integral in equation 4 (Ogden's document).
+
+        upper_lim = np.power(
+            integral_upper_lim_m, (1.0 - 1.0 / self.soil_params["bb"])
+        ) / (
+            1.0 - 1.0 / self.soil_params["bb"]
+        )  # Upper limit of the integral in equation 4 (Ogden's document).
 
         storage_thresh_pow_term = np.power(
             1.0 / self.soil_params["satpsi"], (-1.0 / self.soil_params["bb"])
@@ -224,13 +237,11 @@ class BMI_CFE:
             upper_lim - lower_lim
         )  # Integral term of the equation 4 (Ogden's document).
 
-        field_capacity_power = np.power(
-            1.0 / self.soil_params["satpsi"], (-1.0 / self.soil_params["bb"])
-        )  # Power term in equation 4 and 5 (Ogden's document)
-
         field_capacity_storage_threshold_m = (
-            self.soil_params["smcmax"] * field_capacity_power * lim_diff
-        )  # Equation 4 (and probably 5?) (Ogden's document).
+            self.soil_params["smcmax"] * storage_thresh_pow_term * lim_diff
+        ) + self.soil_params[
+            "smcmax"
+        ] * additional_term  # Equation 4 (and probably 5?) (Ogden's document).
 
         # ________________________________________________
         # lateral flow function parameters
@@ -407,16 +418,17 @@ class BMI_CFE:
 
         # Schaake parameters
         self.refkdt = data_loaded["refkdt"]
-        self.lksatfac = data_loaded["lksatfac"]
+        # self.lksatfac = data_loaded["lksatfac"]
 
-        # As T-shirt module does not exist, self.soil_params['mult'] is technically not used yet.
-        self.K_lf = (
-            0.02
-            * self.lksatfac
-            * data_loaded["soil_params"]["satdk"]
-            * data_loaded["soil_params"]["D"]
-            * data_loaded["dd"]
-        )  # Equation 11 in the Ogden's document
+        #
+        self.K_lf = data_loaded["K_lf"]
+        # self.K_lf = (
+        #     0.02
+        #     * self.lksatfac
+        #     * data_loaded["soil_params"]["satdk"]
+        #     * data_loaded["soil_params"]["D"]
+        #     * data_loaded["dd"]
+        # )  # Equation 11 in the Ogden's document
         self.K_nash = data_loaded["K_nash"]
         self.nash_storage = np.array(data_loaded["nash_storage"])
         self.giuh_ordinates = np.array(data_loaded["giuh_ordinates"])
@@ -773,8 +785,13 @@ class BMI_CFE:
                 # long
                 _obs_synced = obs_synced[output_type]
                 _sim_synced = sim_synced[output_type]
+                # KGE = spotpy.objectivefunctions.kge(
+                #     obs_synced[~np.isnan(_obs_synced)],
+                #     _sim_synced[~np.isnan(_obs_synced)]
+                # )
                 KGE = spotpy.objectivefunctions.kge(
-                    obs_synced[~np.isnan(_obs_synced)], _sim_synced[~np.isnan(_obs_synced)]
+                    _obs_synced[~np.isnan(_obs_synced)],
+                    _sim_synced[~np.isnan(_obs_synced)],
                 )
                 NSE = spotpy.objectivefunctions.nashsutcliffe(
                     evaluation=obs_synced[output_type],
