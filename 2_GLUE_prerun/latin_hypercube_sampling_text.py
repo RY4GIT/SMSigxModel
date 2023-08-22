@@ -1,7 +1,7 @@
 # https://github.com/thouska/spotpy/blob/master/src/spotpy/examples/spot_setup_rosenbrock.py
 # https://github.com/thouska/spotpy/blob/master/tutorials/tutorial_rosenbrock.py
 # https://github.com/thouska/spotpy/blob/master/src/spotpy/algorithms/lhs.py
-
+# https://github.com/thouska/spotpy/blob/master/src/spotpy/algorithms/_algorithm.py
 
 # -*- coding: utf-8 -*-
 """
@@ -14,49 +14,19 @@ import random
 
 import numpy as np
 
-from _algorithm import _algorithm
+from spotpy.algorithms import lhs
+import spotpy
+from spotpy.describe import describe
 
 
 # %%
-class lhs(_algorithm):
+class mylhs(lhs):
     """
     The Latin Hypercube algorithm generates random parameters from their respective
     distribution functions.
     """
 
     def __init__(self, *args, **kwargs):
-        """
-        Input
-        ----------
-        spot_setup: class
-            model: function
-                Should be callable with a parameter combination of the parameter-function
-                and return an list of simulation results (as long as evaluation list)
-            parameter: function
-                When called, it should return a random parameter combination. Which can
-                be e.g. uniform or Gaussian
-            objectivefunction: function
-                Should return the objectivefunction for a given list of a model simulation and
-                observation.
-            evaluation: function
-                Should return the true values as return by the model.
-
-        dbname: str
-            * Name of the database where parameter, objectivefunction value and simulation results will be saved.
-
-        dbformat: str
-            * ram: fast suited for short sampling time. no file will be created and results are saved in an array.
-            * csv: A csv file will be created, which you can import afterwards.
-
-        parallel: str
-            * seq: Sequentiel sampling (default): Normal iterations on one core of your cpu.
-            * mpi: Message Passing Interface: Parallel computing on cluster pcs (recommended for unix os).
-
-        save_sim: boolean
-            * True:  Simulation results will be saved
-            * False: Simulation results will not be saved
-        """
-        kwargs["algorithm_name"] = "Latin Hypercube Sampling (LHS)"
         super(lhs, self).__init__(*args, **kwargs)
 
     def sample(self, repetitions):
@@ -73,11 +43,15 @@ class lhs(_algorithm):
         print("Creating LatinHyperCube Matrix")
         # Get the names of the parameters to analyse
         names = self.parameter()["name"]
+        print(names)
         # Define the jump size between the parameter
         segment = 1 / float(repetitions)
         # Get the minimum and maximum value for each parameter from the
         # distribution
-        parmin, parmax = self.parameter()["minbound"], self.parameter()["maxbound"]
+        parmin, parmax = (
+            self.parameter()["minbound"],
+            self.parameter()["maxbound"],
+        )
 
         # Create an matrx to store the parameter sets
         matrix = np.empty((repetitions, len(parmin)))
@@ -90,15 +64,78 @@ class lhs(_algorithm):
         for i in range(len(names)):
             random.shuffle(matrix[:, i])
 
-        params = self.update_params(params)
-
         # A generator that produces the parameters
         param_generator = ((rep, matrix[rep]) for rep in range(int(repetitions)))
-        for _, randompar, _ in self.repeat(param_generator):
+        for rep, randompar, simulations in self.repeat(param_generator):
             # A function that calculates the fitness of the run and the manages the database
             print(randompar)
-            # self.postprocessing(rep, randompar, simulations)
-        # self.final_call()
+            self.postprocessing(rep, randompar, simulations)
+        self.final_call()
 
 
+# %%
+"""
+Copyright 2015 by Tobias Houska
+This file is part of Statistical Parameter Optimization Tool for Python (SPOTPY).
+:author: Tobias Houska
+
+This example implements the Rosenbrock function into a SPOTPY class.
+"""
+
+import numpy as np
+
+from spotpy.objectivefunctions import rmse
+from spotpy.parameter import Uniform
+
+
+class spot_setup(object):
+    def __init__(self, obj_func=None):
+        self.dim = 3
+        # self.params = [Uniform("a", -32.768, 32.768, 2.5, -20.0)]
+        self.params = [
+            Uniform("bb", low=2, high=15),
+            Uniform("slop", low=0, high=1),
+            Uniform("satdk", low=0.001, high=0.002),
+        ]
+
+    def parameters(self):
+        return spotpy.parameter.generate(self.params)
+
+    def simulation(self, vector):
+        return [np.zeros(1)]
+
+    def evaluation(self):
+        return [np.zeros(1)]
+
+    def objectivefunction(self, simulation, evaluation, params=None):
+        return np.zeros(1)
+
+
+# %%
+
+# Create samplers for every algorithm:
+results = []
+rep = 5
+timeout = 10  # Given in Seconds
+parallel = "seq"
+dbformat = "csv"
+# %%
+sampler = mylhs(
+    spot_setup(),
+    parallel=parallel,
+    dbname="RosenLHS",
+    dbformat=dbformat,
+    sim_timeout=timeout,
+)
+# %%
+sampler.sample(rep)
+
+
+# %%
+sampler
+
+# %%
+spot_setup().parameter()["name"]
+# %%
+sampler.get_parameters()
 # %%
