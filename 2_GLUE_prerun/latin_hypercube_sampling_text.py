@@ -5,18 +5,18 @@
 
 # -*- coding: utf-8 -*-
 """
-Copyright (c) 2018 by Tobias Houska
-This file is part of Statistical Parameter Optimization Tool for Python (SPOTPY).
-:author: Tobias Houska
+
 """
 # %%
+
 import random
-
 import numpy as np
-
 from spotpy.algorithms import lhs
+import numpy as np
+from spotpy.parameter import Uniform
 import spotpy
-from spotpy.describe import describe
+
+np.random.seed(0)
 
 
 # %%
@@ -24,6 +24,12 @@ class mylhs(lhs):
     """
     The Latin Hypercube algorithm generates random parameters from their respective
     distribution functions.
+
+    Copyright (c) 2018 by Tobias Houska
+    This file is part of Statistical Parameter Optimization Tool for Python (SPOTPY).
+    :author: Tobias Houska
+
+    Ryoko modified this class just to get sampled parameters
     """
 
     def __init__(self, *args, **kwargs):
@@ -36,6 +42,7 @@ class mylhs(lhs):
         repetitions: int
             maximum number of function evaluations allowed during optimization
         """
+
         self.set_repetiton(repetitions)
         print(
             "Starting the LHS algotrithm with " + str(repetitions) + " repetitions..."
@@ -64,34 +71,22 @@ class mylhs(lhs):
         for i in range(len(names)):
             random.shuffle(matrix[:, i])
 
+        ################ CHANGES MADE HERE ################
         # A generator that produces the parameters
+        sampled_params = []
         param_generator = ((rep, matrix[rep]) for rep in range(int(repetitions)))
-        for rep, randompar, simulations in self.repeat(param_generator):
-            # A function that calculates the fitness of the run and the manages the database
+        for _, randompar, _ in self.repeat(param_generator):
+            sampled_params.append(randompar)
             print(randompar)
-            self.postprocessing(rep, randompar, simulations)
-        self.final_call()
+        ###################################################
+
+        return sampled_params
 
 
 # %%
-"""
-Copyright 2015 by Tobias Houska
-This file is part of Statistical Parameter Optimization Tool for Python (SPOTPY).
-:author: Tobias Houska
-
-This example implements the Rosenbrock function into a SPOTPY class.
-"""
-
-import numpy as np
-
-from spotpy.objectivefunctions import rmse
-from spotpy.parameter import Uniform
-
-
 class spot_setup(object):
-    def __init__(self, obj_func=None):
+    def __init__(self):
         self.dim = 3
-        # self.params = [Uniform("a", -32.768, 32.768, 2.5, -20.0)]
         self.params = [
             Uniform("bb", low=2, high=15),
             Uniform("slop", low=0, high=1),
@@ -112,30 +107,7 @@ class spot_setup(object):
 
 
 # %%
-
-# Create samplers for every algorithm:
-results = []
+# Example run
 rep = 5
-timeout = 10  # Given in Seconds
-parallel = "seq"
-dbformat = "csv"
-# %%
-sampler = mylhs(
-    spot_setup(),
-    parallel=parallel,
-    dbname="RosenLHS",
-    dbformat=dbformat,
-    sim_timeout=timeout,
-)
-# %%
+sampler = mylhs(spot_setup())
 sampler.sample(rep)
-
-
-# %%
-sampler
-
-# %%
-spot_setup().parameter()["name"]
-# %%
-sampler.get_parameters()
-# %%
