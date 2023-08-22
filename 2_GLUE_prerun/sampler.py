@@ -75,9 +75,8 @@ class mylhs(lhs):
         # A generator that produces the parameters
         sampled_params = []
         param_generator = ((rep, matrix[rep]) for rep in range(int(repetitions)))
-        for _, randompar, _ in self.repeat(param_generator):
-            sampled_params.append(randompar)
-            print(randompar)
+        for rep, randompar, _ in self.repeat(param_generator):
+            sampled_params.append([rep, randompar])
         ###################################################
 
         return sampled_params
@@ -85,12 +84,13 @@ class mylhs(lhs):
 
 # %%
 class spot_setup(object):
-    def __init__(self):
-        self.dim = 3
+    def __init__(self, df_param_to_calibrate):
+        # Define parameters in spotpy
         self.params = [
-            Uniform("bb", low=2, high=15),
-            Uniform("slop", low=0, high=1),
-            Uniform("satdk", low=0.001, high=0.002),
+            spotpy.parameter.Uniform(
+                row["name"], low=row["lower_bound"], high=row["upper_bound"]
+            )
+            for _, row in df_param_to_calibrate.iterrows()
         ]
 
     def parameters(self):
@@ -108,6 +108,6 @@ class spot_setup(object):
 
 # %%
 # Example run
-rep = 5
-sampler = mylhs(spot_setup())
-sampler.sample(rep)
+# rep = 5
+# sampler = mylhs(spot_setup())
+# sampler.sample(rep)

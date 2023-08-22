@@ -8,6 +8,7 @@ import os
 import pandas as pd
 import numpy as np
 import datetime
+from sampler import mylhs, spotpy_setup
 
 
 # GLUE object
@@ -46,19 +47,23 @@ class Agent_GLUE_CFE(object):
         df = pd.read_csv(self.config["PATHS"]["GLUE_config"])
         self.df_param_to_calibrate = df[df["calibrate"] == 1]
 
-        # Define parameters in spotpy
-        params = [
-            spotpy.parameter.Uniform(
-                row["name"], low=row["lower_bound"], high=row["upper_bound"]
-            )
-            for _, row in self.df_param_to_calibrate.iterrows()
+        # Generate random parameters from uniform distribution
+
+        # Latin Hypercube Sampling (LHS) apprach
+        sampler = mylhs(spotpy_setup(df_param_to_calibrate=self.df_param_to_calibrate))
+        sampled_params = sampler.sample(self.nrun)
+
+        # Monte Carlo Sampling (MCRS) approach
+        sampled_params = [
+            [i, spotpy.parameter.generate(sampler.params)] for i in range(self.nrun)
         ]
 
-        # Generate random parameters from uniform distribution
-        # Monte Carlo  Sampling (MCRS) approach
-        sampled_params = [
-            [i, spotpy.parameter.generate(params)] for i in range(self.nrun)
-        ]
+        # [
+        #     spotpy.parameter.Uniform(
+        #         row["name"], low=row["lower_bound"], high=row["upper_bound"]
+        #     )
+        #     for _, row in self.df_param_to_calibrate.iterrows()
+        # ]
 
         # alternatively, use Latin Hypercube Sampling (LHS)
         # https://github.com/thouska/spotpy/blob/master/src/spotpy/algorithms/lhs.py
