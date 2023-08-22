@@ -771,8 +771,10 @@ class BMI_CFE:
                 self.obs_synced = obs_synced
 
                 # long
+                _obs_synced = obs_synced[output_type]
+                _sim_synced = sim_synced[output_type]
                 KGE = spotpy.objectivefunctions.kge(
-                    obs_synced[output_type], sim_synced[output_type]
+                    obs_synced[~np.isnan(_obs_synced)], _sim_synced[~np.isnan(_obs_synced)]
                 )
                 NSE = spotpy.objectivefunctions.nashsutcliffe(
                     evaluation=obs_synced[output_type],
