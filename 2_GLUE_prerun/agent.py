@@ -54,11 +54,14 @@ class Agent_GLUE_CFE(object):
             for _, row in self.df_param_to_calibrate.iterrows()
         ]
 
-        # Generate random parameters
+        # Generate random parameters from uniform distribution
+        # Monte Carlo  Sampling (MCRS) approach
         sampled_params = [
             [i, spotpy.parameter.generate(params)] for i in range(self.nrun)
         ]
 
+        # alternatively, use Latin Hypercube Sampling (LHS)
+        # https://github.com/thouska/spotpy/blob/master/src/spotpy/algorithms/lhs.py
         # Store parameter bounds used in the analysis
         self.df_param_to_calibrate.to_csv(
             os.path.join(self.out_path, "parameter_bounds_used.csv"),
