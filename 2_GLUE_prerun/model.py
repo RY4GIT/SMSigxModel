@@ -45,8 +45,10 @@ class CFEmodel:
             self.cfe_cfg = json.load(data_file)
 
         # Overwrite the model config file
-        for i in range(len(sampled_params_set)):
-            if sampled_params_set[i][1] in [
+        names = sampled_params_set[0]
+        params = sampled_params_set[1]
+        for name, param in zip(names, params):
+            if name in [
                 "bb",
                 "satdk",
                 "slop",
@@ -55,11 +57,9 @@ class CFEmodel:
                 "wltsmc",
                 "D",
             ]:
-                self.cfe_cfg["soil_params"][
-                    sampled_params_set[i][1]
-                ] = sampled_params_set[i][0]
+                self.cfe_cfg["soil_params"][name] = param
             else:
-                self.cfe_cfg[sampled_params_set[i][1]] = sampled_params_set[i][0]
+                self.cfe_cfg[name] = param
 
         # Save the config file with new parameters
         with open(destination_path, "w") as out_file:

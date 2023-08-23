@@ -13,8 +13,7 @@
     "max_gw_storage": 50,
     "Cgw": 1,
     "expon": 1.75,
-    "lksatfac": 1000,
-    "dd": 0.001435,
+    "K_lf": 0.5, 
     "K_nash": 0.1,
     "nash_storage": [
         0.0,

@@ -49,6 +49,7 @@ class Agent_GLUE_CFE(object):
 
         # Generate random parameters from uniform distribution
 
+        print("--- Sampling parameters ---")
         # Latin Hypercube Sampling (LHS) apprach
         spot_setup_instance = spot_setup(
             df_param_to_calibrate=self.df_param_to_calibrate
@@ -56,13 +57,13 @@ class Agent_GLUE_CFE(object):
         sampler = mylhs(spot_setup_instance)
         sampled_params = sampler.sample(self.nrun)
 
-        ######### OPTION ##########
-        # Monte Carlo Sampling (MCRS) approach
-        sampled_params = [
-            [i, spotpy.parameter.generate(spot_setup_instance.params)]
-            for i in range(self.nrun)
-        ]
-        ###########################
+        # ######### OPTION ##########
+        # # Monte Carlo Sampling (MCRS) approach
+        # sampled_params = [
+        #     [i, spotpy.parameter.generate(spot_setup_instance.params)]
+        #     for i in range(self.nrun)
+        # ]
+        # ###########################
 
         # alternatively, use Latin Hypercube Sampling (LHS)
         # https://github.com/thouska/spotpy/blob/master/src/spotpy/algorithms/lhs.py
@@ -83,7 +84,8 @@ class Agent_GLUE_CFE(object):
         """One CFE run and evaluation for a sampled parameter set"""
 
         # Preparations
-        nth_run, sampled_params_set = sampled_param_set
+        nth_run = sampled_param_set[0]
+        sampled_params_set = sampled_param_set[1:3]
         print(f"Processing {nth_run}/{self.nrun-1}")
 
         # Run CFE

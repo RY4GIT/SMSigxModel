@@ -75,8 +75,9 @@ class mylhs(lhs):
         # A generator that produces the parameters
         sampled_params = []
         param_generator = ((rep, matrix[rep]) for rep in range(int(repetitions)))
-        for rep, randompar, _ in self.repeat(param_generator):
-            sampled_params.append([rep, randompar])
+        for random_params in self.repeat(param_generator):
+            rep, randompar, _ = random_params
+            sampled_params.append([rep, names, randompar])
         ###################################################
 
         return sampled_params
@@ -104,10 +105,3 @@ class spot_setup(object):
 
     def objectivefunction(self, simulation, evaluation, params=None):
         return np.zeros(1)
-
-
-# %%
-# Example run
-# rep = 5
-# sampler = mylhs(spot_setup())
-# sampler.sample(rep)
