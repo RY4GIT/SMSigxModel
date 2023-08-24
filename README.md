@@ -25,8 +25,7 @@ Conducts a Morris sensitivity analysis.
 
 To run:
 ```bash
-cd 1_sensitivity_analysis
-python __main__.py
+python .\1_sensitivity_analysis\__main__.py
 ```
 
 - ```config.ini```
@@ -39,8 +38,7 @@ Runs the rainfall-runoff model with various randomly-generated parameters in pre
 
 To run:
 ```bash
-cd 2_GLUE_prerun
-python __main__.py
+python .\2_GLUE_prerun\__main__.py
 ```
 
 - ```config.ini```
@@ -53,8 +51,7 @@ Analyzes the output from `2_GLUE_prerun` using GLUE.
 
 To run:
 ```bash
-cd 3_GLUE_postrun
-python __main__.py
+python .\3_GLUE_postrun\__main__.py
 ```
 
 - ```config.ini```

@@ -51,6 +51,7 @@ class Agent_GLUE_CFE(object):
 
         print("--- Sampling parameters ---")
         # Latin Hypercube Sampling (LHS) apprach
+        # https://github.com/thouska/spotpy/blob/master/src/spotpy/algorithms/lhs.py
         spot_setup_instance = spot_setup(
             df_param_to_calibrate=self.df_param_to_calibrate
         )
@@ -58,17 +59,15 @@ class Agent_GLUE_CFE(object):
         sampled_params = sampler.sample(self.nrun)
 
         # ######### OPTION ##########
-        # # Monte Carlo Sampling (MCRS) approach
+        # Alternatively, Monte Carlo Sampling (MCRS) approach
+        # Need a debug but basically
         # sampled_params = [
         #     [i, spotpy.parameter.generate(spot_setup_instance.params)]
         #     for i in range(self.nrun)
         # ]
         # ###########################
 
-        # alternatively, use Latin Hypercube Sampling (LHS)
-        # https://github.com/thouska/spotpy/blob/master/src/spotpy/algorithms/lhs.py
         # Store parameter bounds used in the analysis
-
         self.df_param_to_calibrate.to_csv(
             os.path.join(self.out_path, "parameter_bounds_used.csv"),
             sep=",",
@@ -83,26 +82,33 @@ class Agent_GLUE_CFE(object):
     def simulation(self, sampled_param_set):
         """One CFE run and evaluation for a sampled parameter set"""
 
-        # Preparations
-        nth_run = sampled_param_set[0]
-        sampled_params_set = sampled_param_set[1:3]
-        print(f"Processing {nth_run}/{self.nrun-1}")
+        try:
+            # Preparations
+            nth_run = sampled_param_set[0]
+            sampled_params_set = sampled_param_set[1:3]
+            print(f"Processing {nth_run}/{self.nrun-1}")
 
-        # Run CFE
-        cfe_instance = CFEmodel(config=self.config)
-        cfe_instance.initialize(nth_run=nth_run, sampled_params_set=sampled_params_set)
-        obs, sim = cfe_instance.run()
+            # Run CFE
+            cfe_instance = CFEmodel(config=self.config)
+            cfe_instance.initialize(
+                nth_run=nth_run, sampled_params_set=sampled_params_set
+            )
+            obs, sim = cfe_instance.run()
 
-        # Evaluate the outputs
-        evaluator = Evaluator(config=self.config, observation=obs, simulation=sim)
-        eval_metrics, eval_metrics_monthly = evaluator.evaluate(nth_run=nth_run)
+            # Evaluate the outputs
+            evaluator = Evaluator(config=self.config, observation=obs, simulation=sim)
+            eval_metrics, eval_metrics_monthly = evaluator.evaluate(nth_run=nth_run)
 
-        print(f"Evaluation {nth_run}/{self.nrun-1}")
-        print(eval_metrics.to_string(index=False))
+            print(f"Evaluation {nth_run}/{self.nrun-1}")
+            print(eval_metrics.to_string(index=False))
 
-        results = [nth_run, sampled_params_set, eval_metrics, eval_metrics_monthly]
+            results = [nth_run, sampled_params_set, eval_metrics, eval_metrics_monthly]
 
-        return results
+            return results
+
+        except Exception as e:
+            print(f"Error in simulation: {e}")
+            return None
 
     def finalize(self, all_results=None):
         """Join and save results from all runs to dataframe"""
@@ -110,15 +116,20 @@ class Agent_GLUE_CFE(object):
         # Store run ID
         self.run_id = [result[0] for result in all_results]
 
-        # Store prior parameters
-        self._pri_paras = [result[1] for result in all_results]
-        param_names = [param[1] for param in self._pri_paras[0]]
-        param_values = np.array(
-            [
-                [param_set[i][0] for i in range(len(param_names))]
-                for param_set in self._pri_paras
-            ]
-        )
+        # # Store prior parameters
+        # self._pri_paras = [result[1] for result in all_results]
+        # param_names = [param[1] for param in self._pri_paras[0]]
+        # param_values = np.array(
+        #     [
+        #         [param_set[i][0] for i in range(len(param_names))]
+        #         for param_set in self._pri_paras
+        #     ]
+        # )
+        param_names = all_results[0][1][0]
+        param_values = []
+        for result in all_results:
+            param_values.append(result[1][1])
+
         self.prior_params = pd.DataFrame(param_values, columns=param_names)
         self.prior_params["run_id"] = self.run_id
         self.prior_params.set_index("run_id", inplace=True)

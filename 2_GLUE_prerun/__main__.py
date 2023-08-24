@@ -5,6 +5,7 @@ import os
 import multiprocessing as mp
 import configparser
 from agent import Agent_GLUE_CFE
+import time
 
 
 def read_config(config_path):
@@ -14,6 +15,7 @@ def read_config(config_path):
 
 
 def main(config_path):
+    start_time = time.time()
     print(f"#### Start GLUE experiment - Prerun ###")
 
     # Read config
@@ -55,6 +57,10 @@ def main(config_path):
     glue_experiment.finalize(all_results=all_results)
 
     print(f"#### End of the GLUE experiment - Prerun ###")
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f"Elapsed time: {elapsed_time:.4f} seconds")
 
 
 if __name__ == "__main__":
