@@ -7,9 +7,9 @@ smcmax,0.45,1,1
 wltsmc,0,0.45,1
 max_gw_storage,10,250,1
 Cgw,0,1,1
-epon,0,1,1
+expon,0,1,1
 K_nash,0,1,1
 refkdt,0.1,4,1
-trigger_z_m,0.25,0.75,1
+trigger_z_fact,0.25,0.75,1
 alpha_fc,0.1,0.33,1
 K_lf,0,1,1

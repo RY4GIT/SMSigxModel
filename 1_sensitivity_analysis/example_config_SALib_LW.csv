@@ -7,7 +7,7 @@ smcmax,0.148,1,1
 wltsmc,0,0.148,1
 max_gw_storage,10,250,1
 Cgw,0,1,1
-epon,0,1,1
+expon,0,1,1
 K_nash,0,1,1
 refkdt,0.1,4,1
 trigger_z_m,0.25,0.75,1
