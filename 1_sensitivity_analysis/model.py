@@ -17,14 +17,19 @@ sys.path.append(os.path.join(os.getcwd(), "libs", "py_cfe"))
 from bmi_cfe import BMI_CFE
 
 import shutil
+import random
 
 
 def duplicate_file(source_path):
+    i = random.randint(1, 9999)
     # Determine the directory and make a path for the new file
-    directory = os.path.dirname(source_path)
-    destination_path = os.path.join(
-        directory, "temporary_config_for_sensitivity_analysis.json"
+    directory = os.path.join(
+        os.path.dirname(source_path),
+        "temporary_parameter_files_for_sensitivity_analysis",
     )
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    destination_path = os.path.join(directory, f"cfe_config_{i}.json")
 
     # Copy the source file to the new location
     shutil.copy2(source_path, destination_path)

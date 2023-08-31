@@ -11,6 +11,7 @@ from SALib.analyze import morris as morris_a
 from tqdm import tqdm
 from model import CFEmodel
 import datetime
+import shutil
 
 
 def read_SALib_config(config_SALib_path):
@@ -63,10 +64,28 @@ class Agent_SALib_CFE:
             os.makedirs(self.out_path)
 
     ############################################
-    # Running modules
+    # Running sample & models
     ############################################
 
-    def run(self):
+    def sample(self):
+        """Run Morris sampling & analysis"""
+
+        # Sample parameters
+        N = int(self.config["Morris"]["N"])
+        n_levels = int(self.config["Morris"]["n_levels"])
+        self.sampled_params = morris_s.sample(
+            self.problem, N=N, num_levels=n_levels, seed=self.seed
+        )
+
+        # Define number of runs
+        self.nrun = N * (self.problem["num_vars"] + 1)
+        print(
+            f'Total runs: {self.nrun} \n Number of analyzed parameters: {self.problem["num_vars"]}\n'
+        )
+
+        return self.sampled_params
+
+    def simulation(self, sampled_param_set):
         """
         Run sensitivity analysis, select the runner function based on the configuration
 
@@ -79,39 +98,50 @@ class Agent_SALib_CFE:
             names : the names of the parameters
         """
 
+        self.model = CFEmodel(
+            config=self.config, problem=self.problem, X=sampled_param_set
+        )
+
+        try:
+            self.model.run()
+            Y_i = self.model.evaluate()
+            # print(f"{Y_i}:.2f")
+            return Y_i
+
+        except Exception as e:
+            print(f"Error in simulation: {e}")
+            return np.nan
+
+    ############################################
+    # Finalizing modules
+    ############################################
+
+    def finalize(self, results):
+        """Finalizing the sensitivity analysis, select the finalizing function based on the configuration"""
+
         runtype = self.config["SALib"]["method"]
 
         if runtype == "Morris":
-            self.run_Morris()
+            self.analysis(results)
+            self.plot_EET()
         else:
             print(f"Invalid runtype: {runtype}")
 
-    def run_Morris(self):
-        """Run Morris sampling & analysis"""
+        self.remove_temp_files()
+        # Add dotty plot module. Either here or in the above method
+        # https://pynetlogo.readthedocs.io/en/latest/_docs/SALib_ipyparallel.html
 
-        # Sample parameters
-        N = int(self.config["Morris"]["N"])
-        n_levels = int(self.config["Morris"]["n_levels"])
-        self.sampled_params = morris_s.sample(
-            self.problem, N=N, num_levels=n_levels, seed=self.seed
+    def remove_temp_files(self):
+        directory = os.path.join(
+            os.path.dirname(self.config["PATHS"]["cfe_config"]),
+            "temporary_parameter_files_for_sensitivity_analysis",
         )
+        shutil.rmtree(directory)
 
-        # Define number of runs
-        nrun = N * (self.problem["num_vars"] + 1)
-        print(
-            f'Total runs: {nrun} \n Number of analyzed parameters: {self.problem["num_vars"]}\n'
-        )
+    def analysis(self, results):
+        # Render the results returned from MP
 
-        # Initialize output array
-        self.Y = np.zeros([self.sampled_params.shape[0]])
-
-        # Run the simulations and evaluation
-        for i, X in enumerate(self.sampled_params):
-            print(f"Processing {i}/{nrun-1}")
-            self.model = CFEmodel(config=self.config, problem=self.problem, X=X)
-            self.model.run()
-            self.Y[i] = self.model.evaluate()
-            print(f"{self.Y[i]:.2f}")
+        self.Y = np.array(results, dtype=float)
 
         # Analyze
         print("### Results ###")
@@ -125,23 +155,6 @@ class Agent_SALib_CFE:
         # Output the parameter bound for this run
         with open(os.path.join(self.out_path, "param_bounds.json"), "w") as outfile:
             json.dump(self.problem, outfile, indent=4)
-
-    ############################################
-    # Finalizing modules
-    ############################################
-
-    def finalize(self):
-        """Finalizing the sensitivity analysis, select the finalizing function based on the configuration"""
-
-        runtype = self.config["SALib"]["method"]
-
-        if runtype == "Morris":
-            self.plot_EET()
-        else:
-            print(f"Invalid runtype: {runtype}")
-
-        # Add dotty plot module. Either here or in the above method
-        # https://pynetlogo.readthedocs.io/en/latest/_docs/SALib_ipyparallel.html
 
     def plot_EET(self):
         """

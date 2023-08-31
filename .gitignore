@@ -19,7 +19,9 @@
 4_post_analysis/temporary_config_reproducing_run/*
 data/Mahurangi/parameters/*
 data/Mahurangi/temporary_parameter_files_for_GLUE/*
+data/Mahurangi/temporary_parameter_files_for_sensitivity_analysis/*
 data/LittleWashita/temporary_parameter_files_for_GLUE/*
+data/LittleWashita/temporary_parameter_files_for_sensitivity_analysis/*
 data/Mahurangi/trash/*
 data/seasonsig_test/*
 data/trash/*
