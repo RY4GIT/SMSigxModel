@@ -10,6 +10,7 @@ from SALib.analyze import morris as morris_a
 
 from tqdm import tqdm
 from model import CFEmodel
+import datetime
 
 
 def read_SALib_config(config_SALib_path):
@@ -52,8 +53,11 @@ class Agent_SALib_CFE:
         self.problem = read_SALib_config(config["PATHS"]["salib_config"])
 
         # Define output folder
+        current_date = datetime.date.today().strftime("%Y-%m-%d")
         self.out_path = os.path.join(
-            config["PATHS"]["homedir"], "results", self.config["DATA"]["site"]
+            config["PATHS"]["homedir"],
+            "results",
+            f"{self.config['DATA']['site']}-{current_date}",
         )
         if not os.path.exists(self.out_path):
             os.makedirs(self.out_path)
@@ -102,16 +106,21 @@ class Agent_SALib_CFE:
         self.Y = np.zeros([self.sampled_params.shape[0]])
 
         # Run the simulations and evaluation
-        for i, X in tqdm(enumerate(self.sampled_params)):
+        for i, X in enumerate(self.sampled_params):
+            print(f"Processing {i}/{nrun-1}")
             self.model = CFEmodel(config=self.config, problem=self.problem, X=X)
             self.model.run()
             self.Y[i] = self.model.evaluate()
+            print(f"{self.Y[i]:.2f}")
 
         # Analyze
         print("### Results ###")
         self.Si = morris_a.analyze(
             self.problem, self.sampled_params, self.Y, print_to_console=True
         )
+
+        df_Si = self.Si.to_df()
+        df_Si.to_csv(os.path.join(self.out_path, "Si.csv"))
 
         # Output the parameter bound for this run
         with open(os.path.join(self.out_path, "param_bounds.json"), "w") as outfile:
@@ -148,11 +157,14 @@ class Agent_SALib_CFE:
         col = (
             np.array(
                 [
-                    [228, 26, 28],
-                    [55, 126, 184],
-                    [77, 175, 74],
-                    [152, 78, 163],
+                    [31, 120, 180],
+                    [51, 160, 44],
+                    [227, 26, 28],
                     [255, 127, 0],
+                    [106, 61, 154],
+                    [177, 89, 40],
+                    [106, 61, 154],
+                    [135, 135, 135],
                 ]
             )
             / 256
@@ -164,17 +176,26 @@ class Agent_SALib_CFE:
         # First plot EEs mean & std as circles:
         # Check the error bar definition
         for i in range(len(self.Si["mu_star"])):
+            if i <= 7:
+                markertype = "ok"
+            else:
+                markertype = "x"
             plt.plot(
                 self.Si["mu_star"][i],
                 self.Si["sigma"][i],
-                "ok",
+                markertype,
                 markerfacecolor=clrs[i],
                 markersize=ms,
                 markeredgecolor="k",
             )
 
         # Create legend:
-        plt.legend(self.Si["names"], loc="best", prop=pltfont_leg)
+        plt.legend(
+            self.Si["names"],
+            prop=pltfont_leg,
+            loc="center left",
+            bbox_to_anchor=(1, 0.5),
+        )
 
         plt.xlabel("Mean of EEs", **pltfont)
         plt.ylabel("Standard deviation of EEs", **pltfont)
