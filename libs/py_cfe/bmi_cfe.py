@@ -450,7 +450,8 @@ class BMI_CFE:
         #     * data_loaded["dd"]
         # )  # Equation 11 in the Ogden's document
         self.K_nash = data_loaded["K_nash"]
-        self.nash_storage = np.array(data_loaded["nash_storage"])
+        self.nash_storage = np.zeros(data_loaded["num_nash_storage"])
+        # self.nash_storage = np.array(data_loaded["nash_storage"])
         self.giuh_ordinates = np.array(data_loaded["giuh_ordinates"])
 
         # ___________________________________________________
@@ -557,8 +558,23 @@ class BMI_CFE:
             print("       volume output: {:8.4f}".format(self.volout))
             print("        final volume: {:8.4f}".format(self.volend))
             print("            residual: {:6.4e}".format(self.global_residual))
+
+            print("\n Discharge details")
             print("Cumulative discharge: {:1.2f}".format(self.cumQ_out))
             print("        Runoff ratio: {:1.2f}".format(self.runoff_ratio))
+            print(
+                "      Surface runoff: {:1.2f}".format(
+                    self.vol_out_giuh / self.cumQ_out
+                )
+            )
+            print(
+                "  Deep GW to channel: {:1.2f}".format(self.vol_from_gw / self.cumQ_out)
+            )
+            print(
+                "        Lateral flow: {:1.2f}".format(
+                    self.vol_out_nash / self.cumQ_out
+                )
+            )
 
             print("\n AET & PET")
             print("      volume PET: {:8.4f}".format(self.vol_PET))
