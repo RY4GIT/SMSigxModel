@@ -56,13 +56,15 @@ def conceptual_reservoir_flux_calc(
     storage_ratio = np.minimum(storage_above_threshold_m / storage_diff, 1)
 
     perc_lat_switch = np.multiply(S - storage_threshold_primary_m > 0, 1)
-    ET_switch = np.multiply(S - wltsmc > 0, 1)
+    ET_switch = np.multiply(S > 0, 1)
+    # ET_switch = np.multiply(S - wltsmc > 0, 1)
 
     storage_above_threshold_m_paw = S - wltsmc
     storage_diff_paw = storage_threshold_primary_m - wltsmc
-    storage_ratio_paw = np.minimum(
-        storage_above_threshold_m_paw / storage_diff_paw, 1
-    )  # Equation 11 (Ogden's document)
+    storage_ratio_paw = storage_above_threshold_m_paw / storage_diff_paw
+    # storage_ratio_paw = np.minimum(
+    #     storage_above_threshold_m_paw / storage_diff_paw, 1
+    # )  # Equation 11 (Ogden's document)
     dS = (
         infilt
         - 1 * perc_lat_switch * (coeff_primary + coeff_secondary) * storage_ratio
@@ -568,7 +570,7 @@ class CFE:
         """
 
         # If the rainfall is happening
-        if 0 < cfe_state.timestep_rainfall_input_m:
+        if cfe_state.timestep_rainfall_input_m > 0:
             # If soil water deficit is negative (soil storage is full)
             if 0 > cfe_state.soil_reservoir_storage_deficit_m:
                 # All rainfall input goes to runoff, and there is no infiltration
@@ -606,6 +608,11 @@ class CFE:
                     # If the rainfall is less than infiltration capacity, there is no runoff, and infiltration equals to rainfall
                     cfe_state.surface_runoff_depth_m = 0.0
                     cfe_state.infiltration_depth_m = cfe_state.timestep_rainfall_input_m
+
+            if cfe_state.verbose:
+                print(
+                    f"Runoff is {cfe_state.surface_runoff_depth_m/cfe_state.timestep_rainfall_input_m*100:.2f} % of P (={cfe_state.timestep_rainfall_input_m*1000:.2f}[mm/hr])"
+                )
 
         # If there is no rainfall, both infiltration and runoff are zero
         else:

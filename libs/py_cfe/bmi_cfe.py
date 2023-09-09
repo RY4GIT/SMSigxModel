@@ -14,7 +14,7 @@ import spotpy
 
 
 class BMI_CFE:
-    def __init__(self, cfg_file=None):
+    def __init__(self, cfg_file=None, verbose=False):
         """Create a Bmi CFE model that is ready for initialization."""
         super(BMI_CFE, self).__init__()
         self._values = {}
@@ -86,6 +86,7 @@ class BMI_CFE:
         # ------------------------------------------------------------
         # this is the bmi configuration file
         self.cfg_file = cfg_file
+        self.verbose = verbose
 
     # __________________________________________________________________
     # __________________________________________________________________
@@ -356,32 +357,48 @@ class BMI_CFE:
     # ________________________________________________
     # Mass balance tracking
     def reset_volume_tracking(self):
+        """Reset the mass balance completely after a run. Prepare the model for a new run"""
+
+        # Watershed mass balance
         self.volstart = 0
+        self.volin = 0
+        self.volout = 0
+        self.volend = 0
+
+        # ET
+        self.vol_PET = 0
+        self.vol_et_to_atm = 0
+        self.vol_et_from_soil = 0
+        self.vol_et_from_rain = 0
+
+        # Partitioning
         self.vol_sch_runoff = 0
         self.vol_sch_runoff_IOF = 0
         self.vol_sch_runoff_SOF = 0
         self.vol_sch_infilt = 0
+
+        # GIUH
         self.vol_out_giuh = 0
         self.vol_end_giuh = 0
-        self.vol_to_gw = 0
-        self.vol_to_gw_start = 0
-        self.vol_to_gw_end = 0
-        self.vol_from_gw = 0
-        self.vol_in_nash = 0
-        self.vol_in_nash_end = 0
-        self.vol_out_nash = 0
+
+        # Soil
         self.vol_soil_start = 0
         self.vol_to_soil = 0
         self.vol_soil_to_lat_flow = 0
         self.vol_soil_to_gw = 0
         self.vol_soil_end = 0
-        self.vol_et_to_atm = 0
-        self.vol_et_from_soil = 0
-        self.vol_et_from_rain = 0
-        self.volin = 0
-        self.volout = 0
-        self.volend = 0
-        self.vol_PET = 0
+
+        # GW
+        self.vol_to_gw = 0
+        self.vol_from_gw = 0
+        self.vol_to_gw_start = 0
+        self.vol_to_gw_end = 0
+
+        # Nash
+        self.vol_in_nash = 0
+        self.vol_in_nash_end = 0
+        self.vol_out_nash = 0
+
         return
 
     # ________________________________________________________
@@ -447,6 +464,49 @@ class BMI_CFE:
         return
 
     # ________________________________________________________
+    def reset_volume_tracking_after_warmup(self):
+        """Reset the mass balance for the warm-up period"""
+
+        # Watershed mass balance
+        self.volstart = (
+            self.soil_reservoir["storage_m"] + self.gw_reservoir["storage_m"]
+        )
+        self.volin = 0
+        self.volout = 0
+
+        # ET
+        self.vol_PET = 0
+        self.vol_et_to_atm = 0
+        self.vol_et_from_soil = 0
+        self.vol_et_from_rain = 0
+
+        # Partitioning
+        self.vol_sch_runoff = 0
+        self.vol_sch_runoff_IOF = 0
+        self.vol_sch_runoff_SOF = 0
+        self.vol_sch_infilt = 0
+
+        # GIUH
+        self.vol_out_giuh = 0
+
+        # Soil
+        self.vol_soil_start = self.soil_reservoir["storage_m"]
+        self.vol_to_soil = 0
+        self.vol_soil_to_lat_flow = 0
+        self.vol_soil_to_gw = 0
+
+        # GW
+        self.vol_in_gw_start = self.gw_reservoir["storage_m"]
+        self.vol_to_gw = 0
+        self.vol_from_gw = 0
+        self.vol_to_gw_start = 0
+        self.vol_to_gw_end = 0
+
+        # Nash
+        self.vol_in_nash = 0
+        self.vol_out_nash = 0
+
+    # ________________________________________________________
     def finalize_mass_balance(self, verbose=True):
         self.volend = self.soil_reservoir["storage_m"] + self.gw_reservoir["storage_m"]
         self.vol_in_gw_end = self.gw_reservoir["storage_m"]
@@ -483,13 +543,19 @@ class BMI_CFE:
             - self.vol_in_gw_end
         )
 
+        # Discharge
+        self.cumQ_out = self.vol_out_giuh + self.vol_from_gw + self.vol_out_nash
+        self.runoff_ratio = self.cumQ_out / self.volin
+
         if verbose:
             print("\nGLOBAL MASS BALANCE")
-            print("  initial volume: {:8.4f}".format(self.volstart))
-            print("    volume input: {:8.4f}".format(self.volin))
-            print("   volume output: {:8.4f}".format(self.volout))
-            print("    final volume: {:8.4f}".format(self.volend))
-            print("        residual: {:6.4e}".format(self.global_residual))
+            print("      initial volume: {:8.4f}".format(self.volstart))
+            print("        volume input: {:8.4f}".format(self.volin))
+            print("       volume output: {:8.4f}".format(self.volout))
+            print("        final volume: {:8.4f}".format(self.volend))
+            print("            residual: {:6.4e}".format(self.global_residual))
+            print("Cumulative discharge: {:1.2f}".format(self.cumQ_out))
+            print("        Runoff ratio: {:1.2f}".format(self.runoff_ratio))
 
             print("\n AET & PET")
             print("      volume PET: {:8.4f}".format(self.vol_PET))
@@ -577,6 +643,7 @@ class BMI_CFE:
         self.load_unit_test_data()
 
         if warm_up:
+            # Add 2 years of warming up period by default
             warmup_offset = 365 * 24 * 2
             self.forcing_data = pd.concat(
                 [
@@ -617,20 +684,27 @@ class BMI_CFE:
 
         for t, precipitation_input in enumerate(self.forcing_data["precip_rate"]):
             # removed multiplication *3600. Walnut Gulch data were in mm/s, but Mahurangi in m/timestep(hr)
-            # print(t)
             self.timestep_rainfall_input_m = precipitation_input
 
             if "PET" in self.forcing_data.columns:
                 self.potential_et_m_per_timestep = self.forcing_data.loc[t, "PET"]
                 self.potential_et_m_per_s = self.forcing_data.loc[t, "PET"] / 3600
 
+            # Durin the warm-up period, do not record the output
             if warm_up and t < warmup_offset:
                 warm_up_flag = 0
+            # After the warm-up period, record the output
             else:
-                # reset the time
+                # When first reached to the reset,
                 if warm_up_flag == 0:
+                    ######## Reset time #######
                     self.current_time = pd.Timestamp(self.forcing_data["time"][t])
+
+                    ######## Reset mass balance ########
+                    self.reset_volume_tracking_after_warmup()
+
                     warm_up_flag = 1
+
                 t2 = t - warmup_offset
                 output_time[t2] = self.current_time
                 output_ts[t2] = self.current_time_step
@@ -639,19 +713,20 @@ class BMI_CFE:
 
             self.cfe_model.run_cfe(self)
 
+            # Durin the warm-up period, do not record the output
             if warm_up and t < warmup_offset:
                 None
+            # After the warm-up period, record the output
             else:
                 t2 = t - warmup_offset
                 output_directrunoff[t2] = self.surface_runoff_depth_m
                 output_GIUHrunoff[t2] = self.flux_giuh_runoff_m
                 output_lateralflow[t2] = self.flux_nash_lateral_runoff_m
                 output_baseflow[t2] = self.flux_from_deep_gw_to_chan_m
-                # here, flux_Q and discharge change their meanings ....
-                # 'flow' is in [cms], 'totdischarge' is in [m/timestep] from here
-                # --> modified
-                output_flow[t2] = self.flux_Qout_m
-                output_totdischarge[t2] = self.total_discharge
+                output_flow[t2] = self.flux_Qout_m  #'flow' is in [m/timestep]
+                output_totdischarge[
+                    t2
+                ] = self.total_discharge  # 'totdischarge' is in [cms]
                 output_SM[t2] = self.soil_reservoir[
                     "storage_m"
                 ]  # 　/ self.soil_params['D']
