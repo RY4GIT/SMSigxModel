@@ -282,7 +282,7 @@ class BMI_CFE:
             ],  # Schaake Partitioning function 1 (Ogden's document)
             "coeff_primary": self.soil_params["satdk"]
             * self.soil_params["slop"]
-            * 3600.0,  # Controls percolation to GW, Equation 11
+            * self.time_step_size,  # Controls percolation to GW, Equation 11
             "exponent_primary": 1,  # Controls percolation to GW, FIXED to 1 based on Equation 11
             "storage_threshold_primary_m": field_capacity_storage_threshold_m,  # Equation 4 (and probably 5?) (Ogden's document).
             "coeff_secondary": self.K_lf,  # Controls lateral flow
@@ -300,8 +300,9 @@ class BMI_CFE:
         # ________________________________________________
         # Schaake
         # self.refkdt = 3.0       # Added to calibration parameters
+        Ks_ref = 2.0e-06  # [m/s]
         self.Schaake_adjusted_magic_constant_by_soil_type = (
-            self.refkdt * self.soil_params["satdk"] / 2.0e-06
+            self.refkdt * self.soil_params["satdk"] / Ks_ref
         )  # Schaake partitioning function 2  (Ogden's document)
         self.Schaake_output_runoff_m = 0
         self.infiltration_depth_m = 0
@@ -313,7 +314,9 @@ class BMI_CFE:
         # ----------- The output is area normalized, this is needed to un-normalize it
         #                         mm->m                             km2 -> m2          hour->s
         self.output_factor_cms = (
-            (1 / 1000) * (self.catchment_area_km2 * 1000 * 1000) * (1 / 3600)
+            (1 / 1000)
+            * (self.catchment_area_km2 * 1000 * 1000)
+            * (1 / self.time_step_size)
         )
 
         ####################################################################
@@ -688,7 +691,9 @@ class BMI_CFE:
 
             if "PET" in self.forcing_data.columns:
                 self.potential_et_m_per_timestep = self.forcing_data.loc[t, "PET"]
-                self.potential_et_m_per_s = self.forcing_data.loc[t, "PET"] / 3600
+                self.potential_et_m_per_s = (
+                    self.forcing_data.loc[t, "PET"] / self.time_step_size
+                )
 
             # Durin the warm-up period, do not record the output
             if warm_up and t < warmup_offset:

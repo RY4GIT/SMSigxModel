@@ -28,7 +28,7 @@ params = {
     "catchment_area_km2": 601,
     "soil_params": {
         "bb": 6.591999812593777,
-        "satdk": 0.0001829058209417,
+        "satdk": 0.001,
         "slop": 0.0092968319200453,
         "satpsi": 0.1736243088137391,
         "smcmax": 0.5,
@@ -40,7 +40,7 @@ params = {
     "Cgw": 0.0009875396369054,
     "expon": 3.153967939163099,
     "K_lf": 0.5731958888031214,
-    "refkdt": 2.4964339115813625,
+    "refkdt": 0.00001,
     "K_nash": 0.6310887218737914,
     "trigger_z_fact": 0.6381182019616936,
     "nash_storage": [0.0, 0.0],
@@ -60,7 +60,7 @@ with open(input_json) as outfile:
 # ## Run the model
 
 # %%
-cfe_instance = BMI_CFE(input_json)
+cfe_instance = BMI_CFE(cfg_file=input_json, verbose=True)
 cfe_instance.initialize()
 cfe_instance.run_unit_test(plot=True, print_fluxes=False, warm_up=True)
 cfe_instance.finalize(print_mass_balance=True)

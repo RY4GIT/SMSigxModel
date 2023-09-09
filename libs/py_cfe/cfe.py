@@ -142,6 +142,7 @@ class CFE:
         # ________________________________________________
         # Calculates infiltration excess overland flow
         self.Schaake_partitioning_scheme(cfe_state)
+        # self.Xinanjiang_partitioning_scheme(cfe_state)
         cfe_state.vol_sch_runoff += cfe_state.surface_runoff_depth_m
         cfe_state.vol_sch_runoff_IOF += cfe_state.surface_runoff_depth_m
 
@@ -549,6 +550,152 @@ class CFE:
 
             return
 
+    def Xinanjiang_partitioning_scheme(self, cfe_state):
+        """
+        This module takes the water_input_depth_m and separates it into surface_runoff_depth_m
+        and infiltration_depth_m by calculating the saturated area and runoff based on a scheme developed
+        for the Xinanjiang model by Jaywardena and Zhou (2000). According to Knoben et al.
+        (2019) "the model uses a variable contributing area to simulate runoff.  [It] uses
+        a double parabolic curve to simulate tension water capacities within the catchment,
+        instead of the original single parabolic curve" which is also used as the standard
+        VIC fomulation.  This runoff scheme was selected for implementation into NWM v3.0.
+        REFERENCES:
+        1. Jaywardena, A.W. and M.C. Zhou, 2000. A modified spatial soil moisture storage
+            capacity distribution curve for the Xinanjiang model. Journal of Hydrology 227: 93-113
+        2. Knoben, W.J.M. et al., 2019. Supplement of Modular Assessment of Rainfall-Runoff Models
+            Toolbox (MARRMoT) v1.2: an open-source, extendable framework providing implementations
+            of 46 conceptual hydrologic models as continuous state-space formulations. Supplement of
+            Geosci. Model Dev. 12: 2463-2480.
+            https://github.com/wknoben/MARRMoT/blob/master/MARRMoT/Models/Model%20files/m_28_xinanjiang_12p_4s.m#L34
+        -------------------------------------------------------------------------
+        Written by RLM May 2021
+        Adapted by JMFrame September 2021 for new version of CFE
+        Further adapted by QiyueL August 2022 for python version of CFE
+        ------------------------------------------------------------------------
+        Inputs
+        double  time_step_rainfall_input_m           amount of water input to soil surface this time step [m]
+        double  field_capacity_m                     amount of water stored in soil reservoir when at field capacity [m]
+        double  max_soil_moisture_storage_m          total storage of the soil moisture reservoir (porosity*soil thickness) [m]
+        double  column_total_soil_water_m     current storage of the soil moisture reservoir [m]
+        double  a_inflection_point_parameter  a parameter
+        double  b_shape_parameter             b parameter
+        double  x_shape_parameter             x parameter
+            //
+        Outputs
+        double  surface_runoff_depth_m        amount of water partitioned to surface water this time step [m]
+        double  infiltration_depth_m          amount of water partitioned as infiltration (soil water input) this time step [m]
+        -------------------------------------------------------------------------
+        """
+
+        # partition the total soil water in the column between free water and tension water
+        free_water_m = (
+            cfe_state.soil_reservoir_storage_deficit_m
+        )  # cfe_state.soil_reservoir['storage_m']- cfe_state.soil_reservoir['storage_threshold_primary_m'];
+
+        if 0.0 < free_water_m:
+            tension_water_m = cfe_state.soil_reservoir["storage_threshold_primary_m"]
+
+        else:
+            free_water_m = 0.0
+            tension_water_m = cfe_state.soil_reservoir["storage_m"]
+
+        # estimate the maximum free water and tension water available in the soil column
+        max_free_water_m = (
+            cfe_state.soil_reservoir["storage_max_m"]
+            - cfe_state.soil_reservoir["storage_threshold_primary_m"]
+        )
+        max_tension_water_m = cfe_state.soil_reservoir["storage_threshold_primary_m"]
+
+        # check that the free_water_m and tension_water_m do not exceed the maximum and if so, change to the max value
+        if max_free_water_m < free_water_m:
+            free_water_m = max_free_water_m
+
+        if max_tension_water_m < tension_water_m:
+            tension_water_m = max_tension_water_m
+
+        """
+            NOTE: the impervious surface runoff assumptions due to frozen soil used in NWM 3.0 have not been included.
+            We are assuming an impervious area due to frozen soils equal to 0 (see eq. 309 from Knoben et al).
+
+            The total (pervious) runoff is first estimated before partitioning into surface and subsurface components.
+            See Knoben et al eq 310 for total runoff and eqs 313-315 for partitioning between surface and subsurface
+            components.
+
+            Calculate total estimated pervious runoff. 
+            NOTE: If the impervious surface runoff due to frozen soils is added,
+            the pervious_runoff_m equation will need to be adjusted by the fraction of pervious area.
+        """
+
+        a_Xinanjiang_inflection_point_parameter = -0.49
+        b_Xinanjiang_shape_parameter = 10
+        x_Xinanjiang_shape_parameter = 10
+
+        # When soil is dry
+        if (tension_water_m / max_tension_water_m) <= (
+            0.5 - a_Xinanjiang_inflection_point_parameter
+        ):
+            pervious_runoff_m = cfe_state.timestep_rainfall_input_m * (
+                np.power(
+                    (0.5 - a_Xinanjiang_inflection_point_parameter),
+                    (1.0 - b_Xinanjiang_shape_parameter),
+                )
+                * np.power(
+                    (1.0 - (tension_water_m / max_tension_water_m)),
+                    b_Xinanjiang_shape_parameter,
+                )
+            )
+
+        # When soil is wet
+        else:
+            pervious_runoff_m = cfe_state.timestep_rainfall_input_m * (
+                1.0
+                - np.power(
+                    (0.5 + a_Xinanjiang_inflection_point_parameter),
+                    (1.0 - b_Xinanjiang_shape_parameter),
+                )
+                * np.power(
+                    (1.0 - (tension_water_m / max_tension_water_m)),
+                    (b_Xinanjiang_shape_parameter),
+                )
+            )
+
+        # Separate the surface water from the pervious runoff
+        ## NOTE: If impervious runoff is added to this subroutine, impervious runoff should be added to
+        ## the surface_runoff_depth_m.
+
+        cfe_state.surface_runoff_depth_m = pervious_runoff_m * (
+            1.0
+            - np.power(
+                (1.0 - (free_water_m / max_free_water_m)), x_Xinanjiang_shape_parameter
+            )
+        )
+
+        # The surface runoff depth is bounded by a minimum of 0 and a maximum of the water input depth.
+        # Check that the estimated surface runoff is not less than 0.0 and if so, change the value to 0.0.
+        if cfe_state.surface_runoff_depth_m < 0.0:
+            cfe_state.surface_runoff_depth_m = 0.0
+
+        # Check that the estimated surface runoff does not exceed the amount of water input to the soil surface.  If it does,
+        # change the surface water runoff value to the water input depth.
+        if cfe_state.surface_runoff_depth_m > cfe_state.timestep_rainfall_input_m:
+            cfe_state.surface_runoff_depth_m = cfe_state.timestep_rainfall_input_m
+
+        # Separate the infiltration from the total water input depth to the soil surface.
+        cfe_state.infiltration_depth_m = (
+            cfe_state.timestep_rainfall_input_m - cfe_state.surface_runoff_depth_m
+        )
+
+        if cfe_state.timestep_rainfall_input_m > 0:
+            if cfe_state.verbose:
+                print(
+                    f"Soil storage is {(tension_water_m / max_tension_water_m)*100:.2f} % saturated"
+                )
+                print(
+                    f"Runoff is {cfe_state.surface_runoff_depth_m/cfe_state.timestep_rainfall_input_m*100:.2f} % of P (={cfe_state.timestep_rainfall_input_m*1000:.2f}[mm/hr])"
+                )
+
+        return
+
     # __________________________________________________________________________________________________________
     #  SCHAAKE RUNOFF PARTITIONING SCHEME
     def Schaake_partitioning_scheme(self, cfe_state):
@@ -576,9 +723,12 @@ class CFE:
                 # All rainfall input goes to runoff, and there is no infiltration
                 cfe_state.surface_runoff_depth_m = cfe_state.timestep_rainfall_input_m
                 cfe_state.infiltration_depth_m = 0.0
-
+                if cfe_state.verbose:
+                    print("SM storage is full")
             # If there is soil water deficit, infiltration is calculated
             else:
+                if cfe_state.verbose:
+                    print("SM storage is not full")
                 schaake_exp_term = np.exp(
                     -cfe_state.Schaake_adjusted_magic_constant_by_soil_type
                     * cfe_state.timestep_d
@@ -594,6 +744,9 @@ class CFE:
                 Px = cfe_state.timestep_rainfall_input_m
 
                 cfe_state.infiltration_depth_m = Px * (Ic / (Px + Ic))
+
+                if cfe_state.verbose:
+                    print(f"Infiltration percentage: {Ic / (Px + Ic)*100:.3f} (%)")
 
                 # If the rainfall input exceeds infiltration capacity, the remainings go to runoff
                 if 0.0 < (
