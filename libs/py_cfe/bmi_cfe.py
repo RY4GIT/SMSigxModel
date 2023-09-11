@@ -193,6 +193,9 @@ class BMI_CFE:
 
         # field_capacity_atm_press_fraction = 0.33     # Added to calibration parameter
 
+        self.D_noahMP = 2  # Soil depth used for threshold calculation (NoahMP grid cell vertical grid size)
+        self.trigger_z_m = self.trigger_z_fact * self.D_noahMP
+
         H_water_table_m = (
             self.field_capacity_atm_press_fraction
             * atm_press_Pa
@@ -209,13 +212,11 @@ class BMI_CFE:
 
         if Omega < 0:
             integral_lower_lim_m = 0
-            integral_upper_lim_m = (
-                self.soil_params["D"] - self.trigger_z_m + H_water_table_m
-            )
+            integral_upper_lim_m = self.D_noahMP - self.trigger_z_m + H_water_table_m
             additional_term = self.trigger_z_m - H_water_table_m
         else:
             integral_lower_lim_m = Omega
-            integral_upper_lim_m = Omega + self.soil_params["D"]
+            integral_upper_lim_m = Omega + self.D_noahMP
             additional_term = 0
 
         lower_lim = np.power(
@@ -420,7 +421,7 @@ class BMI_CFE:
         self.soil_params = {}
         self.soil_params["bb"] = data_loaded["soil_params"]["bb"]
         self.soil_params["D"] = data_loaded["soil_params"]["D"]
-        self.trigger_z_m = self.trigger_z_fact * self.soil_params["D"]
+        # self.soil_params["D"]
         # Deleted soil_params['depth']. Not used in the model. Duplicate with D
         # As T-shirt module does not exist, self.soil_params['mult'] is technically not used yet.
         # self.soil_params['mult']        = data_loaded['soil_params']['mult']
