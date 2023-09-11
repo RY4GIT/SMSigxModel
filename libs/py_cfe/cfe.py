@@ -28,7 +28,7 @@ def conceptual_reservoir_flux_calc(
     coeff_secondary,
     PET,
     infilt,
-    wltsmc,
+    wltsmc_m,
 ):
     """
     Case 1: S (Soil moisture storage ) > storage_threshold_primary_m
@@ -48,7 +48,7 @@ def conceptual_reservoir_flux_calc(
     :param coeff_secondary: K_lf, lateral flow coefficient
     :param PET: potential evapotranspiration
     :param infilt: infiltration
-    :param wltsmc: wilting point (in meter)
+    :param wltsmc_m: wilting point (in meter)
     :return: dS
     """
     storage_above_threshold_m = S - storage_threshold_primary_m
@@ -56,15 +56,19 @@ def conceptual_reservoir_flux_calc(
     storage_ratio = np.minimum(storage_above_threshold_m / storage_diff, 1)
 
     perc_lat_switch = np.multiply(S - storage_threshold_primary_m > 0, 1)
-    ET_switch = np.multiply(S > 0, 1)
-    # ET_switch = np.multiply(S - wltsmc > 0, 1)
+    ## Water-limited but energy-non-limited
+    # ET_switch = np.multiply(S > 0, 1)
+    ## Energy-limited but water-non-limited
+    ET_switch = np.multiply(S - wltsmc_m > 0, 1)
 
-    storage_above_threshold_m_paw = S - wltsmc
-    storage_diff_paw = storage_threshold_primary_m - wltsmc
-    storage_ratio_paw = storage_above_threshold_m_paw / storage_diff_paw
-    # storage_ratio_paw = np.minimum(
-    #     storage_above_threshold_m_paw / storage_diff_paw, 1
-    # )  # Equation 11 (Ogden's document)
+    storage_above_threshold_m_paw = S - wltsmc_m
+    storage_diff_paw = storage_threshold_primary_m - wltsmc_m
+    ## Water-limited but energy-non-limited
+    # storage_ratio_paw = storage_above_threshold_m_paw / storage_diff_paw
+    ## Energy-limited but water-non-limited
+    storage_ratio_paw = np.minimum(
+        storage_above_threshold_m_paw / storage_diff_paw, 1
+    )  # Equation 11 (Ogden's document)
     dS = (
         infilt
         - 1 * perc_lat_switch * (coeff_primary + coeff_secondary) * storage_ratio
@@ -83,17 +87,17 @@ def jac(
     coeff_secondary,
     PET,
     infilt,
-    wltsmc,
+    wltsmc_m,
 ):
     # The Jacobian matrix of the equation conceptual_reservoir_flux_calc. Calculated as (dS/dt)/dS.
     storage_diff = storage_max_m - storage_threshold_primary_m
 
     perc_lat_switch = np.multiply(S - storage_threshold_primary_m > 0, 1)
     ET_switch = np.multiply(
-        (S - wltsmc > 0) and (S - storage_threshold_primary_m < 0), 1
+        (S - wltsmc_m > 0) and (S - storage_threshold_primary_m < 0), 1
     )
 
-    storage_diff_paw = storage_threshold_primary_m - wltsmc
+    storage_diff_paw = storage_threshold_primary_m - wltsmc_m
 
     dfdS = (
         -1 * perc_lat_switch * (coeff_primary + coeff_secondary) * 1 / storage_diff
@@ -316,7 +320,8 @@ class CFE:
         """
 
         if cfe_state.timestep_rainfall_input_m > 0.0:
-            # print('raining')
+            if cfe_state.verbose:
+                print("Raining")
             if (
                 cfe_state.timestep_rainfall_input_m
                 > cfe_state.potential_et_m_per_timestep
@@ -442,13 +447,6 @@ class CFE:
                 (ys_concat[0] - ys_concat[-1]) + np.sum(infilt_to_soil_frac)
             ) / np.sum(sum_outflux)
             final_storage_m = ys_concat[-1]
-
-            # flux_scale = np.zeros(infilt_to_soil_frac.shape)
-            # flux_scale[sum_outflux != 0] = (
-            #     np.diff(-ys_concat, axis=0)[sum_outflux != 0]
-            #     + infilt_to_soil_frac[sum_outflux != 0]
-            # ) / sum_outflux[sum_outflux != 0]
-            # flux_scale[sum_outflux == 0] = 0
 
         scaled_lateral_flux = lateral_flux_frac * flux_scale
         scaled_perc_flux = perc_flux_frac * flux_scale
