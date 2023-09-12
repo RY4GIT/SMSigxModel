@@ -1,15 +1,9 @@
 import os
-import spotpy
 import pandas as pd
 
 pd.options.mode.chained_assignment = None
 import json
 import warnings
-
-# %matplotlib inline
-import itertools
-from math import pi
-from matplotlib.legend_handler import HandlerPatch
 
 import sys
 

@@ -5,6 +5,8 @@ from model import CFEmodel
 import datetime
 import shutil
 import spotpy
+import json
+import csv
 
 
 def read_spotpy_config(config_path):
@@ -49,33 +51,68 @@ class Spotpy_Agent:
         self.seed = 0
         np.random.seed(self.seed)
 
-    def run(self):
-        """Implement spotpy analysis"""
-
         # Setup spotpy
-        spotpy_setup = Spotpy_setup(config=self.config)
+        self.spotpy_setup = Spotpy_setup(config=self.config)
         spotpy_runtype = self.config["spotpy"]["method"]
         if spotpy_runtype == "DDS":
-            sampler = spotpy.algorithms.dds(spotpy_setup, dbname="raw_result_file")
+            self.sampler = spotpy.algorithms.dds(
+                self.spotpy_setup, dbname="raw_result_file"
+            )
+            # self.sampler = spotpy.algorithms.dds(
+            #     self.spotpy_setup, parallel="mpi", dbname="raw_result_file"
+            # )
         else:
             print(f"Invalid runtype: {spotpy_runtype}")
 
-        # https://github.com/thouska/spotpy/blob/c7f61c3333fd39e1f66b8211599279f80fe7fa6f/src/spotpy/describe.py#L37
-        # https://github.com/thouska/spotpy/blob/c7f61c3333fd39e1f66b8211599279f80fe7fa6f/src/spotpy/algorithms/dds.py#L241
-        sampler.sample(self.nrun)
-        self.results = sampler.getdata()
-        np.save(os.path.join(self.out_dir, "DDS_allresults.csv"), self.results)
+    def run(self):
+        """Implement spotpy analysis"""
+
+        self.sampler.sample(self.nrun)
+        self.results = self.sampler.getdata()
+        df = pd.DataFrame(self.results)
+        df["like1"].to_csv(os.path.join(self.out_dir, "DDS_allresults.csv"))
 
     def finalize(self):
-        self.reproduce_the_best_run(self.results)
-        # self.remove_temp_files()
+        self.get_the_best_run(self.results)
+        self.remove_temp_files()
 
-    def reproduce_the_best_run(self, results):
-        bestindex, bestobjf = spotpy.analyser.get_minlikeindex(results)
-        best_model_run = results[bestindex]
-        fields = [word for word in best_model_run.dtype.names if word.startswith("sim")]
-        best_simulation = list(best_model_run[fields])
-        np.save(os.path.join(self.out_dir, "DDS_bestrun.csv"), best_simulation)
+    def get_the_best_run(self, results):
+        # Save parameter bounds used for calibration
+        self.spotpy_setup.param_bounds.to_csv(
+            os.path.join(self.out_dir, "parameter_bounds_used.csv")
+        )
+
+        # Get the best parameter in a dictionary format
+        best_params_ = spotpy.analyser.get_best_parameterset(results, maximize=True)[0]
+        best_params = dict()
+        for i, row in self.spotpy_setup.param_bounds.iterrows():
+            best_params[row["name"]] = best_params_[i]
+
+        # Get the best simulation run and objetive function
+        bestindex, bestobjf = spotpy.analyser.get_maxlikeindex(results)
+        best_model_run_ = results[bestindex]
+        obj_values = results["like1"]
+        # fields = [word for word in best_model_run.dtype.names if word.startswith("sim")]
+        best_model_run = np.array(best_model_run_)
+
+        # Save everything in a json
+        best_run = {
+            "best parameters": best_params,
+            "best objective values": [bestobjf],
+        }
+
+        with open(os.path.join(self.out_dir, "DDS_bestrun_params.json"), "w") as f:
+            json.dump(best_run, f, indent=4)
+
+        # Open the CSV file in write mode
+        with open(
+            os.path.join(self.out_dir, "DDS_bestrun_Q.csv"), mode="w", newline=""
+        ) as csv_file:
+            # Create a CSV writer object
+            csv_writer = csv.writer(csv_file)
+
+            # Write the tuple to the CSV file
+            csv_writer.writerow(best_model_run[0])
 
     def remove_temp_files(self):
         directory = os.path.join(
@@ -91,7 +128,7 @@ class Spotpy_setup:
         self.setup_params()
 
     def setup_params(self):
-        param_bounds = read_spotpy_config(
+        self.param_bounds = read_spotpy_config(
             config_path=self.config["PATHS"]["spotpy_config"]
         )
 
@@ -103,7 +140,7 @@ class Spotpy_setup:
                 high=row["upper_bound"],
                 optguess=row["optguess"],
             )
-            for i, row in param_bounds.iterrows()
+            for row in self.param_bounds.iterrows()
         ]
 
     def parameters(self):

@@ -3,7 +3,6 @@
 
 # Import libraries
 import multiprocessing as mp
-import os
 from agent import Spotpy_Agent
 import configparser
 import time
