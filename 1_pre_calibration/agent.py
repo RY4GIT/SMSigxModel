@@ -140,7 +140,7 @@ class Spotpy_setup:
                 high=row["upper_bound"],
                 optguess=row["optguess"],
             )
-            for row in self.param_bounds.iterrows()
+            for i, row in self.param_bounds.iterrows()
         ]
 
     def parameters(self):
