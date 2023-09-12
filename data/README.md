@@ -1,7 +1,8 @@
 # Data retrieval
 
 ## Mahurangi
-The original observation data were obtained via personal communication. 
+We use the Mahurangi River Variability Experiment (MARVEX) datasets. The original observation data were obtained via personal communication. 
+    Woods, R., R. Grayson, A. Western, M. Duncan, D. Wilson, et al. 2001. Experimental Design and Initial Results From the Mahurangi River Variability Experiment: MARVEX. Observations and Modelling of Land Surface Hydrological Processes: 201–213. doi: 10.1029/WS003p0201.
 
 ## Little Washita
 ### Rainfall, soil moisture, temperature data
@@ -19,4 +20,11 @@ USGS streamflow gauge data (id=`07327550`, `Little Washita River East of Ninneka
     Hodson, T.O., Hariharan, J.A., Black, S., and Horsburgh, J.S., 2023, dataretrieval (Python): a Python package for discovering and retrieving water data available from U.S. federal hydrologic web services: U.S. Geological Survey software release, https://doi.org/10.5066/P94I5TX3.
 
 # Data processing 
-Use the scripts in `script`directory to pre-process the data
+Use the scripts in `.\0_data_preprocessing\script` directory to pre-process the data
+
+# Plot 
+## Mahurangi
+![alt text](https://github.com/RY4GIT/SMSigxModel/blob/master/data/Mahurangi/plot/input_data.png "Mahurangi input data")
+
+## Little Washita
+![alt text](https://github.com/RY4GIT/SMSigxModel/blob/master/data/LittleWashita/plot/input_data.png "Little Washita input data")

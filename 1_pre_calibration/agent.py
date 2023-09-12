@@ -66,8 +66,8 @@ class Spotpy_Agent:
 
     def run(self):
         """Implement spotpy analysis"""
-
-        self.sampler.sample(self.nrun)
+        x_inital = self.spotpy_setup.param_bounds["optguess"].values
+        self.sampler.sample(self.nrun, x_initial=x_inital)
         self.results = self.sampler.getdata()
         df = pd.DataFrame(self.results)
         df["like1"].to_csv(os.path.join(self.out_dir, "DDS_allresults.csv"))
