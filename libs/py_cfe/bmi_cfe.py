@@ -271,7 +271,7 @@ class BMI_CFE:
         }
         self.gw_reservoir["storage_m"] = self.gw_reservoir[
             "storage_max_m"
-        ]  # Start from the maximum groundwater reservoir
+        ]  # Start from the half groundwater reservoir
         self.volstart += self.gw_reservoir["storage_m"]
         self.vol_in_gw_start = self.gw_reservoir["storage_m"]
 
@@ -451,7 +451,7 @@ class BMI_CFE:
         #     * data_loaded["dd"]
         # )  # Equation 11 in the Ogden's document
         self.K_nash = data_loaded["K_nash"]
-        self.nash_storage = np.zeros(data_loaded["num_nash_storage"])
+        self.nash_storage = np.zeros(int(data_loaded["num_nash_storage"]))
         # self.nash_storage = np.array(data_loaded["nash_storage"])
         self.giuh_ordinates = np.array(data_loaded["giuh_ordinates"])
 

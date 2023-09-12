@@ -18,11 +18,11 @@
     "refkdt": 3,
     "K_nash": 0.03,
     "trigger_z_fact": 0.25,
-    "nash_storage": [
-        0.0,
-        0.0
-    ],
+    "num_nash_storage":2,
     "giuh_ordinates": [
+        0.0,
+        0.0,
+        0.0,
         0.1,
         0.4,
         0.2,

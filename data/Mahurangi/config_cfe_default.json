@@ -15,10 +15,7 @@
     "expon": 1.75,
     "K_lf": 0.5, 
     "K_nash": 0.1,
-    "nash_storage": [
-        0.0,
-        0.0
-    ],
+    "num_nash_storage":2,
     "giuh_ordinates": [
         0.1,
         0.2,

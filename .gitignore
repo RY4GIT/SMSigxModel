@@ -12,6 +12,7 @@
 .vscode
 
 0_data_preprocessing/raw_data/*
+1_pre_calibration/results/*
 1_sensitivity_analysis/results/*
 2_GLUE_prerun/results/*
 3_GLUE_postrun/results/*
@@ -20,8 +21,10 @@
 data/Mahurangi/parameters/*
 data/Mahurangi/temporary_parameter_files_for_GLUE/*
 data/Mahurangi/temporary_parameter_files_for_sensitivity_analysis/*
+data/Mahurangi/temporary_parameter_files_for_calibration/*
 data/LittleWashita/temporary_parameter_files_for_GLUE/*
 data/LittleWashita/temporary_parameter_files_for_sensitivity_analysis/*
+data/LittleWashita/temporary_parameter_files_for_calibration/*
 data/Mahurangi/trash/*
 data/seasonsig_test/*
 data/trash/*
