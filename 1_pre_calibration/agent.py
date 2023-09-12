@@ -56,9 +56,7 @@ class Spotpy_Agent:
         spotpy_setup = Spotpy_setup(config=self.config)
         spotpy_runtype = self.config["spotpy"]["method"]
         if spotpy_runtype == "DDS":
-            sampler = spotpy.algorithms.dds(
-                spotpy_setup, dbname="raw_result_file", dbformat="ram"
-            )
+            sampler = spotpy.algorithms.dds(spotpy_setup, dbname="raw_result_file")
         else:
             print(f"Invalid runtype: {spotpy_runtype}")
 
@@ -70,7 +68,7 @@ class Spotpy_Agent:
 
     def finalize(self):
         self.reproduce_the_best_run(self.results)
-        self.remove_temp_files()
+        # self.remove_temp_files()
 
     def reproduce_the_best_run(self, results):
         bestindex, bestobjf = spotpy.analyser.get_minlikeindex(results)

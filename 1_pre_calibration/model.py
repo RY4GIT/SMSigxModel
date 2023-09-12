@@ -72,6 +72,9 @@ class CFEmodel:
         cfe_cfg["K_lf"] = vector["K_lf"]
         cfe_cfg["num_nash_storage"] = int(vector["num_nash_storage"])
 
+        with open(self.cfe_instance.cfg_file, "w") as out_file:
+            json.dump(cfe_cfg, out_file, indent=4)
+
         # Here the model is actualy started with a unique parameter combination that it gets from spotpy for each time the model is called
         self.cfe_instance.initialize()
 
