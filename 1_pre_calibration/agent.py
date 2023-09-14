@@ -70,7 +70,7 @@ class Spotpy_Agent:
         self.sampler.sample(self.nrun, x_initial=x_inital)
         self.results = self.sampler.getdata()
         df = pd.DataFrame(self.results)
-        df["like1"].to_csv(os.path.join(self.out_dir, "DDS_allresults.csv"))
+        df[["like1", "parbb", "parsatdk", "parsatpsi", "parslop", "parsmcmax", "parwltsmc", "parmax_gw_storage", "parCgw",  "parexpon", "parK_nash", "parrefkdt", "partrigger_z_fact", "paralpha_fc", "parK_lf", "parD", "parnum_nash_storage"]].to_csv(os.path.join(self.out_dir, "DDS_allresults.csv"))
 
     def finalize(self):
         self.get_the_best_run(self.results)
