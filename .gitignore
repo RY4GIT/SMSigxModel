@@ -29,3 +29,10 @@ data/Mahurangi/trash/*
 data/seasonsig_test/*
 data/trash/*
 zzz_escape/*
+
+*/config_spotpy.csv
+*/config_SALib.csv
+*/config_GLUE.csv
+*/config.ini
+data/Mahurangi/config_cfe.json
+data/LittleWashita/config_cfe.json
