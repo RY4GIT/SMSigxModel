@@ -1,0 +1,16 @@
+name: CFE
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - ipykernel
+  - matplotlib
+  - numpy
+  - pandas
+  - pip
+  - scipy
+  - spotpy
+  - tqdm
+  - pip:
+      - numbakit-ode
+      - salib

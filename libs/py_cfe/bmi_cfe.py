@@ -654,7 +654,7 @@ class BMI_CFE:
     # ________________________________________________________
     def run_unit_test(
         self,
-        plot_lims=list(range(1, 52600)),  # 31062 for MH # 52600 for LW
+        plot_lims=list(range(1, 31062)),  # 31062 for MH # 52600 for LW
         plot=False,
         print_fluxes=False,
         warm_up=True,
