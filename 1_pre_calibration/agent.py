@@ -66,7 +66,9 @@ class Spotpy_Agent:
 
     def run(self):
         """Implement spotpy analysis"""
-        # x_inital = self.spotpy_setup.param_bounds["optguess"].values
+        # x_inital = self.spotpy_setup.param_bounds.set_index("name")[
+        #     "optguess"
+        # ].to_dict()
         # self.sampler.sample(self.nrun, x_initial=x_inital)
         self.sampler.sample(self.nrun)
         self.results = self.sampler.getdata()
@@ -172,7 +174,7 @@ class Spotpy_setup:
 
         try:
             self.model.run()
-            self.sim_results = self.model.return_sim_runoff()
+            self.sim_results = self.model.return_sim_data()
             return self.sim_results.values
 
         except Exception as e:
@@ -185,14 +187,19 @@ class Spotpy_setup:
         for item in vector_:
             vector[item[1]] = item[0]
         self.model = CFEmodel(config=self.config, vector=vector)
-        self.obs_data = self.model.return_obs_runoff()
+        self.obs_data = self.model.return_obs_data()
         return self.obs_data.values
 
     def objectivefunction(self, simulation, evaluation):
         if np.isnan(simulation.all()):
             self.obj_function = np.nan
         else:
-            self.obj_function = spotpy.objectivefunctions.kge(
-                evaluation[~np.isnan(evaluation)], simulation[~np.isnan(evaluation)]
-            )
+            if self.config["spotpy"]["like_measure"] == "NashSutcliffe":
+                self.obj_function = spotpy.objectivefunctions.nashsutcliffe(
+                    evaluation[~np.isnan(evaluation)], simulation[~np.isnan(evaluation)]
+                )
+            elif self.config["spotpy"]["like_measure"] == "KGE":
+                self.obj_function = spotpy.objectivefunctions.kge(
+                    evaluation[~np.isnan(evaluation)], simulation[~np.isnan(evaluation)]
+                )
         return self.obj_function

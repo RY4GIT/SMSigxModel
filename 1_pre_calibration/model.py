@@ -72,7 +72,7 @@ class CFEmodel:
         # Here the model is actualy started with a unique parameter combination that it gets from spotpy for each time the model is called
         self.cfe_instance.initialize()
 
-    def return_obs_runoff(self):
+    def return_obs_data(self):
         self.cfe_instance.load_unit_test_data()
         obs = self.cfe_instance.unit_test_data[self.eval_variable]
         return obs
@@ -80,8 +80,16 @@ class CFEmodel:
     def run(self):
         self.cfe_instance.run_unit_test(plot=False, print_fluxes=False, warm_up=True)
 
-    def return_sim_runoff(self):
-        sim = self.cfe_instance.cfe_output_data[self.eval_variable]
+    def return_sim_data(self):
+        if self.eval_variable == "Flow":
+            sim = self.cfe_instance.cfe_output_data["Flow"]
+        elif self.eval_variable == "Soil Moisture Content":
+            if self.config["DATA"]["site"] == "Mahurangi":
+                D = self.cfe_instance.soil_params["D"]
+            elif self.config["DATA"]["site"] == "LittleWashita":
+                # Little Washita soil water storage is scaled to represent large infiltration & ET. Actual SM storage only exist in a small layer
+                D = self.cfe_instance.D_noahMP
+            sim = self.cfe_instance.cfe_output_data["SM storage"] / D
         return sim
 
     def return_runoff(self):
