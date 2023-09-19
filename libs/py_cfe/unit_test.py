@@ -60,7 +60,7 @@ with open(input_json) as outfile:
 # ## Run the model
 
 # %%
-cfe_instance = BMI_CFE(cfg_file=input_json, verbose=True)
+cfe_instance = BMI_CFE(cfg_file=input_json, verbose=False)
 cfe_instance.initialize()
 cfe_instance.run_unit_test(plot=True, print_fluxes=False, warm_up=True)
 cfe_instance.finalize(print_mass_balance=True)

@@ -9,8 +9,12 @@ import pandas as pd
 import sys
 import json
 import matplotlib.pyplot as plt
+
+plt.rcParams.update({"font.size": 20})
+plt.rcParams["figure.figsize"] = [16, 4]
 from cfe import CFE
 import spotpy
+from tqdm import tqdm
 
 
 class BMI_CFE:
@@ -269,9 +273,9 @@ class BMI_CFE:
             "exponent_secondary": 1.0,
             "storage_threshold_secondary_m": 0.0,
         }
-        self.gw_reservoir["storage_m"] = self.gw_reservoir[
-            "storage_max_m"
-        ]  # Start from the half groundwater reservoir
+        self.gw_reservoir["storage_m"] = 0  # 1.0e-06  # $self.gw_reservoir[
+        # "storage_max_m"
+        # ]  * 0.5 # Start from the half groundwater reservoir
         self.volstart += self.gw_reservoir["storage_m"]
         self.vol_in_gw_start = self.gw_reservoir["storage_m"]
 
@@ -501,6 +505,7 @@ class BMI_CFE:
         self.vol_soil_to_gw = 0
 
         # GW
+        # self.gw_reservoir["storage_m"] = 1.5E-03
         self.vol_in_gw_start = self.gw_reservoir["storage_m"]
         self.vol_to_gw = 0
         self.vol_from_gw = 0
@@ -620,22 +625,6 @@ class BMI_CFE:
             print("final gw.storage: {:8.4f}".format(self.vol_in_gw_end))
             print("    gw. residual: {:6.4e}".format(self.gw_residual))
 
-            """
-            # T osave
-            sim = self.cfe_output_data[["Time", "Flow"]]
-            sim.loc[:, "Time"] = pd.to_datetime(sim["Time"], format="%Y-%m-%d %H:%M:%S")
-            sim = sim.set_index("Time")
-
-            # Get the comparison data
-            data = self.unit_test_data
-            obs = data[["Time", "Flow"]]
-            obs.loc[:, "Time"] = pd.to_datetime(obs["Time"], format="%d-%b-%Y %H:%M:%S")
-            obs = obs.set_index("Time")
-
-            df = pd.merge_asof(sim, obs, on="Time")
-            df.to_csv('simple_run.csv')
-            """
-
         return
 
     # ________________________________________________________
@@ -645,378 +634,11 @@ class BMI_CFE:
     # ________________________________________________________
     def load_unit_test_data(self):
         self.unit_test_data = pd.read_csv(self.compare_results_file)
-        self.unit_test_data["SM storage"] = (
-            self.unit_test_data["Soil Moisture Content"] * self.soil_params["D"]
-        )
+        self.unit_test_data["Soil Moisture Content"] = self.unit_test_data[
+            "Soil Moisture Content"
+        ]
         self.cfe_output_data = pd.DataFrame().reindex_like(self.unit_test_data)
         return self.unit_test_data
-
-    # ________________________________________________________
-    def run_unit_test(
-        self,
-        plot_lims=list(range(1, 31062)),  # 31062 for MH # 52600 for LW
-        plot=False,
-        print_fluxes=False,
-        warm_up=True,
-    ):
-        self.load_forcing_file()
-        self.load_unit_test_data()
-
-        if warm_up:
-            # Add 2 years of warming up period by default
-            warmup_offset = 365 * 24 * 2
-            self.forcing_data = pd.concat(
-                [
-                    self.forcing_data.iloc[0:warmup_offset].copy(),
-                    self.forcing_data.copy(),
-                ]
-            )
-            self.forcing_data.reset_index(inplace=True)
-        else:
-            warmup_offset = 0
-
-        # initialize
-        output_time = [0] * len(self.unit_test_data)
-        output_ts = [0] * len(self.unit_test_data)
-        output_rainfall = [0] * len(self.unit_test_data)
-        output_directrunoff = [0] * len(self.unit_test_data)
-        output_GIUHrunoff = [0] * len(self.unit_test_data)
-        output_lateralflow = [0] * len(self.unit_test_data)
-        output_baseflow = [0] * len(self.unit_test_data)
-        output_totdischarge = [0] * len(self.unit_test_data)
-        output_flow = [0] * len(self.unit_test_data)
-        output_SM = [0] * len(self.unit_test_data)
-
-        output_gwstorage = [0] * len(self.unit_test_data)
-        output_gwstorage_in = [0] * len(self.unit_test_data)
-        output_gwstorage_out = [0] * len(self.unit_test_data)
-        output_giuhstorage = [0] * len(self.unit_test_data)
-        output_giuhstorage_in = [0] * len(self.unit_test_data)
-        output_giuhstorage_out = [0] * len(self.unit_test_data)
-        output_smstorage_in = [0] * len(self.unit_test_data)
-        output_smstorage_out = [0] * len(self.unit_test_data)
-        output_nashstorage = [0] * len(self.unit_test_data)
-        output_nashstorage_in = [0] * len(self.unit_test_data)
-        output_nashstorage_out = [0] * len(self.unit_test_data)
-
-        self.current_time = pd.Timestamp(self.forcing_data["time"][0])
-        warm_up_flag = 0
-
-        for t, precipitation_input in enumerate(self.forcing_data["precip_rate"]):
-            # removed multiplication *3600. Walnut Gulch data were in mm/s, but Mahurangi in m/timestep(hr)
-            self.timestep_rainfall_input_m = precipitation_input
-
-            if "PET" in self.forcing_data.columns:
-                self.potential_et_m_per_timestep = self.forcing_data.loc[t, "PET"]
-                self.potential_et_m_per_s = (
-                    self.forcing_data.loc[t, "PET"] / self.time_step_size
-                )
-
-            # Durin the warm-up period, do not record the output
-            if warm_up and t < warmup_offset:
-                warm_up_flag = 0
-            # After the warm-up period, record the output
-            else:
-                # When first reached to the reset,
-                if warm_up_flag == 0:
-                    ######## Reset time #######
-                    self.current_time = pd.Timestamp(self.forcing_data["time"][t])
-
-                    ######## Reset mass balance ########
-                    self.reset_volume_tracking_after_warmup()
-
-                    warm_up_flag = 1
-
-                t2 = t - warmup_offset
-                output_time[t2] = self.current_time
-                output_ts[t2] = self.current_time_step
-                output_rainfall[t2] = self.timestep_rainfall_input_m
-            # TODO: create ET output?
-
-            self.cfe_model.run_cfe(self)
-
-            # Durin the warm-up period, do not record the output
-            if warm_up and t < warmup_offset:
-                None
-            # After the warm-up period, record the output
-            else:
-                t2 = t - warmup_offset
-                output_directrunoff[t2] = self.surface_runoff_depth_m
-                output_GIUHrunoff[t2] = self.flux_giuh_runoff_m
-                output_lateralflow[t2] = self.flux_nash_lateral_runoff_m
-                output_baseflow[t2] = self.flux_from_deep_gw_to_chan_m
-                output_flow[t2] = self.flux_Qout_m  #'flow' is in [m/timestep]
-                output_totdischarge[
-                    t2
-                ] = self.total_discharge  # 'totdischarge' is in [cms]
-                output_SM[t2] = self.soil_reservoir[
-                    "storage_m"
-                ]  # 　/ self.soil_params['D']
-
-                output_gwstorage[t2] = self.gw_reservoir["storage_m"]
-                output_gwstorage_in[
-                    t2
-                ] = self.flux_perc_m  # this is percolation minus runoff
-                output_gwstorage_out[t2] = (
-                    self.flux_from_deep_gw_to_chan_m + self.diff_perc
-                )
-
-                output_giuhstorage[t2] = np.sum(self.runoff_queue_m_per_timestep)
-                output_giuhstorage_in[t2] = (
-                    self.surface_runoff_depth_m + self.diff_perc + self.diff_infilt
-                )
-                output_giuhstorage_out[t2] = self.flux_giuh_runoff_m
-
-                output_smstorage_in[t2] = self.infiltration_depth_m
-                output_smstorage_out[t2] = (
-                    self.flux_lat_m
-                    + self.flux_perc_m
-                    + self.actual_et_from_soil_m_per_timestep
-                    + self.diff_infilt
-                )
-
-                output_nashstorage[t2] = np.sum(self.nash_storage)
-                output_nashstorage_in[t2] = self.flux_lat_m
-                output_nashstorage_out[t2] = self.flux_nash_lateral_runoff_m
-
-                if print_fluxes:
-                    print(
-                        "{},{:.8f},{:.8f},{:.8f},{:.8f},{:.8f},{:.8f},{:.8f},".format(
-                            self.current_time,
-                            self.timestep_rainfall_input_m,
-                            self.surface_runoff_depth_m,
-                            self.flux_giuh_runoff_m,
-                            self.flux_nash_lateral_runoff_m,
-                            self.flux_from_deep_gw_to_chan_m,
-                            self.flux_Qout_m,
-                            self.total_discharge,
-                        )
-                    )
-
-        self.cfe_output_data["Time"] = output_time
-        self.cfe_output_data["Time Step"] = output_ts
-        self.cfe_output_data["Rainfall"] = output_rainfall
-        self.cfe_output_data["Direct Runoff"] = output_directrunoff
-        self.cfe_output_data["GIUH Runoff"] = output_GIUHrunoff
-        self.cfe_output_data["Lateral Flow"] = output_lateralflow
-        self.cfe_output_data["Base Flow"] = output_baseflow
-        self.cfe_output_data["Total Discharge"] = output_totdischarge
-        self.cfe_output_data["Flow"] = output_flow
-
-        self.cfe_output_data["GW storage"] = output_gwstorage
-        self.cfe_output_data["Influx to GW storage"] = output_gwstorage_in
-        self.cfe_output_data["Outflux from GW storage"] = output_gwstorage_out
-
-        self.cfe_output_data["GIUH storage"] = output_giuhstorage
-        self.cfe_output_data["Influx to GIUH storage"] = output_giuhstorage_in
-        self.cfe_output_data["Outflux from GIUH storage"] = output_giuhstorage_out
-
-        self.cfe_output_data["SM storage"] = output_SM
-        self.cfe_output_data["Influx to SM storage"] = output_smstorage_in
-        self.cfe_output_data["Outflux from SM storage"] = output_smstorage_out
-        self.cfe_output_data["Soil Moisture Content"] = [
-            number / self.soil_params["D"] for number in output_SM
-        ]
-
-        self.cfe_output_data["Nash storage"] = output_nashstorage
-        self.cfe_output_data["Influx to Nash storage"] = output_nashstorage_in
-        self.cfe_output_data["Outflux from Nash storage"] = output_nashstorage_out
-
-        # Plottings
-        if plot:
-            plt.rcParams.update({"font.size": 20})
-            plt.rcParams["figure.figsize"] = [16, 4]
-
-            # Precipitation
-            plt.plot(
-                self.cfe_output_data["Rainfall"][plot_lims],
-                label="Precipitation",
-                c="gray",
-                lw=0.3,
-            )
-            ax = plt.gca()
-            ax.set_title("Precipitation", loc="left", fontweight="bold")
-            plt.xlabel("Time [hr]")
-            plt.ylabel("[m/hr]")
-            plt.legend(loc="upper right")
-            plt.show()
-
-            # Soil moisture and discharge (observation available)
-            for output_type in ["Flow"]:  # , 'SM storage']:
-                sim0 = self.cfe_output_data
-                obs0 = self.unit_test_data
-
-                sim_synced = pd.DataFrame()
-                obs_synced = pd.DataFrame()
-
-                # Get the results
-                # Get the simulated data
-                sim = sim0[["Time", output_type]].copy()
-                sim["Time"] = pd.to_datetime(
-                    sim["Time"], format="%Y-%m-%d %H:%M:%S"
-                )  # Works specifically for CFE
-
-                # Get the comparison data
-                obs = obs0[["Time", output_type]].copy()
-                try:
-                    obs["Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M")
-                except:  # Works specifically for Mahurangi data
-                    try:
-                        obs["Time"] = pd.to_datetime(
-                            obs["Time"], format="%d-%m-%Y %H:%M:%S"
-                        )
-                    except:
-                        obs["Time"] = pd.to_datetime(
-                            obs["Time"], format="%Y-%m-%d %H:%M:%S"
-                        )
-
-                # Merge observed and simulated timeseries
-                df = pd.merge_asof(sim, obs, on="Time")
-                self.df_timeaxis = df["Time"]
-
-                sim_synced[output_type] = df[output_type + "_x"].copy()
-                obs_synced[output_type] = df[output_type + "_y"].copy()
-
-                self.obs_synced = obs_synced
-
-                # long
-                _obs_synced = obs_synced[output_type]
-                _sim_synced = sim_synced[output_type]
-                # KGE = spotpy.objectivefunctions.kge(
-                #     obs_synced[~np.isnan(_obs_synced)],
-                #     _sim_synced[~np.isnan(_obs_synced)]
-                # )
-                KGE = spotpy.objectivefunctions.kge(
-                    _obs_synced[~np.isnan(_obs_synced)],
-                    _sim_synced[~np.isnan(_obs_synced)],
-                )
-                NSE = spotpy.objectivefunctions.nashsutcliffe(
-                    evaluation=obs_synced[output_type],
-                    simulation=sim_synced[output_type],
-                )
-
-                # plt.plot(self.cfe_output_data['Rainfall'][plot_lims], label='Precipitation', c='gray', lw=.3)
-                plt.plot(
-                    self.cfe_output_data[output_type][plot_lims],
-                    label="Simulated "
-                    + "\n(KGE = "
-                    + "{:1.4f}".format(KGE)
-                    + ", NSE= "
-                    + "{:1.4f}".format(NSE)
-                    + ")",
-                )
-                plt.plot(
-                    self.unit_test_data[output_type][plot_lims], "--", label="Observed"
-                )
-                ax = plt.gca()
-                ax.set_title(output_type, loc="left", fontweight="bold")
-                plt.xlabel("Time [hr]")
-                plt.ylabel("[m/hr]")
-                plt.legend(loc="upper right")
-                plt.show()
-
-                if output_type == "Flow":
-                    plt.plot(
-                        self.cfe_output_data[output_type][plot_lims],
-                        label="Simulated "
-                        + "\n(KGE = "
-                        + "{:1.4f}".format(KGE)
-                        + ", NSE= "
-                        + "{:1.4f}".format(NSE)
-                        + ")",
-                    )
-                    plt.plot(
-                        self.unit_test_data[output_type][plot_lims],
-                        "--",
-                        label="Observed",
-                    )
-                    plt.yscale("log")
-                    ax = plt.gca()
-                    ax.set_title(
-                        output_type + " (log scale)", loc="left", fontweight="bold"
-                    )
-                    plt.xlabel("Time [hr]")
-                    plt.ylabel("[m/hr]")
-                    plt.legend(loc="upper right")
-                    plt.show()
-
-                """
-                # short
-                # plt.plot(self.cfe_output_data['Rainfall'][20000:22500], label='Precipitation', c='gray', lw=.3)
-                plt.plot(self.cfe_output_data[output_type][20000:22500], label='Simulated')
-                plt.plot(self.unit_test_data[output_type][20000:22500], '--', label='Observed')
-                ax = plt.gca()
-                ax.set_title(output_type + ' (short)', loc='left', fontweight='bold')
-                plt.xlabel('Time [hr]')
-                plt.ylabel('[m/hr]')
-                plt.legend(loc='upper right')
-                plt.show()
-                """
-
-            for output_type in [
-                "SM storage",
-                "GW storage",
-                "Nash storage",
-                "GIUH storage",
-            ]:
-                plt.plot(
-                    self.cfe_output_data[output_type][plot_lims],
-                    color="dodgerblue",
-                    linestyle="-",
-                    label="Storage",
-                )
-                if output_type == "SM storage":
-                    plt.plot(
-                        self.unit_test_data[output_type][plot_lims],
-                        color="darkorange",
-                        linestyle="--",
-                        label="Observed",
-                    )
-                ax = plt.gca()
-                ax2 = ax.twinx()
-                ax2.plot(
-                    self.cfe_output_data["Influx to " + output_type][
-                        plot_lims
-                    ].cumsum(),
-                    color="seagreen",
-                    linestyle="--",
-                    label="Influx",
-                )
-                ax2.plot(
-                    self.cfe_output_data["Outflux from " + output_type][
-                        plot_lims
-                    ].cumsum(),
-                    color="crimson",
-                    linestyle="--",
-                    label="Outflux",
-                )
-                ax.set_title(output_type, loc="left", fontweight="bold")
-                plt.xlabel("Time [hr]")
-                ax.set_ylabel("Storage [m]")
-                ax2.set_ylabel("Cumulative flux [m]")
-                plt.legend(loc="upper right")
-                plt.show()
-
-            """
-            # All other fluxes (observation not available)
-            for output_type in ['Direct Runoff', 'GIUH Runoff', 'Lateral Flow', 'Base Flow']:
-                # long
-                plt.rcParams['figure.figsize'] = [16, 4]
-                #　plt.plot(self.cfe_output_data['Rainfall'][plot_lims], label='Precipitation', c='gray', lw=.3)
-                plt.plot(self.cfe_output_data[output_type][plot_lims],
-                         label='Simulated ')
-                ax = plt.gca()
-                ax.set_title(output_type, loc='left', fontweight='bold')
-                ax.set_ylim(bottom=0)
-                plt.xlabel('Time [hr]')
-                plt.ylabel('[m/hr]')
-                plt.legend(loc='upper right')
-                plt.show()
-
-                # plt.close()
-            """
-
-        return self.cfe_output_data
 
     # ------------------------------------------------------------
     def scale_output(self):
@@ -1034,9 +656,7 @@ class BMI_CFE:
         self._values["GIUH_RUNOFF"] = self.flux_giuh_runoff_m
         self._values["NASH_LATERAL_RUNOFF"] = self.flux_nash_lateral_runoff_m
         self._values["DEEP_GW_TO_CHANNEL_FLUX"] = self.flux_from_deep_gw_to_chan_m
-        self._values["SOIL_CONCEPTUAL_STORAGE"] = self.soil_reservoir[
-            "storage_m"
-        ]  # / self.soil_params['D']
+        self._values["SOIL_CONCEPTUAL_STORAGE"] = self.soil_reservoir["storage_m"]
 
     # ----------------------------------------------------------------------------
     def initialize_forcings(self):
@@ -1336,3 +956,306 @@ class BMI_CFE:
     # ------------------------------------------------------------
     def get_grid_z(self):
         raise NotImplementedError("get_grid_z")
+
+    # ________________________________________________________
+    def run_unit_test(
+        self,
+        plot_lims=list(range(1, 52600)),  # 31062 for MH # 52600 for LW
+        plot=False,
+        print_fluxes=False,
+        warm_up=True,
+        warmup_offset=365 * 24 * 2,  # 2 years by default
+    ):
+        self.load_forcing_file()
+        self.load_unit_test_data()
+
+        if warm_up:
+            self.forcing_data = pd.concat(
+                [
+                    self.forcing_data.iloc[0:warmup_offset].copy(),
+                    self.forcing_data.copy(),
+                ]
+            )
+            self.forcing_data.reset_index(inplace=True)
+        else:
+            warmup_offset = 0
+
+        output_vars = [
+            "Time",
+            "Time Step",
+            "Rainfall",
+            "Direct Runoff",
+            "GIUH Runoff",
+            "Lateral Flow",
+            "Base Flow",
+            "Total Discharge",
+            "Flow",
+            "GW storage",
+            "Influx to GW storage",
+            "Outflux from GW storage",
+            "GIUH storage",
+            "Influx to GIUH storage",
+            "Outflux from GIUH storage",
+            "Influx to Soil Moisture Content",
+            "Outflux from Soil Moisture Content",
+            "Soil Moisture Content",
+            "Nash storage",
+            "Influx to Nash storage",
+            "Outflux from Nash storage",
+        ]
+
+        ### Initilaize ###
+        self.cfe_output_data = {
+            var: [0] * len(self.unit_test_data) for var in output_vars
+        }
+        self.cfe_output_data = pd.DataFrame(self.cfe_output_data)
+        self.current_time = pd.Timestamp(self.forcing_data["time"][0])
+        warm_up_flag = 0
+
+        for t, precipitation_input in tqdm(enumerate(self.forcing_data["precip_rate"])):
+            ### Set forcing ###
+
+            self.timestep_rainfall_input_m = precipitation_input
+
+            if "PET" in self.forcing_data.columns:
+                self.potential_et_m_per_timestep = self.forcing_data.loc[t, "PET"]
+                self.potential_et_m_per_s = (
+                    self.forcing_data.loc[t, "PET"] / self.time_step_size
+                )
+
+            ### Record forcing ###
+            # Durin the warm-up period, do not record the forcing
+            if warm_up and t < warmup_offset:
+                warm_up_flag = 0
+
+            # After the warm-up period, record the forcing
+            else:
+                # When first reached to the end of the warm-up period, reset the model state
+                if warm_up_flag == 0:
+                    ######## Reset time #######
+                    self.current_time = pd.Timestamp(self.forcing_data["time"][t])
+
+                    ######## Reset mass balance ########
+                    self.reset_volume_tracking_after_warmup()
+
+                    warm_up_flag = 1
+
+                # Record forcing
+                t2 = t - warmup_offset
+                self.cfe_output_data = self.record_forcing(t2, self.cfe_output_data)
+
+            ### CFE run ###
+            self.cfe_model.run_cfe(self)
+
+            ### Record output ###
+            # Durin the warm-up period, do not record the output
+            if warm_up and t < warmup_offset:
+                None
+            # After the warm-up period, record the output
+            else:
+                self.cfe_output_data = self.record_output_fluxes(
+                    t2, self.cfe_output_data
+                )
+
+        # Plottings
+        if plot:
+            self.sync_data()
+            self.plot_precip(plot_lims)
+            self.plot_flow(plot_lims)
+            self.plot_SM(plot_lims)
+
+            for output_type in [
+                "GW storage",
+                "Nash storage",
+                "GIUH storage",
+            ]:
+                self.plot_other_fluxes(plot_lims, output_type)
+
+        return self.cfe_output_data
+
+    def plot_precip(self, plot_lims):
+        plt.plot(
+            self.cfe_output_data["Rainfall"][plot_lims],
+            label="Precipitation",
+            c="gray",
+            lw=0.3,
+        )
+        ax = plt.gca()
+        ax.set_title("Precipitation", loc="left", fontweight="bold")
+        plt.xlabel("Time [hr]")
+        plt.ylabel("[m/hr]")
+        plt.legend(loc="upper right")
+        plt.show()
+
+    def sync_data(self):
+        sim0 = self.cfe_output_data
+        obs0 = self.unit_test_data
+
+        sim_synced = pd.DataFrame()
+        obs_synced = pd.DataFrame()
+
+        # Get the results
+        # Get the simulated data
+        sim = sim0[["Time", "Flow", "Soil Moisture Content"]].copy()
+        sim["Time"] = pd.to_datetime(
+            sim["Time"], format="%Y-%m-%d %H:%M:%S"
+        )  # Works specifically for CFE
+
+        # Get the comparison data
+        obs = obs0[["Time", "Flow", "Soil Moisture Content"]].copy()
+        try:
+            obs["Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M")
+        except:  # Works specifically for Mahurangi data
+            try:
+                obs["Time"] = pd.to_datetime(obs["Time"], format="%d-%m-%Y %H:%M:%S")
+            except:
+                obs["Time"] = pd.to_datetime(obs["Time"], format="%Y-%m-%d %H:%M:%S")
+
+        # Merge observed and simulated timeseries
+        df = pd.merge_asof(sim, obs, on="Time")
+        self.df_timeaxis = df["Time"]
+
+        sim_synced["Flow"] = df["Flow" + "_x"].copy()
+        obs_synced["Flow"] = df["Flow" + "_y"].copy()
+        sim_synced["Soil Moisture Content"] = df["Soil Moisture Content" + "_x"].copy()
+        obs_synced["Soil Moisture Content"] = df["Soil Moisture Content" + "_y"].copy()
+
+        self.obs_synced = obs_synced
+        self.sim_synced = sim_synced
+
+    def plot_evaluate(self, output_type):
+        _obs_synced = self.obs_synced[output_type]
+        _sim_synced = self.obs_synced[output_type]
+
+        KGE = spotpy.objectivefunctions.kge(
+            _obs_synced[~np.isnan(_obs_synced)],
+            _sim_synced[~np.isnan(_obs_synced)],
+        )
+        NSE = spotpy.objectivefunctions.nashsutcliffe(
+            _obs_synced[~np.isnan(_obs_synced)],
+            _sim_synced[~np.isnan(_obs_synced)],
+        )
+        return KGE, NSE
+
+    def plot_flow(self, plot_lims):
+        output_type = "Flow"
+        KGE, NSE = self.plot_evaluate(output_type)
+
+        for i in range(0, 2):
+            plt.plot(
+                self.cfe_output_data[output_type][plot_lims],
+                label="Simulated "
+                + "\n(KGE = "
+                + "{:1.4f}".format(KGE)
+                + ", NSE= "
+                + "{:1.4f}".format(NSE)
+                + ")",
+            )
+            plt.plot(
+                self.unit_test_data[output_type][plot_lims], "--", label="Observed"
+            )
+            ax = plt.gca()
+            if i == 1:
+                plt.yscale("log")
+                ax.set_title(
+                    output_type + " (log scale)", loc="left", fontweight="bold"
+                )
+            else:
+                ax.set_title(output_type, loc="left", fontweight="bold")
+            plt.xlabel("Time [hr]")
+            plt.ylabel("[m/hr]")
+            plt.legend(loc="upper right")
+            plt.show()
+
+    def plot_SM(self, plot_lims):
+        output_type = "Soil Moisture Content"
+        KGE, NSE = self.plot_evaluate(output_type)
+
+        plt.plot(
+            self.cfe_output_data[output_type][plot_lims],
+            label="Simulated "
+            + "\n(KGE = "
+            + "{:1.4f}".format(KGE)
+            + ", NSE= "
+            + "{:1.4f}".format(NSE)
+            + ")",
+        )
+        plt.plot(self.unit_test_data[output_type][plot_lims], "--", label="Observed")
+        ax = plt.gca()
+        ax.set_title(output_type, loc="left", fontweight="bold")
+        plt.xlabel("Time [hr]")
+        ax.set_ylabel("Storage [m3/m3]")
+        plt.legend(loc="upper right")
+        plt.show()
+
+    def plot_other_fluxes(self, plot_lims, output_type):
+        plt.plot(
+            self.cfe_output_data[output_type][plot_lims],
+            color="dodgerblue",
+            linestyle="-",
+            label="Storage",
+        )
+
+        ax = plt.gca()
+        ax2 = ax.twinx()
+        ax2.plot(
+            self.cfe_output_data["Influx to " + output_type][plot_lims].cumsum(),
+            color="seagreen",
+            linestyle="--",
+            label="Influx",
+        )
+        ax2.plot(
+            self.cfe_output_data["Outflux from " + output_type][plot_lims].cumsum(),
+            color="crimson",
+            linestyle="--",
+            label="Outflux",
+        )
+        ax.set_title(output_type, loc="left", fontweight="bold")
+        plt.xlabel("Time [hr]")
+        ax.set_ylabel("Storage [m]")
+        ax2.set_ylabel("Cumulative flux [m]")
+        plt.legend(loc="upper right")
+        plt.show()
+
+    def record_output_fluxes(self, t2, output_data):
+        output_data.loc[t2, "Direct Runoff"] = self.surface_runoff_depth_m
+        output_data.loc[t2, "GIUH Runoff"] = self.flux_giuh_runoff_m
+        output_data.loc[t2, "Lateral Flow"] = self.flux_nash_lateral_runoff_m
+        output_data.loc[t2, "Base Flow"] = self.flux_from_deep_gw_to_chan_m
+        output_data.loc[t2, "Flow"] = self.flux_Qout_m
+        output_data.loc[t2, "Total Discharge"] = self.total_discharge
+        output_data.loc[t2, "Soil Moisture Content"] = (
+            self.soil_reservoir["storage_m"] / self.D_noahMP
+        )
+        output_data.loc[t2, "GW storage"] = self.gw_reservoir["storage_m"]
+        output_data.loc[t2, "Influx to GW storage"] = self.flux_perc_m
+        output_data.loc[t2, "Outflux from GW storage"] = (
+            self.flux_from_deep_gw_to_chan_m + self.diff_perc
+        )
+        output_data.loc[t2, "GIUH storage"] = np.sum(self.runoff_queue_m_per_timestep)
+        output_data.loc[t2, "Influx to GIUH storage"] = (
+            self.surface_runoff_depth_m + self.diff_perc + self.diff_infilt
+        )
+        output_data.loc[t2, "Outflux from GIUH storage"] = self.flux_giuh_runoff_m
+        output_data.loc[
+            t2, "Influx to Soil Moisture Content"
+        ] = self.infiltration_depth_m
+        output_data.loc[t2, "Outflux from Soil Moisture Content"] = (
+            self.flux_lat_m
+            + self.flux_perc_m
+            + self.actual_et_from_soil_m_per_timestep
+            + self.diff_infilt
+        )
+        output_data.loc[t2, "Nash storage"] = np.sum(self.nash_storage)
+        output_data.loc[t2, "Influx to Nash storage"] = self.flux_lat_m
+        output_data.loc[
+            t2, "Outflux from Nash storage"
+        ] = self.flux_nash_lateral_runoff_m
+
+        return output_data
+
+    def record_forcing(self, t2, output_data):
+        output_data.loc[t2, "Time"] = self.current_time
+        output_data.loc[t2, "Time Step"] = self.current_time_step
+        output_data.loc[t2, "Rainfall"] = self.timestep_rainfall_input_m
+        return output_data
