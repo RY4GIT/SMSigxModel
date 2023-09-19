@@ -974,6 +974,8 @@ class BMI_CFE:
             # Read forcing data for warmup
             self.forcing_data_warmup = self.forcing_data.iloc[0:warmup_offset].copy()
 
+            previous_gw_storage = 1
+
             # Repeat warm-up period for 'warmup_iteration' times
             for i in range(0, warmup_iteration):
                 # Run CFE by a timestep
@@ -990,7 +992,15 @@ class BMI_CFE:
                         )
                     self.cfe_model.run_cfe(self)
 
-                print(self.gw_reservoir["storage_m"])
+                diff = (
+                    abs(previous_gw_storage - self.gw_reservoir["storage_m"])
+                    / previous_gw_storage
+                )
+                if diff < 1.0e-02:
+                    print(f"GW converged <1% after warm-up iteration {i}")
+                    break
+
+                previous_gw_storage = self.gw_reservoir["storage_m"]
 
             # Reset the volume tracking after warm-up. Leave resevoirs (the GW and soil reservoir etc.) as the current state
             self.reset_volume_tracking_after_warmup()

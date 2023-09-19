@@ -37,6 +37,8 @@ class CFEmodel:
         self.config = config
         self.like_measure = config["spotpy"]["like_measure"]
         self.eval_variable = config["spotpy"]["eval_variable"]
+        self.warmup_offset = int(config["spotpy"]["warmup_offset"])
+        self.warmup_iteration = int(config["spotpy"]["warmup_iteration"])
 
         # Copy the CFE config file for sensitivty analysis
         destination_path = duplicate_file(
@@ -78,7 +80,13 @@ class CFEmodel:
         return obs
 
     def run(self):
-        self.cfe_instance.run_unit_test(plot=False, print_fluxes=False, warm_up=True)
+        self.cfe_instance.run_unit_test(
+            plot=False,
+            print_fluxes=False,
+            warm_up=True,
+            warmup_offset=self.warmup_offset,
+            warmup_iteration=self.warmup_iteration,
+        )
 
     def return_sim_data(self):
         if self.eval_variable == "Flow":

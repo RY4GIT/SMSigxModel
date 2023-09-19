@@ -56,11 +56,13 @@ class Spotpy_Agent:
         spotpy_runtype = self.config["spotpy"]["method"]
         if spotpy_runtype == "DDS":
             self.sampler = spotpy.algorithms.dds(
-                self.spotpy_setup, dbname="raw_result_file"
+                self.spotpy_setup,
+                dbname="raw_result_file",
             )
             # self.sampler = spotpy.algorithms.dds(
             #     self.spotpy_setup, parallel="mpi", dbname="raw_result_file"
             # )
+            # mpiexec -n 2 C:/Users/flipl/miniconda3/envs/CFE/python.exe .\1_pre_calibration\__main__.py This stuck forever
         else:
             print(f"Invalid runtype: {spotpy_runtype}")
 
