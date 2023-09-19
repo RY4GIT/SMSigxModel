@@ -980,39 +980,35 @@ class BMI_CFE:
         else:
             warmup_offset = 0
 
-        output_vars = [
-            "Time",
-            "Time Step",
-            "Rainfall",
-            "Direct Runoff",
-            "GIUH Runoff",
-            "Lateral Flow",
-            "Base Flow",
-            "Total Discharge",
-            "Flow",
-            "GW storage",
-            "Influx to GW storage",
-            "Outflux from GW storage",
-            "GIUH storage",
-            "Influx to GIUH storage",
-            "Outflux from GIUH storage",
-            "Influx to Soil Moisture Content",
-            "Outflux from Soil Moisture Content",
-            "Soil Moisture Content",
-            "Nash storage",
-            "Influx to Nash storage",
-            "Outflux from Nash storage",
-        ]
-
         ### Initilaize ###
-        self.cfe_output_data = {
-            var: [0] * len(self.unit_test_data) for var in output_vars
-        }
-        self.cfe_output_data = pd.DataFrame(self.cfe_output_data)
+        # initialize
+        output_time = [0] * len(self.unit_test_data)
+        output_ts = [0] * len(self.unit_test_data)
+        output_rainfall = [0] * len(self.unit_test_data)
+        output_directrunoff = [0] * len(self.unit_test_data)
+        output_GIUHrunoff = [0] * len(self.unit_test_data)
+        output_lateralflow = [0] * len(self.unit_test_data)
+        output_baseflow = [0] * len(self.unit_test_data)
+        output_totdischarge = [0] * len(self.unit_test_data)
+        output_flow = [0] * len(self.unit_test_data)
+        output_SM = [0] * len(self.unit_test_data)
+
+        output_gwstorage = [0] * len(self.unit_test_data)
+        output_gwstorage_in = [0] * len(self.unit_test_data)
+        output_gwstorage_out = [0] * len(self.unit_test_data)
+        output_giuhstorage = [0] * len(self.unit_test_data)
+        output_giuhstorage_in = [0] * len(self.unit_test_data)
+        output_giuhstorage_out = [0] * len(self.unit_test_data)
+        output_smstorage_in = [0] * len(self.unit_test_data)
+        output_smstorage_out = [0] * len(self.unit_test_data)
+        output_nashstorage = [0] * len(self.unit_test_data)
+        output_nashstorage_in = [0] * len(self.unit_test_data)
+        output_nashstorage_out = [0] * len(self.unit_test_data)
+
         self.current_time = pd.Timestamp(self.forcing_data["time"][0])
         warm_up_flag = 0
 
-        for t, precipitation_input in tqdm(enumerate(self.forcing_data["precip_rate"])):
+        for t, precipitation_input in enumerate(self.forcing_data["precip_rate"]):
             ### Set forcing ###
 
             self.timestep_rainfall_input_m = precipitation_input
@@ -1042,7 +1038,9 @@ class BMI_CFE:
 
                 # Record forcing
                 t2 = t - warmup_offset
-                self.cfe_output_data = self.record_forcing(t2, self.cfe_output_data)
+                output_time[t2] = self.current_time
+                output_ts[t2] = self.current_time_step
+                output_rainfall[t2] = self.timestep_rainfall_input_m
 
             ### CFE run ###
             self.cfe_model.run_cfe(self)
@@ -1053,9 +1051,72 @@ class BMI_CFE:
                 None
             # After the warm-up period, record the output
             else:
-                self.cfe_output_data = self.record_output_fluxes(
-                    t2, self.cfe_output_data
+                output_directrunoff[t2] = self.surface_runoff_depth_m
+                output_GIUHrunoff[t2] = self.flux_giuh_runoff_m
+                output_lateralflow[t2] = self.flux_nash_lateral_runoff_m
+                output_baseflow[t2] = self.flux_from_deep_gw_to_chan_m
+                output_flow[t2] = self.flux_Qout_m  #'flow' is in [m/timestep]
+                output_totdischarge[
+                    t2
+                ] = self.total_discharge  # 'totdischarge' is in [cms]
+                output_SM[t2] = self.soil_reservoir[
+                    "storage_m"
+                ]  # 　/ self.soil_params['D']
+
+                output_gwstorage[t2] = self.gw_reservoir["storage_m"]
+                output_gwstorage_in[
+                    t2
+                ] = self.flux_perc_m  # this is percolation minus runoff
+                output_gwstorage_out[t2] = (
+                    self.flux_from_deep_gw_to_chan_m + self.diff_perc
                 )
+
+                output_giuhstorage[t2] = np.sum(self.runoff_queue_m_per_timestep)
+                output_giuhstorage_in[t2] = (
+                    self.surface_runoff_depth_m + self.diff_perc + self.diff_infilt
+                )
+                output_giuhstorage_out[t2] = self.flux_giuh_runoff_m
+
+                output_smstorage_in[t2] = self.infiltration_depth_m
+                output_smstorage_out[t2] = (
+                    self.flux_lat_m
+                    + self.flux_perc_m
+                    + self.actual_et_from_soil_m_per_timestep
+                    + self.diff_infilt
+                )
+
+                output_nashstorage[t2] = np.sum(self.nash_storage)
+                output_nashstorage_in[t2] = self.flux_lat_m
+                output_nashstorage_out[t2] = self.flux_nash_lateral_runoff_m
+
+        self.cfe_output_data["Time"] = output_time
+        self.cfe_output_data["Time Step"] = output_ts
+        self.cfe_output_data["Rainfall"] = output_rainfall
+        self.cfe_output_data["Direct Runoff"] = output_directrunoff
+        self.cfe_output_data["GIUH Runoff"] = output_GIUHrunoff
+        self.cfe_output_data["Lateral Flow"] = output_lateralflow
+        self.cfe_output_data["Base Flow"] = output_baseflow
+        self.cfe_output_data["Total Discharge"] = output_totdischarge
+        self.cfe_output_data["Flow"] = output_flow
+
+        self.cfe_output_data["GW storage"] = output_gwstorage
+        self.cfe_output_data["Influx to GW storage"] = output_gwstorage_in
+        self.cfe_output_data["Outflux from GW storage"] = output_gwstorage_out
+
+        self.cfe_output_data["GIUH storage"] = output_giuhstorage
+        self.cfe_output_data["Influx to GIUH storage"] = output_giuhstorage_in
+        self.cfe_output_data["Outflux from GIUH storage"] = output_giuhstorage_out
+
+        self.cfe_output_data["SM storage"] = output_SM
+        self.cfe_output_data["Influx to SM storage"] = output_smstorage_in
+        self.cfe_output_data["Outflux from SM storage"] = output_smstorage_out
+        self.cfe_output_data["Soil Moisture Content"] = [
+            number / self.soil_params["D"] for number in output_SM
+        ]
+
+        self.cfe_output_data["Nash storage"] = output_nashstorage
+        self.cfe_output_data["Influx to Nash storage"] = output_nashstorage_in
+        self.cfe_output_data["Outflux from Nash storage"] = output_nashstorage_out
 
         # Plottings
         if plot:
@@ -1218,44 +1279,40 @@ class BMI_CFE:
         plt.show()
 
     def record_output_fluxes(self, t2, output_data):
-        output_data.loc[t2, "Direct Runoff"] = self.surface_runoff_depth_m
-        output_data.loc[t2, "GIUH Runoff"] = self.flux_giuh_runoff_m
-        output_data.loc[t2, "Lateral Flow"] = self.flux_nash_lateral_runoff_m
-        output_data.loc[t2, "Base Flow"] = self.flux_from_deep_gw_to_chan_m
-        output_data.loc[t2, "Flow"] = self.flux_Qout_m
-        output_data.loc[t2, "Total Discharge"] = self.total_discharge
-        output_data.loc[t2, "Soil Moisture Content"] = (
+        output_data[t2, "Direct Runoff"] = self.surface_runoff_depth_m
+        output_data[t2, "GIUH Runoff"] = self.flux_giuh_runoff_m
+        output_data[t2, "Lateral Flow"] = self.flux_nash_lateral_runoff_m
+        output_data[t2, "Base Flow"] = self.flux_from_deep_gw_to_chan_m
+        output_data[t2, "Flow"] = self.flux_Qout_m
+        output_data[t2, "Total Discharge"] = self.total_discharge
+        output_data[t2, "Soil Moisture Content"] = (
             self.soil_reservoir["storage_m"] / self.D_noahMP
         )
-        output_data.loc[t2, "GW storage"] = self.gw_reservoir["storage_m"]
-        output_data.loc[t2, "Influx to GW storage"] = self.flux_perc_m
-        output_data.loc[t2, "Outflux from GW storage"] = (
+        output_data[t2, "GW storage"] = self.gw_reservoir["storage_m"]
+        output_data[t2, "Influx to GW storage"] = self.flux_perc_m
+        output_data[t2, "Outflux from GW storage"] = (
             self.flux_from_deep_gw_to_chan_m + self.diff_perc
         )
-        output_data.loc[t2, "GIUH storage"] = np.sum(self.runoff_queue_m_per_timestep)
-        output_data.loc[t2, "Influx to GIUH storage"] = (
+        output_data[t2, "GIUH storage"] = np.sum(self.runoff_queue_m_per_timestep)
+        output_data[t2, "Influx to GIUH storage"] = (
             self.surface_runoff_depth_m + self.diff_perc + self.diff_infilt
         )
-        output_data.loc[t2, "Outflux from GIUH storage"] = self.flux_giuh_runoff_m
-        output_data.loc[
-            t2, "Influx to Soil Moisture Content"
-        ] = self.infiltration_depth_m
-        output_data.loc[t2, "Outflux from Soil Moisture Content"] = (
+        output_data[t2, "Outflux from GIUH storage"] = self.flux_giuh_runoff_m
+        output_data[t2, "Influx to Soil Moisture Content"] = self.infiltration_depth_m
+        output_data[t2, "Outflux from Soil Moisture Content"] = (
             self.flux_lat_m
             + self.flux_perc_m
             + self.actual_et_from_soil_m_per_timestep
             + self.diff_infilt
         )
-        output_data.loc[t2, "Nash storage"] = np.sum(self.nash_storage)
-        output_data.loc[t2, "Influx to Nash storage"] = self.flux_lat_m
-        output_data.loc[
-            t2, "Outflux from Nash storage"
-        ] = self.flux_nash_lateral_runoff_m
+        output_data[t2, "Nash storage"] = np.sum(self.nash_storage)
+        output_data[t2, "Influx to Nash storage"] = self.flux_lat_m
+        output_data[t2, "Outflux from Nash storage"] = self.flux_nash_lateral_runoff_m
 
         return output_data
 
     def record_forcing(self, t2, output_data):
-        output_data.loc[t2, "Time"] = self.current_time
-        output_data.loc[t2, "Time Step"] = self.current_time_step
-        output_data.loc[t2, "Rainfall"] = self.timestep_rainfall_input_m
+        output_data[t2, "Time"] = self.current_time
+        output_data[t2, "Time Step"] = self.current_time_step
+        output_data[t2, "Rainfall"] = self.timestep_rainfall_input_m
         return output_data
