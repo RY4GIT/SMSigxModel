@@ -1180,7 +1180,7 @@ class BMI_CFE:
 
     def plot_evaluate(self, output_type):
         _obs_synced = self.obs_synced[output_type]
-        _sim_synced = self.obs_synced[output_type]
+        _sim_synced = self.sim_synced[output_type]
 
         KGE = spotpy.objectivefunctions.kge(
             _obs_synced[~np.isnan(_obs_synced)],
