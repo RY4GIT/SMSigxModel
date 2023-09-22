@@ -1,32 +1,29 @@
 {
-    "forcing_file": "G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/data/Mahurangi/mahurangi_1998_2001.csv",
-    "catchment_area_km2": 46.65,
+    "forcing_file": "G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/data/LittleWashita/little_washita_2006_2012.csv",
+    "catchment_area_km2": 601,
     "soil_params": {
-        "bb": 2.428138,
-        "satdk": 0.00999,
-        "satpsi": 0.304343,
-        "slop": 0.009175,
-        "smcmax": 0.479724,
-        "wltsmc": 0.252464,
-        "D": 1
+        "bb": 1.01,
+        "satdk": 1e-05,
+        "slop": 1,
+        "satpsi": 0.33,
+        "smcmax": 0.5,
+        "wltsmc": 0.0129467948981879,
+        "D": 10
     },
-    "max_gw_storage": 399.158292,
-    "Cgw": 9.255387,
-    "expon": 14.935154,
-    "K_nash": 0.795516,
-    "refkdt": 9990.0,
-    "trigger_z_fact": 0.46953,
-    "alpha_fc": 0.164291,
-    "K_lf": 0.938217,
-    "num_nash_storage": 87,
+    "alpha_fc": 0.3083778619066096,
+    "max_gw_storage": 10,
+    "Cgw": 0.0001,
+    "expon": 0.01,
+    "K_lf": 0.01,
+    "refkdt": 10000,
+    "K_nash": 1,
+    "trigger_z_fact": 0.75,
+    "num_nash_storage": 10,
     "giuh_ordinates": [
-        0.1,
-        0.2,
-        0.4,
-        0.2,
-        0.1
+        0.5,
+        0.5
     ],
     "stand_alone": 1,
     "unit_test": 1,
-    "compare_results_file": "G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/data/Mahurangi/test_sm_basinavg.csv"
+    "compare_results_file": "G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/data/LittleWashita/test_sm_basinavg.csv"
 }

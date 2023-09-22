@@ -425,17 +425,11 @@ class BMI_CFE:
         self.soil_params = {}
         self.soil_params["bb"] = data_loaded["soil_params"]["bb"]
         self.soil_params["D"] = data_loaded["soil_params"]["D"]
-        # self.soil_params["D"]
-        # Deleted soil_params['depth']. Not used in the model. Duplicate with D
-        # As T-shirt module does not exist, self.soil_params['mult'] is technically not used yet.
-        # self.soil_params['mult']        = data_loaded['soil_params']['mult']
         self.soil_params["satdk"] = data_loaded["soil_params"]["satdk"]
         self.soil_params["satpsi"] = data_loaded["soil_params"]["satpsi"]
         self.soil_params["slop"] = data_loaded["soil_params"]["slop"]
         self.soil_params["smcmax"] = data_loaded["soil_params"]["smcmax"]
         self.soil_params["wltsmc"] = data_loaded["soil_params"]["wltsmc"]
-        # self.soil_params['exponent_secondary'] = data_loaded['soil_params']['exponent_secondary'] # FIXED to 1 based on schematics in the Ogden's document
-
         # GROUNDWATER PARAMETERS
         self.max_gw_storage = data_loaded["max_gw_storage"]
         self.Cgw = data_loaded["Cgw"]
@@ -456,7 +450,6 @@ class BMI_CFE:
         # )  # Equation 11 in the Ogden's document
         self.K_nash = data_loaded["K_nash"]
         self.nash_storage = np.zeros(int(data_loaded["num_nash_storage"]))
-        # self.nash_storage = np.array(data_loaded["nash_storage"])
         self.giuh_ordinates = np.array(data_loaded["giuh_ordinates"])
 
         # ___________________________________________________
@@ -1210,7 +1203,7 @@ class BMI_CFE:
                 self.unit_test_data[output_type][plot_lims], "--", label="Observed"
             )
             ax = plt.gca()
-            if i == 1:
+            if (i == 1) or (i == 2):
                 plt.yscale("log")
                 ax.set_title(
                     output_type + " (log scale)", loc="left", fontweight="bold"
