@@ -3,8 +3,10 @@
 # Import libraries
 import os
 import sys
+
 if not sys.warnoptions:
     import warnings
+
     warnings.simplefilter("ignore")
 from statistics import median
 import pandas as pd
@@ -16,7 +18,10 @@ import seaborn as sns
 from math import log10
 
 import sys
-sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/libs/cfe/py_cfe")
+
+sys.path.append(
+    "G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/libs/cfe/cfe_py"
+)
 import cfe
 import bmi_cfe
 
@@ -27,54 +32,71 @@ from sig_seasontrans import SMSig
 os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/5_GLUE_model")
 os.getcwd()
 
+
 def calc_variability_index(df):
-    df_sorted = df.sort_values(by=['Flow'], ascending=False).copy()
+    df_sorted = df.sort_values(by=["Flow"], ascending=False).copy()
     percs = np.arange(10, 100, 10)
-    indices_percs = np.round(len(df_sorted)*percs/100)
-    flow_values = df_sorted['Flow'].values
+    indices_percs = np.round(len(df_sorted) * percs / 100)
+    flow_values = df_sorted["Flow"].values
     flow_percs = flow_values[indices_percs.astype(int)]
     recs = flow_percs > 0
     VariabilityIndex = np.std(np.log10(flow_percs[recs]))
     # Does not work well if baseflow is missing
     return VariabilityIndex
 
-def main(out_path='', config_path_CFE='', config_path_GLUE='', eval_criteria=dict()):
 
+def main(out_path="", config_path_CFE="", config_path_GLUE="", eval_criteria=dict()):
     in_path = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\6_out\Mahurangi\ex1\paramter_priori.csv"
     config_temp = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\2_data_input\Mahurangi\parameters\ex1_config_cfe.json"
-    out_path = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\6_out\post_eval_test"
+    out_path = (
+        r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\6_out\post_eval_test"
+    )
     i_run = 3
 
     # Read parameters from excel sheet and create a config file
     config_all_runs = pd.read_csv(in_path)
     config_target_runs = config_all_runs.iloc[i_run]
 
-    with open(config_temp, 'r') as outfile:
+    with open(config_temp, "r") as outfile:
         config_temp = json.load(outfile)
 
     for i in range(len(config_target_runs)):
-        if config_target_runs.index[i] in ['bb', 'satdk', 'slop', 'satpsi', 'smcmax', 'wltsmc', 'D']:
-            config_temp["soil_params"][config_target_runs.index[i]] = config_target_runs[i]
+        if config_target_runs.index[i] in [
+            "bb",
+            "satdk",
+            "slop",
+            "satpsi",
+            "smcmax",
+            "wltsmc",
+            "D",
+        ]:
+            config_temp["soil_params"][
+                config_target_runs.index[i]
+            ] = config_target_runs[i]
         else:
             config_temp[config_target_runs.index[i]] = config_target_runs[i]
 
-    with open(os.path.join(out_path, 'config_CFE.json'), 'w') as out_file:
+    with open(os.path.join(out_path, "config_CFE.json"), "w") as out_file:
         json.dump(config_temp, out_file)
 
     # Run the CFE based on the config file
-    cfe_instance = bmi_cfe.BMI_CFE(os.path.join(out_path, 'config_CFE.json'))
+    cfe_instance = bmi_cfe.BMI_CFE(os.path.join(out_path, "config_CFE.json"))
     cfe_instance.initialize()
     sim0 = cfe_instance.run_unit_test(plot=False, warm_up=True)
     obs0 = cfe_instance.load_unit_test_data()
 
     # Get the results
-    var_name = 'Flow'
+    var_name = "Flow"
     sim = sim0[["Time", var_name]].copy()
-    sim["Time"] = pd.to_datetime(sim["Time"], format="%Y-%m-%d %H:%M:%S")  # Works specifically for CFE
+    sim["Time"] = pd.to_datetime(
+        sim["Time"], format="%Y-%m-%d %H:%M:%S"
+    )  # Works specifically for CFE
 
     # Get the comparison data
     obs = obs0[["Time", var_name]].copy()
-    obs["Time"] = pd.to_datetime(obs["Time"], format="%m/%d/%Y %H:%M")  # Works specifically for Mahurangi data
+    obs["Time"] = pd.to_datetime(
+        obs["Time"], format="%m/%d/%Y %H:%M"
+    )  # Works specifically for Mahurangi data
     # obs["Time"] = pd.to_datetime(obs["Time"], format="%d-%m-%Y %H:%M:%S")
 
     obs_P = obs0[["Time", "Rainfall"]].copy()
@@ -91,7 +113,7 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', eval_criteria=dic
     obs_synced[var_name] = df[var_name + "_y"].copy()
     obs_synced["Rainfall"] = df2["Rainfall"].copy()
 
-    print('stop')
+    print("stop")
     df_obs = obs_synced
     df_sim = sim_synced
 
@@ -100,12 +122,14 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', eval_criteria=dic
     # Test some new functions
 
     # Run off ratio
-    print(f'Runoff ratio (over the simulated period): {df_obs["Flow"].sum()/df_obs["Rainfall"].sum()}')
+    print(
+        f'Runoff ratio (over the simulated period): {df_obs["Flow"].sum()/df_obs["Rainfall"].sum()}'
+    )
     print(f'Sum of the rainfall (m): {df_obs["Rainfall"].sum()}')
     print(f'Sum of the flow (m): {df_obs["Flow"].sum()}')
 
-    df_obs_monthly = df_obs.resample('M').sum().copy()
-    df_sim_monthly = df_sim.resample('M').sum().copy()
+    df_obs_monthly = df_obs.resample("M").sum().copy()
+    df_sim_monthly = df_sim.resample("M").sum().copy()
     df_obs_monthly.drop(df_obs_monthly.tail(1).index, inplace=True)
     df_obs_monthly.drop(df_obs_monthly.head(1).index, inplace=True)
     df_sim_monthly.drop(df_sim_monthly.tail(1).index, inplace=True)
@@ -115,37 +139,61 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', eval_criteria=dic
     #  https://sebastiangnann.github.io/TOSSH_development/matlab/TOSSH_code/TOSSH_development/TOSSH_code/signature_functions/sig_VariabilityIndex.html
 
     eval_criteria_monthly = {
-        0: {'variable_to_analyze': 'Flow', 'metric': 'Q_mean'},
-        1: {'variable_to_analyze': 'Flow', 'metric': 'high_flow_freq'},
-        2: {'variable_to_analyze': 'Flow', 'metric': 'RR'}
+        0: {"variable_to_analyze": "Flow", "metric": "Q_mean"},
+        1: {"variable_to_analyze": "Flow", "metric": "high_flow_freq"},
+        2: {"variable_to_analyze": "Flow", "metric": "RR"},
     }
-    median_flow_obs = median(df_obs['Flow'])
+    median_flow_obs = median(df_obs["Flow"])
     high_flow_obs = 9 * median_flow_obs
     for k in range(len(eval_criteria_monthly)):
         eval = eval_criteria_monthly[k]
-        eval_values_obs = [np.nan]*len(df_obs_monthly)
-        eval_values_sim = [np.nan]*len(df_obs_monthly)
+        eval_values_obs = [np.nan] * len(df_obs_monthly)
+        eval_values_sim = [np.nan] * len(df_obs_monthly)
         for i, time in enumerate(df_obs_monthly.index):
             m = time.month
             y = time.year
-            data_by_month_obs = df_obs[(df_obs.index.month == m) & (df_obs.index.year == y)].copy()
-            data_by_month_sim = df_sim[(df_sim.index.month == m) & (df_sim.index.year == y)].copy()
+            data_by_month_obs = df_obs[
+                (df_obs.index.month == m) & (df_obs.index.year == y)
+            ].copy()
+            data_by_month_sim = df_sim[
+                (df_sim.index.month == m) & (df_sim.index.year == y)
+            ].copy()
             if not data_by_month_obs.empty:
-                if eval['metric'] == 'Q_mean':
-                    eval_values_obs[i] = data_by_month_obs[eval['variable_to_analyze']].mean()
-                    eval_values_sim[i] = data_by_month_sim[eval['variable_to_analyze']].mean()
-                if eval['metric'] == 'RR':
-                    eval_values_obs[i] = data_by_month_obs[eval['variable_to_analyze']].sum()/data_by_month_obs['Rainfall'].sum()
-                    eval_values_sim[i] = data_by_month_sim[eval['variable_to_analyze']].sum()/data_by_month_obs['Rainfall'].sum()
-                if eval['metric'] == 'high_flow_freq':
+                if eval["metric"] == "Q_mean":
+                    eval_values_obs[i] = data_by_month_obs[
+                        eval["variable_to_analyze"]
+                    ].mean()
+                    eval_values_sim[i] = data_by_month_sim[
+                        eval["variable_to_analyze"]
+                    ].mean()
+                if eval["metric"] == "RR":
+                    eval_values_obs[i] = (
+                        data_by_month_obs[eval["variable_to_analyze"]].sum()
+                        / data_by_month_obs["Rainfall"].sum()
+                    )
+                    eval_values_sim[i] = (
+                        data_by_month_sim[eval["variable_to_analyze"]].sum()
+                        / data_by_month_obs["Rainfall"].sum()
+                    )
+                if eval["metric"] == "high_flow_freq":
                     # https://tosshtoolbox.github.io/TOSSH/matlab/TOSSH_code/TOSSH/TOSSH_code/signature_functions/sig_x_Q_frequency.html
-                    high_Q_num_obs = sum(data_by_month_obs['Flow'].values > high_flow_obs)
-                    eval_values_obs[i] = high_Q_num_obs / len(data_by_month_obs['Flow'])
-                    high_Q_num_sim = sum(data_by_month_sim['Flow'].values > high_flow_obs)
-                    eval_values_sim[i] = high_Q_num_sim / len(data_by_month_sim['Flow'])
-        data = {eval['metric']+'_obs': eval_values_obs, eval['metric']+'_sim': eval_values_sim}
+                    high_Q_num_obs = sum(
+                        data_by_month_obs["Flow"].values > high_flow_obs
+                    )
+                    eval_values_obs[i] = high_Q_num_obs / len(data_by_month_obs["Flow"])
+                    high_Q_num_sim = sum(
+                        data_by_month_sim["Flow"].values > high_flow_obs
+                    )
+                    eval_values_sim[i] = high_Q_num_sim / len(data_by_month_sim["Flow"])
+        data = {
+            eval["metric"] + "_obs": eval_values_obs,
+            eval["metric"] + "_sim": eval_values_sim,
+        }
         eval_monthly = pd.DataFrame(data, index=df_obs_monthly.index)
-        eval_monthly[eval['metric']+'_bias'] = eval_monthly[eval['metric']+'_sim'] - eval_monthly[eval['metric']+'_obs']
+        eval_monthly[eval["metric"] + "_bias"] = (
+            eval_monthly[eval["metric"] + "_sim"]
+            - eval_monthly[eval["metric"] + "_obs"]
+        )
 
     # # Plot out the results
     # obs_label = 'Observed'
@@ -246,10 +294,8 @@ def main(out_path='', config_path_CFE='', config_path_GLUE='', eval_criteria=dic
     # fig.savefig(os.path.join(out_path, 'runoff_ratio.png'))
     # del fig, ax1, ax2
 
-
-
     # Save the results
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

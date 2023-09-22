@@ -18,7 +18,7 @@ import spotpy
 import sys
 
 sys.path.append(
-    "G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/libs/cfe/py_cfe"
+    "G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/libs/cfe/cfe_py"
 )
 import cfe
 import bmi_cfe

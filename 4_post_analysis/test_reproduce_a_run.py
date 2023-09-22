@@ -11,7 +11,7 @@ import pandas as pd
 import shutil
 import json
 
-sys.path.append("../libs/cfe/py_cfe")
+sys.path.append("../libs/cfe/cfe_py")
 import cfe
 import bmi_cfe
 

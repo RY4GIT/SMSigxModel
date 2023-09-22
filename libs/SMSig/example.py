@@ -7,7 +7,7 @@ import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 
-sys.path.append("../py_cfe/")
+sys.path.append("../cfe_py/")
 from bmi_cfe import BMI_CFE
 
 from sig_seasontrans import SMSig

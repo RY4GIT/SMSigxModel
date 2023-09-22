@@ -6,8 +6,10 @@ import sys
 import numpy as np
 import pandas as pd
 import sys
+
 if not sys.warnoptions:
     import warnings
+
     warnings.simplefilter("ignore")
 import json
 import multiprocessing as mp
@@ -18,15 +20,19 @@ from pstats import SortKey
 
 # https://docs.python.org/3/library/profile.html#module-cProfile
 
-sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs/cfe/py_cfe")
+sys.path.append(
+    "G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs/cfe/cfe_py"
+)
 import cfe
 import bmi_cfe
 
-sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs/SMSig")
+sys.path.append(
+    "G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs/SMSig"
+)
 from sig_seasontrans import SMSig
 
 sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs")
-from spotpy_cfe import spot_setup
+from spotcfe_py import spot_setup
 from salib_cfe import SALib_CFE
 
 # sys.path.append("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model/libs/glue")
@@ -36,45 +42,57 @@ from glue_cfe import MyGLUE
 os.chdir("G://Shared drives/Ryoko and Hilary/SMSigxModel/analysis/3_model")
 os.getcwd()
 
+
 def SALib_excel_to_config(config_excel_path_SALib, config_json_path_SALib):
     # This function reads configuration setting for SALib sensitivity analysis
     # from Excel file to json file format
 
     # Read the data
     df = pd.read_excel(config_excel_path_SALib)
-    df_param_to_calibrate = df[df['calibrate']==1]
+    df_param_to_calibrate = df[df["calibrate"] == 1]
 
     # Convert it to dictionary
     config_SALib = dict()
-    config_SALib['num_vars'] = df_param_to_calibrate.shape[0]
-    config_SALib['names'] = [None] * df_param_to_calibrate.shape[0]
-    config_SALib['bounds'] = [[np.nan, np.nan]] * df_param_to_calibrate.shape[0]
+    config_SALib["num_vars"] = df_param_to_calibrate.shape[0]
+    config_SALib["names"] = [None] * df_param_to_calibrate.shape[0]
+    config_SALib["bounds"] = [[np.nan, np.nan]] * df_param_to_calibrate.shape[0]
     for i in df_param_to_calibrate.index:
-        config_SALib['names'][i] = df_param_to_calibrate['name'][i]
-        config_SALib['bounds'][i] = [df_param_to_calibrate['lower_bound'][i],df_param_to_calibrate['upper_bound'][i]]
+        config_SALib["names"][i] = df_param_to_calibrate["name"][i]
+        config_SALib["bounds"][i] = [
+            df_param_to_calibrate["lower_bound"][i],
+            df_param_to_calibrate["upper_bound"][i],
+        ]
 
-        if df_param_to_calibrate['upper_bound'][i] <= df_param_to_calibrate['lower_bound'][i]:
-            warnings.warn('The upper bound is smaller than lower bound for the parameter %s' % {config_SALib['names'][i]})
+        if (
+            df_param_to_calibrate["upper_bound"][i]
+            <= df_param_to_calibrate["lower_bound"][i]
+        ):
+            warnings.warn(
+                "The upper bound is smaller than lower bound for the parameter %s"
+                % {config_SALib["names"][i]}
+            )
 
     # Output the data
-    with open(config_json_path_SALib, 'w') as outfile:
+    with open(config_json_path_SALib, "w") as outfile:
         json.dump(config_SALib, outfile, indent=4)
 
-# Create an instance
-def main(runtype,
-         out_path='../4_out/',
-         config_path_CFE='',
-         config_path_SALib='',
-         method_SALib=None,
-         like_SALib = '',
-         var_measure_SALib = '',
-         config_path_GLUE='',
-         nrun_GLUE=1,
-         glue_calib_case=1):
 
+# Create an instance
+def main(
+    runtype,
+    out_path="../4_out/",
+    config_path_CFE="",
+    config_path_SALib="",
+    method_SALib=None,
+    like_SALib="",
+    var_measure_SALib="",
+    config_path_GLUE="",
+    nrun_GLUE=1,
+    glue_calib_case=1,
+):
     if runtype == "run_CFE":
         # To simply run the CFE model
-        print('Run the CFE model')
+        print("Run the CFE model")
 
         cfe_instance = bmi_cfe.BMI_CFE(config_path_CFE)
         cfe_instance.initialize()
@@ -83,7 +101,7 @@ def main(runtype,
 
     if runtype == "SALib":
         # To implement sensitivity analysis with SALib. Currently this module supports Morris and Sobol analysis
-        print('Start sensitivity analysis with ** %s **' % method_SALib['method'])
+        print("Start sensitivity analysis with ** %s **" % method_SALib["method"])
 
         # Preperation
         cfe_instance = bmi_cfe.BMI_CFE(config_path_CFE)
@@ -97,26 +115,28 @@ def main(runtype,
             method_SALib=method_SALib,
             like_measure=like_SALib,
             var_measure=var_measure_SALib,
-            out_path=out_path
+            out_path=out_path,
         )
         salib_experiment.run()
         salib_experiment.plot()
 
     if runtype == "SPOTPy":
         # To implement sensitivity analysis with SPOTPy.
-        print('Start sensitivity analysis')
+        print("Start sensitivity analysis")
 
         # Initialize
         cfe1 = bmi_cfe.BMI_CFE(config_path_CFE)
         cfe1.initialize()
-        out_fn_sa = out_path + 'results'
+        out_fn_sa = out_path + "results"
 
         # Select number of maximum repetitions
         # Check out https://spotpy.readthedocs.io/en/latest/Sensitivity_analysis_with_FAST/ to determine an appropriate number of repetitions
         rep = 7
 
         # Start a sensitivity analysis
-        sampler = spotpy.algorithms.fast(spot_setup(cfe_input=cfe1), dbname=out_fn_sa, dbformat='csv', save_sim = False)
+        sampler = spotpy.algorithms.fast(
+            spot_setup(cfe_input=cfe1), dbname=out_fn_sa, dbformat="csv", save_sim=False
+        )
         sampler.sample(rep)
 
         # Load the results gained with the fast sampler
@@ -130,7 +150,7 @@ def main(runtype,
 
     if runtype == "GLUE":
         # To implement sensitivity analysis with GLUE.
-        print('Start GLUE analysis')
+        print("Start GLUE analysis")
 
         # Initialize
         cfe_instance = bmi_cfe.BMI_CFE(config_path_CFE)
@@ -141,11 +161,11 @@ def main(runtype,
 
         # Start GLUE
         glue_instance = MyGLUE(
-            cfe_input = cfe_instance,
+            cfe_input=cfe_instance,
             out_path=out_path,
             config_path=config_path_GLUE,
             nrun=nrun_GLUE,
-            calib_case=glue_calib_case
+            calib_case=glue_calib_case,
         )
         glue_instance.simulation()
         glue_instance.post_process()
@@ -159,23 +179,28 @@ def main(runtype,
 
     if runtype == "Seasonsig":
         # To test soil moisture signature
-        print('Start seasonal signature test')
+        print("Start seasonal signature test")
 
         # Get the comparison data
-        cfe1 = bmi_cfe.BMI_CFE(os.path.join(data_file_path, 'full', 'config_cfe.json'))
+        cfe1 = bmi_cfe.BMI_CFE(os.path.join(data_file_path, "full", "config_cfe.json"))
         cfe1.initialize()
         obs0 = cfe1.load_unit_test_data()
         obs = obs0[["Time", "Soil Moisture Content"]]
-        obs["Time"] = pd.to_datetime(obs["Time"], format="%d-%b-%Y %H:%M:%S")  # Works specifically for Mahurangi data
+        obs["Time"] = pd.to_datetime(
+            obs["Time"], format="%d-%b-%Y %H:%M:%S"
+        )  # Works specifically for Mahurangi data
 
-        sig = SMSig(ts_time=obs["Time"].to_numpy(), ts_value=obs["Soil Moisture Content"].to_numpy())
+        sig = SMSig(
+            ts_time=obs["Time"].to_numpy(),
+            ts_value=obs["Soil Moisture Content"].to_numpy(),
+        )
         sig.movmean()
         sig.detrend()
         t_valley = sig.calc_sinecurve()
         season_trans1 = sig.calc_seasontrans(t_valley=t_valley)
 
-if __name__ == '__main__':
 
+if __name__ == "__main__":
     # measure the running time
     measuretime = True
     if measuretime:
@@ -199,25 +224,34 @@ if __name__ == '__main__':
     # To implement sensitivity analysis with SALib
     # Specify the sensitivity analysis method, plotting method, and number of runs here
     method_SALib = {
-        'Morris': {'method': 'Morris', 'plot': 'EET', 'N': 500, 'n_levels': 4}, # n=250 is ideal, n=2 for a test run
-        'Sobol': {'method': 'Sobol', 'plot': 'STS1', 'n': 250}, # N=500, n_levels=4, total run = 8500 is ideal, N=3, n_levels=4 for a test run
-        'stability_test': {'method': 'stability_test', 'plot': 'STS1', 'n': 250}
-        }
+        "Morris": {
+            "method": "Morris",
+            "plot": "EET",
+            "N": 500,
+            "n_levels": 4,
+        },  # n=250 is ideal, n=2 for a test run
+        "Sobol": {
+            "method": "Sobol",
+            "plot": "STS1",
+            "n": 250,
+        },  # N=500, n_levels=4, total run = 8500 is ideal, N=3, n_levels=4 for a test run
+        "stability_test": {"method": "stability_test", "plot": "STS1", "n": 250},
+    }
 
     SALib_excel_to_config(
-        config_excel_path_SALib='../2_data_input/unit_test/SALib_config_wide.xlsx',
-        config_json_path_SALib='../2_data_input/unit_test/SALib_config_wide.json'
+        config_excel_path_SALib="../2_data_input/unit_test/SALib_config_wide.xlsx",
+        config_json_path_SALib="../2_data_input/unit_test/SALib_config_wide.json",
     )
 
     # Run the analysis
     main(
         runtype="SALib",
-        out_path='../4_out/sensitivity_analysis/Mahurangi/test',
-        config_path_CFE='../2_data_input/unit_test/short_config_cfe.json',
-        config_path_SALib='../2_data_input/unit_test/SALib_config_wide.json',
-        method_SALib=method_SALib['stability_test'],
-        like_SALib = 'NashSutcliffe',
-        var_measure_SALib = 'Flow' # 'Flow' (discharge in meter), 'Soil Moisture Content' soil moisture content in fraction
+        out_path="../4_out/sensitivity_analysis/Mahurangi/test",
+        config_path_CFE="../2_data_input/unit_test/short_config_cfe.json",
+        config_path_SALib="../2_data_input/unit_test/SALib_config_wide.json",
+        method_SALib=method_SALib["stability_test"],
+        like_SALib="NashSutcliffe",
+        var_measure_SALib="Flow",  # 'Flow' (discharge in meter), 'Soil Moisture Content' soil moisture content in fraction
     )
 
     # ===============================================
@@ -225,12 +259,11 @@ if __name__ == '__main__':
     # ===============================================
     main(
         runtype="GLUE",
-        out_path='../4_out/sensitivity_analysis/Mahurangi/test/GLUE',
-        config_path_CFE='../2_data_input/unit_test/short_config_cfe.json',
-        config_path_GLUE='../2_data_input/unit_test/SALib_config_wide.json',
-        nrun_GLUE=1
+        out_path="../4_out/sensitivity_analysis/Mahurangi/test/GLUE",
+        config_path_CFE="../2_data_input/unit_test/short_config_cfe.json",
+        config_path_GLUE="../2_data_input/unit_test/SALib_config_wide.json",
+        nrun_GLUE=1,
     )
-
 
     # main(
     #     runtype="SALib",
@@ -241,7 +274,6 @@ if __name__ == '__main__':
     #     like_SALib = 'NashSutcliffe',
     #     var_measure_SALib='Flow'
     # )
-
 
     # ===============================================
     # =========== GLUE ANALYSIS ==============
@@ -282,7 +314,7 @@ if __name__ == '__main__':
         ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
         ps.print_stats()
         # print(s.getvalue())
-        ps.dump_stats('runtime.txt')
+        ps.dump_stats("runtime.txt")
 
     # "C:\Users\flipl\anaconda3\envs\CFE\Scripts\snakeviz.exe" "G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\3_model\runtime.txt"
     # snakeviz "G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\3_model\runtime.txt"

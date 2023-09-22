@@ -13,7 +13,7 @@ from matplotlib.legend_handler import HandlerPatch
 
 import sys
 
-sys.path.append(os.path.join(os.getcwd(), "libs", "py_cfe"))
+sys.path.append(os.path.join(os.getcwd(), "libs", "cfe_py"))
 from bmi_cfe import BMI_CFE
 
 import shutil
