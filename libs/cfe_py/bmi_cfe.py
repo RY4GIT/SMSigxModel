@@ -422,6 +422,9 @@ class BMI_CFE:
         # SOIL PARAMETERS
         self.trigger_z_fact = data_loaded["trigger_z_fact"]
         self.field_capacity_atm_press_fraction = data_loaded["alpha_fc"]
+        self.allow_percolation_below_threshold = data_loaded[
+            "allow_percolation_below_threshold"
+        ]
         self.soil_params = {}
         self.soil_params["bb"] = data_loaded["soil_params"]["bb"]
         self.soil_params["D"] = data_loaded["soil_params"]["D"]

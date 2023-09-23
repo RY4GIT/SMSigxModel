@@ -47,6 +47,7 @@ params = {
     "giuh_ordinates": [0.1, 0.4, 0.2, 0.2, 0.1],
     "stand_alone": 1,
     "unit_test": 1,
+    "allow_percolation_below_threshold": 1,
     "compare_results_file": "G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/data/LittleWashita/test_sm_basinavg.csv",
 }
 

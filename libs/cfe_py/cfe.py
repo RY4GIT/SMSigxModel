@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 
 
 @jit(nopython=True)
-def conceptual_reservoir_flux_calc(
+def soil_moisture_flux_ode(
     t,
     S,
     storage_threshold_primary_m,
@@ -89,7 +89,7 @@ def jac(
     infilt,
     wltsmc_m,
 ):
-    # The Jacobian matrix of the equation conceptual_reservoir_flux_calc. Calculated as (dS/dt)/dS.
+    # The Jacobian matrix of the equation soil_moisture_flux_ode. Calculated as (dS/dt)/dS.
     storage_diff = storage_max_m - storage_threshold_primary_m
 
     perc_lat_switch = np.multiply(S - storage_threshold_primary_m > 0, 1)
@@ -103,6 +103,84 @@ def jac(
         -1 * perc_lat_switch * (coeff_primary + coeff_secondary) * 1 / storage_diff
         - ET_switch * PET * 1 / storage_diff_paw
     )
+    return [dfdS]
+
+
+@jit(nopython=True)
+def soil_moisture_flux_ode2(
+    t,
+    S,
+    storage_threshold_primary_m,
+    storage_max_m,
+    coeff_primary,
+    coeff_secondary,
+    PET,
+    infilt,
+    wltsmc_m,
+):
+    """
+    Same as soil_moisture_flux_ode but allow percolation all the time
+    """
+
+    # Lateral flow is calculated based on the soil water storage above threshold
+    storage_ratio_lat = np.minimum(
+        (S - storage_threshold_primary_m)
+        / (storage_max_m - storage_threshold_primary_m),
+        1,
+    )
+    lat_switch = np.multiply(S - storage_threshold_primary_m > 0, 1)
+
+    # Percolation is calculated based on the soil moisture storage relative to max storage
+    storage_ratio_perc = np.minimum(S / storage_max_m, 1)
+
+    # ET is calculated based on the soil water storage above wilting point
+    ## Energy-limited but water-non-limited
+    ET_switch = np.multiply(S - wltsmc_m > 0, 1)
+    storage_above_threshold_m_paw = S - wltsmc_m
+    storage_diff_paw = storage_threshold_primary_m - wltsmc_m
+    storage_ratio_paw = np.minimum(
+        storage_above_threshold_m_paw / storage_diff_paw, 1
+    )  # Equation 11 (Ogden's document)
+
+    # Calculate dSdt
+    dS = (
+        infilt
+        - 1 * lat_switch * coeff_secondary * storage_ratio_lat
+        - 1 * coeff_primary * storage_ratio_perc
+        - ET_switch * PET * storage_ratio_paw
+    )
+
+    return dS
+
+
+@jit(nopython=True)
+def jac2(
+    t,
+    S,
+    storage_threshold_primary_m,
+    storage_max_m,
+    coeff_primary,
+    coeff_secondary,
+    PET,
+    infilt,
+    wltsmc_m,
+):
+    # The Jacobian matrix of the equation soil_moisture_flux_ode. Calculated as (dS/dt)/dS.
+    storage_diff = storage_max_m - storage_threshold_primary_m
+
+    lat_switch = np.multiply(S - storage_threshold_primary_m > 0, 1)
+    ET_switch = np.multiply(
+        (S - wltsmc_m > 0) and (S - storage_threshold_primary_m < 0), 1
+    )
+
+    storage_diff_paw = storage_threshold_primary_m - wltsmc_m
+
+    dfdS = (
+        -1 * lat_switch * coeff_secondary * 1 / storage_diff
+        - 1 * coeff_primary * 1 / storage_max_m
+        - ET_switch * PET * 1 / storage_diff_paw
+    )
+
     return [dfdS]
 
 
@@ -368,23 +446,44 @@ class CFE:
         t = np.array([0, 0.05, 0.15, 0.3, 0.6, 1.0])
 
         # Solve and ODE
-        sol = odeint(
-            conceptual_reservoir_flux_calc,
-            y0,
-            t,
-            args=(
-                reservoir["storage_threshold_primary_m"],
-                reservoir["storage_max_m"],
-                reservoir["coeff_primary"],
-                reservoir["coeff_secondary"],
-                cfe_state.reduced_potential_et_m_per_timestep,
-                cfe_state.infiltration_depth_m,
-                cfe_state.soil_params["wltsmc"]
-                * cfe_state.soil_params["D"],  # wilting point in meter
-            ),
-            tfirst=True,
-            Dfun=jac,
-        )
+        if cfe_state.allow_percolation_below_threshold == 0:
+            # Do not allow percolation below the lateral flow threshold
+            sol = odeint(
+                soil_moisture_flux_ode,
+                y0,
+                t,
+                args=(
+                    reservoir["storage_threshold_primary_m"],
+                    reservoir["storage_max_m"],
+                    reservoir["coeff_primary"],
+                    reservoir["coeff_secondary"],
+                    cfe_state.reduced_potential_et_m_per_timestep,
+                    cfe_state.infiltration_depth_m,
+                    cfe_state.soil_params["wltsmc"]
+                    * cfe_state.soil_params["D"],  # wilting point in meter
+                ),
+                tfirst=True,
+                Dfun=jac,
+            )
+        elif cfe_state.allow_percolation_below_threshold == 1:
+            # Allow percolation below the lateral flow threshold
+            sol = odeint(
+                soil_moisture_flux_ode2,
+                y0,
+                t,
+                args=(
+                    reservoir["storage_threshold_primary_m"],
+                    reservoir["storage_max_m"],
+                    reservoir["coeff_primary"],
+                    reservoir["coeff_secondary"],
+                    cfe_state.reduced_potential_et_m_per_timestep,
+                    cfe_state.infiltration_depth_m,
+                    cfe_state.soil_params["wltsmc"]
+                    * cfe_state.soil_params["D"],  # wilting point in meter
+                ),
+                tfirst=True,
+                Dfun=jac2,
+            )
 
         # Finalize results
         ts_concat = t
@@ -403,13 +502,23 @@ class CFE:
         )
         lateral_flux_frac = lateral_flux * t_proportion
 
-        perc_flux = np.zeros(ys_avg.shape)
-        perc_flux[perc_lat_switch] = reservoir["coeff_primary"] * np.minimum(
-            (ys_avg[perc_lat_switch] - reservoir["storage_threshold_primary_m"])
-            / (reservoir["storage_max_m"] - reservoir["storage_threshold_primary_m"]),
-            1,
-        )
-        perc_flux_frac = perc_flux * t_proportion
+        if cfe_state.allow_percolation_below_threshold == 0:
+            perc_flux = np.zeros(ys_avg.shape)
+            perc_flux[perc_lat_switch] = reservoir["coeff_primary"] * np.minimum(
+                (ys_avg[perc_lat_switch] - reservoir["storage_threshold_primary_m"])
+                / (
+                    reservoir["storage_max_m"]
+                    - reservoir["storage_threshold_primary_m"]
+                ),
+                1,
+            )
+            perc_flux_frac = perc_flux * t_proportion
+        elif cfe_state.allow_percolation_below_threshold == 1:
+            perc_flux = np.zeros(ys_avg.shape)
+            perc_flux = reservoir["coeff_primary"] * np.minimum(
+                (ys_avg / reservoir["storage_max_m"]), 1
+            )
+            perc_flux_frac = perc_flux * t_proportion
 
         et_from_soil = np.zeros(ys_avg.shape)
         ET_switch = (
@@ -450,6 +559,8 @@ class CFE:
 
         scaled_lateral_flux = lateral_flux_frac * flux_scale
         scaled_perc_flux = perc_flux_frac * flux_scale
+        if math.fsum(scaled_perc_flux) < 0:
+            print("stop")
         scaled_et_flux = et_from_soil_frac * flux_scale
 
         # Pass the results
