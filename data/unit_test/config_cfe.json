@@ -3,17 +3,17 @@
     "catchment_area_km2": 601,
     "soil_params": {
         "bb": 3,
-        "satdk": 5e-06,
-        "slop": 0.01,
+        "satdk": 0.0001,
+        "slop": 0.1,
         "satpsi": 0.1736243088137391,
         "smcmax": 0.5,
         "wltsmc": 0.0129467948981879,
         "D": 10
     },
     "alpha_fc": 0.3083778619066096,
-    "max_gw_storage": 1,
-    "Cgw": 0.001,
-    "expon": 0.1,
+    "max_gw_storage": 100,
+    "Cgw": 1e-08,
+    "expon": 1,
     "K_lf": 0.33,
     "refkdt": 10000,
     "K_nash": 0.2,
@@ -28,6 +28,7 @@
     ],
     "stand_alone": 1,
     "unit_test": 1,
-    "allow_percolation": 1,
+    "allow_percolation_below_threshold": 1,
+    "revap_factor": 0.1,
     "compare_results_file": "G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/data/LittleWashita/test_sm_basinavg.csv"
 }

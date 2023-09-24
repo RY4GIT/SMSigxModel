@@ -378,6 +378,7 @@ class BMI_CFE:
         self.vol_et_to_atm = 0
         self.vol_et_from_soil = 0
         self.vol_et_from_rain = 0
+        self.vol_et_from_gw = 0
 
         # Partitioning
         self.vol_sch_runoff = 0
@@ -433,6 +434,7 @@ class BMI_CFE:
         self.soil_params["slop"] = data_loaded["soil_params"]["slop"]
         self.soil_params["smcmax"] = data_loaded["soil_params"]["smcmax"]
         self.soil_params["wltsmc"] = data_loaded["soil_params"]["wltsmc"]
+
         # GROUNDWATER PARAMETERS
         self.max_gw_storage = data_loaded["max_gw_storage"]
         self.Cgw = data_loaded["Cgw"]
@@ -442,7 +444,7 @@ class BMI_CFE:
         self.refkdt = data_loaded["refkdt"]
         # self.lksatfac = data_loaded["lksatfac"]
 
-        #
+        # Lateral flow parameters
         self.K_lf = data_loaded["K_lf"]
         # self.K_lf = (
         #     0.02
@@ -453,10 +455,15 @@ class BMI_CFE:
         # )  # Equation 11 in the Ogden's document
         self.K_nash = data_loaded["K_nash"]
         self.nash_storage = np.zeros(int(data_loaded["num_nash_storage"]))
+
+        # Surface runoff parameter
         self.giuh_ordinates = np.array(data_loaded["giuh_ordinates"])
 
         # ___________________________________________________
         # OPTIONAL CONFIGURATIONS
+        if "revap_factor" in data_loaded.keys():
+            self.revap = True
+            self.revap_factor = data_loaded["revap_factor"]
         if "stand_alone" in data_loaded.keys():
             self.stand_alone = data_loaded["stand_alone"]
         if "forcing_file" in data_loaded.keys():
@@ -484,6 +491,7 @@ class BMI_CFE:
         self.vol_et_to_atm = 0
         self.vol_et_from_soil = 0
         self.vol_et_from_rain = 0
+        self.vol_et_from_gw = 0
 
         # Partitioning
         self.vol_sch_runoff = 0
@@ -582,6 +590,7 @@ class BMI_CFE:
             print("      volume AET: {:8.4f}".format(self.vol_et_to_atm))
             print("ET from rainfall: {:8.4f}".format(self.vol_et_from_rain))
             print("    ET from soil: {:8.4f}".format(self.vol_et_from_soil))
+            print("    ET from gw: {:8.4f}".format(self.vol_et_from_gw))
 
             print("\nSCHAAKE MASS BALANCE")
             print("    volume input: {:8.4f}".format(self.volin))
@@ -617,6 +626,12 @@ class BMI_CFE:
             print("init gw. storage: {:8.4f}".format(self.vol_in_gw_start))
             print("       vol to gw: {:8.4f}".format(self.vol_to_gw))
             print("     vol from gw: {:8.4f}".format(self.vol_from_gw))
+            print(
+                "       Q from gw: {:8.4f}".format(
+                    self.vol_from_gw - self.vol_et_from_gw
+                )
+            )
+            print("       E from gw: {:8.4f}".format(self.vol_et_from_gw))
             print("final gw.storage: {:8.4f}".format(self.vol_in_gw_end))
             print("    gw. residual: {:6.4e}".format(self.gw_residual))
 

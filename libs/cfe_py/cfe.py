@@ -131,7 +131,7 @@ def soil_moisture_flux_ode2(
     lat_switch = np.multiply(S - storage_threshold_primary_m > 0, 1)
 
     # Percolation is calculated based on the soil moisture storage relative to max storage
-    storage_ratio_perc = np.minimum(S / storage_max_m, 1)
+    # storage_ratio_perc = np.minimum(S / storage_max_m, 1)
 
     # ET is calculated based on the soil water storage above wilting point
     ## Energy-limited but water-non-limited
@@ -146,7 +146,7 @@ def soil_moisture_flux_ode2(
     dS = (
         infilt
         - 1 * lat_switch * coeff_secondary * storage_ratio_lat
-        - 1 * coeff_primary * storage_ratio_perc
+        - 1 * coeff_primary
         - ET_switch * PET * storage_ratio_paw
     )
 
@@ -177,7 +177,7 @@ def jac2(
 
     dfdS = (
         -1 * lat_switch * coeff_secondary * 1 / storage_diff
-        - 1 * coeff_primary * 1 / storage_max_m
+        # - 1 * coeff_primary * 1 / storage_max_m
         - ET_switch * PET * 1 / storage_diff_paw
     )
 
@@ -250,11 +250,15 @@ class CFE:
         cfe_state.actual_et_from_soil_m_per_timestep = 0
         self.soil_reservoir_flux_calc(cfe_state, cfe_state.soil_reservoir)
 
+        ### Mass balance ###
         cfe_state.flux_perc_m = cfe_state.primary_flux_m
         cfe_state.flux_lat_m = cfe_state.secondary_flux_m
         cfe_state.vol_et_from_soil += cfe_state.actual_et_from_soil_m_per_timestep
         cfe_state.vol_et_to_atm += cfe_state.actual_et_from_soil_m_per_timestep
         cfe_state.volout += cfe_state.actual_et_from_soil_m_per_timestep
+        cfe_state.reduced_potential_et_m_per_timestep -= (
+            cfe_state.actual_et_from_soil_m_per_timestep
+        )
 
         # ________________________________________________
         # Calculates groundwater storage deficit
@@ -289,14 +293,16 @@ class CFE:
         # Solve groundwater reservoir
 
         self.groundwater_reservoir_flux_calc(cfe_state, cfe_state.gw_reservoir)
+        gw_outflux = (
+            cfe_state.flux_from_deep_gw_to_chan_m + cfe_state.evaporation_from_gw
+        )
 
-        if cfe_state.primary_flux_m > cfe_state.gw_reservoir["storage_m"]:
-            cfe_state.flux_from_deep_gw_to_chan_m = cfe_state.gw_reservoir["storage_m"]
-        else:
-            cfe_state.flux_from_deep_gw_to_chan_m = cfe_state.primary_flux_m
-        cfe_state.gw_reservoir["storage_m"] -= cfe_state.flux_from_deep_gw_to_chan_m
-        cfe_state.vol_from_gw += cfe_state.flux_from_deep_gw_to_chan_m
-        cfe_state.volout += cfe_state.flux_from_deep_gw_to_chan_m
+        cfe_state.gw_reservoir["storage_m"] -= gw_outflux
+        cfe_state.vol_from_gw += gw_outflux
+        cfe_state.volout += gw_outflux
+        cfe_state.vol_et_to_atm += cfe_state.evaporation_from_gw
+        cfe_state.reduced_potential_et_m_per_timestep -= cfe_state.evaporation_from_gw
+        cfe_state.vol_et_from_gw += cfe_state.evaporation_from_gw
 
         # ________________________________________________
         if not self.is_fabs_less_than_epsilon(cfe_state.secondary_flux_m, 1.0e-09):
@@ -488,6 +494,7 @@ class CFE:
         # Finalize results
         ts_concat = t
         ys_concat = np.concatenate(sol, axis=0)
+        ys_concat[ys_concat < 0] = 0.0
 
         # Calculate fluxes
         t_proportion = np.diff(ts_concat)
@@ -514,10 +521,12 @@ class CFE:
             )
             perc_flux_frac = perc_flux * t_proportion
         elif cfe_state.allow_percolation_below_threshold == 1:
-            perc_flux = np.zeros(ys_avg.shape)
-            perc_flux = reservoir["coeff_primary"] * np.minimum(
-                (ys_avg / reservoir["storage_max_m"]), 1
+            perc_flux = np.repeat(
+                cfe_state.soil_reservoir["coeff_primary"], ys_avg.shape
             )
+            # perc_flux = reservoir["coeff_primary"] * np.minimum(
+            #     (ys_avg / reservoir["storage_max_m"]), 1
+            # )
             perc_flux_frac = perc_flux * t_proportion
 
         et_from_soil = np.zeros(ys_avg.shape)
@@ -544,7 +553,8 @@ class CFE:
 
         # Scale fluxes
         sum_outflux = lateral_flux_frac + perc_flux_frac + et_from_soil_frac
-        if sum_outflux.any() == 0:
+        if sum_outflux.all() == 0:
+            # If there is no flux exchange (increasing storage, rather than discharge)
             flux_scale = 0
             if cfe_state.infiltration_depth_m > 0:
                 # To account for mass balance error by ODE
@@ -552,21 +562,21 @@ class CFE:
             else:
                 final_storage_m = y0[0]
         else:
+            final_storage_m = np.max(ys_concat[-1], 0)
             flux_scale = (
-                (ys_concat[0] - ys_concat[-1]) + np.sum(infilt_to_soil_frac)
+                (ys_concat[0] - final_storage_m) + np.sum(infilt_to_soil_frac)
             ) / np.sum(sum_outflux)
-            final_storage_m = ys_concat[-1]
 
         scaled_lateral_flux = lateral_flux_frac * flux_scale
         scaled_perc_flux = perc_flux_frac * flux_scale
-        if math.fsum(scaled_perc_flux) < 0:
-            print("stop")
         scaled_et_flux = et_from_soil_frac * flux_scale
 
         # Pass the results
         cfe_state.primary_flux_m = math.fsum(scaled_perc_flux)
         cfe_state.secondary_flux_m = math.fsum(scaled_lateral_flux)
         cfe_state.actual_et_from_soil_m_per_timestep = math.fsum(scaled_et_flux)
+        if final_storage_m < 0:
+            print("stop")
         reservoir["storage_m"] = final_storage_m
 
         """
@@ -606,6 +616,25 @@ class CFE:
             )  # NWM do not subtracts 1 from the formulation
             cfe_state.primary_flux_m = reservoir["coeff_primary"] * flux_exponential
             cfe_state.secondary_flux_m = 0.0
+            cfe_state.flux_from_deep_gw_to_chan_m = np.minimum(
+                reservoir["storage_m"], cfe_state.primary_flux_m
+            )
+
+            if cfe_state.revap:
+                # Allow evaporation from GW
+                # Picourlat, F., E. Mouche, and C. Mügler. 2022. Upscaling Hydrological Processes for Land Surface Models with a Two‐Hydrologic‐Variable Model: Application to the Little Washita Watershed. Water Resour. Res. https://agupubs.onlinelibrary.wiley.com/doi/abs/10.1029/2021WR030997.
+                potential_revap = (
+                    cfe_state.revap_factor
+                    * cfe_state.reduced_potential_et_m_per_timestep
+                )
+                cfe_state.evaporation_from_gw = np.minimum(
+                    reservoir["storage_m"]
+                    - cfe_state.primary_flux_m
+                    - cfe_state.secondary_flux_m,
+                    potential_revap,
+                )
+            else:
+                cfe_state.evaporation_from_gw = 0.0
             return
 
         else:
