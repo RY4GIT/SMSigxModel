@@ -305,10 +305,6 @@ class CFE:
         cfe_state.vol_et_from_gw += cfe_state.evaporation_from_gw
 
         # ________________________________________________
-        if not self.is_fabs_less_than_epsilon(cfe_state.secondary_flux_m, 1.0e-09):
-            print("problem with nonzero flux point 1\n")
-
-        # ________________________________________________
         # SUBROUTINE
         # giuh_runoff_m = f(Schaake_output, giuh_ordinates, runoff_queue_m_per_timestep)
         self.convolution_integral(cfe_state)
@@ -614,10 +610,10 @@ class CFE:
                 )
                 - 1
             )  # NWM do not subtracts 1 from the formulation
-            cfe_state.primary_flux_m = reservoir["coeff_primary"] * flux_exponential
-            cfe_state.secondary_flux_m = 0.0
+            primary_flux_m = reservoir["coeff_primary"] * flux_exponential
+            secondary_flux_m = 0.0
             cfe_state.flux_from_deep_gw_to_chan_m = np.minimum(
-                reservoir["storage_m"], cfe_state.primary_flux_m
+                reservoir["storage_m"], primary_flux_m
             )
 
             if cfe_state.revap:
@@ -626,11 +622,10 @@ class CFE:
                 potential_revap = (
                     cfe_state.revap_factor
                     * cfe_state.reduced_potential_et_m_per_timestep
+                    # * (reservoir["storage_m"] / reservoir["storage_max_m"])
                 )
                 cfe_state.evaporation_from_gw = np.minimum(
-                    reservoir["storage_m"]
-                    - cfe_state.primary_flux_m
-                    - cfe_state.secondary_flux_m,
+                    reservoir["storage_m"] - primary_flux_m - secondary_flux_m,
                     potential_revap,
                 )
             else:

@@ -273,7 +273,7 @@ class BMI_CFE:
             "exponent_secondary": 1.0,
             "storage_threshold_secondary_m": 0.0,
         }
-        self.gw_reservoir["storage_m"] = 1.0e-06  # 1.0e-06  # $self.gw_reservoir[
+        self.gw_reservoir["storage_m"] = self.Cgw  # 1.0e-06  # $self.gw_reservoir[
         # "storage_max_m"
         # ]  * 0.5 # Start from the half groundwater reservoir
         self.volstart += self.gw_reservoir["storage_m"]
@@ -464,6 +464,8 @@ class BMI_CFE:
         if "revap_factor" in data_loaded.keys():
             self.revap = True
             self.revap_factor = data_loaded["revap_factor"]
+        else:
+            self.revap = False
         if "stand_alone" in data_loaded.keys():
             self.stand_alone = data_loaded["stand_alone"]
         if "forcing_file" in data_loaded.keys():
