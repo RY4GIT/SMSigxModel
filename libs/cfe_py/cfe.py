@@ -293,16 +293,22 @@ class CFE:
         # Solve groundwater reservoir
 
         self.groundwater_reservoir_flux_calc(cfe_state, cfe_state.gw_reservoir)
-        gw_outflux = (
-            cfe_state.flux_from_deep_gw_to_chan_m + cfe_state.evaporation_from_gw
-        )
+        cfe_state.gw_reservoir["storage_m"] -= cfe_state.flux_from_deep_gw_to_chan_m
+        cfe_state.vol_from_gw += cfe_state.flux_from_deep_gw_to_chan_m
+        cfe_state.volout += cfe_state.flux_from_deep_gw_to_chan_m
 
-        cfe_state.gw_reservoir["storage_m"] -= gw_outflux
-        cfe_state.vol_from_gw += gw_outflux
-        cfe_state.volout += gw_outflux
-        cfe_state.vol_et_to_atm += cfe_state.evaporation_from_gw
-        cfe_state.reduced_potential_et_m_per_timestep -= cfe_state.evaporation_from_gw
-        cfe_state.vol_et_from_gw += cfe_state.evaporation_from_gw
+        if cfe_state.revap:
+            self.groundwater_evaporation_flux_calc(cfe_state, cfe_state.gw_reservoir)
+            # print(cfe_state.evaporation_from_gw)
+            cfe_state.gw_reservoir["storage_m"] -= cfe_state.evaporation_from_gw
+            cfe_state.vol_from_gw += cfe_state.evaporation_from_gw
+            cfe_state.volout += cfe_state.evaporation_from_gw
+
+            cfe_state.vol_et_to_atm += cfe_state.evaporation_from_gw
+            cfe_state.reduced_potential_et_m_per_timestep -= (
+                cfe_state.evaporation_from_gw
+            )
+            cfe_state.vol_et_from_gw += cfe_state.evaporation_from_gw
 
         # ________________________________________________
         # SUBROUTINE
@@ -571,9 +577,12 @@ class CFE:
         cfe_state.primary_flux_m = math.fsum(scaled_perc_flux)
         cfe_state.secondary_flux_m = math.fsum(scaled_lateral_flux)
         cfe_state.actual_et_from_soil_m_per_timestep = math.fsum(scaled_et_flux)
-        if final_storage_m < 0:
-            print("stop")
         reservoir["storage_m"] = final_storage_m
+
+        if cfe_state.verbose:
+            print(
+                f"Percolation: {cfe_state.primary_flux_m} ({cfe_state.primary_flux_m/np.sum(sum_outflux)*100}percent)"
+            )
 
         """
         # Comment out because this section raises Runtime error, as dS_soil_reservoir is extremely small
@@ -584,6 +593,21 @@ class CFE:
         if ((dS_soil_reservoir - dS_fluxes) / dS_soil_reservoir) >= 0.01:
             warnings.warn(f'Mass balance error is more than 1%. \n dS({ys_concat[-1]-ys_concat[0]}) = I({cfe_state.infiltration_depth_m}) - Perc({cfe_state.primary_flux_m}) - Lat({cfe_state.secondary_flux_m}) - AET({cfe_state.actual_et_from_soil_m_per_timestep})')
         """
+
+    def groundwater_evaporation_flux_calc(self, cfe_state, reservoir):
+        # Allow evaporation from GW
+        # Picourlat, F., E. Mouche, and C. Mügler. 2022. Upscaling Hydrological Processes for Land Surface Models with a Two‐Hydrologic‐Variable Model: Application to the Little Washita Watershed. Water Resour. Res. https://agupubs.onlinelibrary.wiley.com/doi/abs/10.1029/2021WR030997.
+        potential_revap = (
+            cfe_state.revap_factor
+            * cfe_state.reduced_potential_et_m_per_timestep
+            # * (reservoir["storage_m"] / reservoir["storage_max_m"])
+        )
+        cfe_state.evaporation_from_gw = np.minimum(
+            reservoir["storage_m"],
+            potential_revap,
+        )
+        if cfe_state.verbose:
+            print(f"{cfe_state.evaporation_from_gw}")
 
         # __________________________________________________________________________________________________________
 
@@ -616,70 +640,56 @@ class CFE:
                 reservoir["storage_m"], primary_flux_m
             )
 
-            if cfe_state.revap:
-                # Allow evaporation from GW
-                # Picourlat, F., E. Mouche, and C. Mügler. 2022. Upscaling Hydrological Processes for Land Surface Models with a Two‐Hydrologic‐Variable Model: Application to the Little Washita Watershed. Water Resour. Res. https://agupubs.onlinelibrary.wiley.com/doi/abs/10.1029/2021WR030997.
-                potential_revap = (
-                    cfe_state.revap_factor
-                    * cfe_state.reduced_potential_et_m_per_timestep
-                    # * (reservoir["storage_m"] / reservoir["storage_max_m"])
-                )
-                cfe_state.evaporation_from_gw = np.minimum(
-                    reservoir["storage_m"] - primary_flux_m - secondary_flux_m,
-                    potential_revap,
-                )
-            else:
-                cfe_state.evaporation_from_gw = 0.0
             return
 
-        else:
+        if reservoir["is_exponential"] == False:
             # linear/nonlinear conceptual reservoir with one/two outlets
+            primary_flux_m = reservoir["coeff_primary"] * np.power(
+                reservoir["storage_m"] / reservoir["storage_max_m"],
+                reservoir["exponent_primary"],
+            )
+            # print(primary_flux_m)
 
-            cfe_state.primary_flux_m = 0.0
-
-            storage_above_threshold_m = (
-                reservoir["storage_m"] - reservoir["storage_threshold_primary_m"]
-            )  # Equation 11 (Ogden's document).
-            # print('storage above threshold: %s' % (storage_above_threshold_m))
-            if storage_above_threshold_m > 0.0:
-                storage_diff = (
-                    reservoir["storage_max_m"]
-                    - reservoir["storage_threshold_primary_m"]
-                )  # Equation 11 (Ogden's document).
-                storage_ratio = (
-                    storage_above_threshold_m / storage_diff
-                )  # Equation 11 (Ogden's document).
-                storage_power = np.power(storage_ratio, reservoir["exponent_primary"])
-
-                cfe_state.primary_flux_m = reservoir["coeff_primary"] * storage_power
-
-                if cfe_state.primary_flux_m > storage_above_threshold_m:
-                    cfe_state.primary_flux_m = storage_above_threshold_m
-
-            cfe_state.secondary_flux_m = 0.0
-
-            storage_above_threshold_m = (
-                reservoir["storage_m"] - reservoir["storage_threshold_secondary_m"]
+            cfe_state.flux_from_deep_gw_to_chan_m = np.minimum(
+                reservoir["storage_m"], primary_flux_m
             )
 
-            if storage_above_threshold_m > 0.0:
-                storage_diff = (
-                    reservoir["storage_max_m"]
-                    - reservoir["storage_threshold_secondary_m"]
-                )  # Equation 12 (Ogden's document).
-                storage_ratio = storage_above_threshold_m / storage_diff
-                storage_power = np.power(storage_ratio, reservoir["exponent_secondary"])
+            # storage_above_threshold_m = (
+            #     reservoir["storage_m"] - reservoir["storage_threshold_primary_m"]
+            # )  # Equation 11 (Ogden's document).
+            # # print('storage above threshold: %s' % (storage_above_threshold_m))
+            # if storage_above_threshold_m > 0.0:
+            # storage_diff = (
+            #         reservoir["storage_max_m"]
+            #         - reservoir["storage_threshold_primary_m"]
+            #     )  # Equation 11 (Ogden's document).
 
-                cfe_state.secondary_flux_m = (
-                    reservoir["coeff_secondary"] * storage_power
-                )
-                if cfe_state.secondary_flux_m > (
-                    storage_above_threshold_m - cfe_state.primary_flux_m
-                ):
-                    cfe_state.secondary_flux_m = (
-                        storage_above_threshold_m - cfe_state.primary_flux_m
-                    )
-                    # print('all excess water went to primary flux')
+            # storage_ratio = (
+            #     reservoir["storage_m"] / reservoir["storage_max_m"]
+            # )  # Equation 11 (Ogden's document).
+
+            # storage_above_threshold_m = (
+            #     reservoir["storage_m"] - reservoir["storage_threshold_secondary_m"]
+            # )
+
+            # if storage_above_threshold_m > 0.0:
+            #     storage_diff = (
+            #         reservoir["storage_max_m"]
+            #         - reservoir["storage_threshold_secondary_m"]
+            #     )  # Equation 12 (Ogden's document).
+            #     storage_ratio = storage_above_threshold_m / storage_diff
+            #     storage_power = np.power(storage_ratio, reservoir["exponent_secondary"])
+
+            #     cfe_state.secondary_flux_m = (
+            #         reservoir["coeff_secondary"] * storage_power
+            #     )
+            #     if cfe_state.secondary_flux_m > (
+            #         storage_above_threshold_m - cfe_state.primary_flux_m
+            #     ):
+            #         cfe_state.secondary_flux_m = (
+            #             storage_above_threshold_m - cfe_state.primary_flux_m
+            #         )
+            #         # print('all excess water went to primary flux')
 
             return
 

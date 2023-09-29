@@ -262,7 +262,7 @@ class BMI_CFE:
         # ________________________________________________
         # Subsurface reservoirs
         self.gw_reservoir = {
-            "is_exponential": True,
+            "is_exponential": self.gw_is_exponential,
             "storage_max_m": self.max_gw_storage,
             # GW primary reservoir params
             "coeff_primary": self.Cgw,
@@ -291,7 +291,9 @@ class BMI_CFE:
             "exponent_primary": 1,  # Controls percolation to GW, FIXED to 1 based on Equation 11
             "storage_threshold_primary_m": field_capacity_storage_threshold_m,  # Equation 4 (and probably 5?) (Ogden's document).
             "coeff_secondary": self.K_lf,  # Controls lateral flow
-            "exponent_secondary": 1,  # Controls lateral flow, FIXED to 1 based on schematics in the Ogden's document
+            "exponent_secondary": self.soil_params[
+                "exponent_secondary"
+            ],  # Controls lateral flow, FIXED to 1 based on schematics in the Ogden's document
             "storage_threshold_secondary_m": lateral_flow_threshold_storage_m,
         }  # Equation 4 (and probably 5?) (Ogden's document).
         self.soil_reservoir["storage_m"] = self.soil_reservoir[
@@ -343,11 +345,11 @@ class BMI_CFE:
     # __________________________________________________________________________________________________________
     # __________________________________________________________________________________________________________
     # BMI: Model Control Function
-    def update_until(self, until, verbose=True):
+    def update_until(self, until):
         for i in range(self.current_time_step, until):
             self.cfe_model.run_cfe(self)
             self.scale_output()
-            if verbose:
+            if self.verbose:
                 print("total discharge: {}".format(self.total_discharge))
                 print("at time: {}".format(self.current_time))
 
@@ -423,9 +425,6 @@ class BMI_CFE:
         # SOIL PARAMETERS
         self.trigger_z_fact = data_loaded["trigger_z_fact"]
         self.field_capacity_atm_press_fraction = data_loaded["alpha_fc"]
-        self.allow_percolation_below_threshold = data_loaded[
-            "allow_percolation_below_threshold"
-        ]
         self.soil_params = {}
         self.soil_params["bb"] = data_loaded["soil_params"]["bb"]
         self.soil_params["D"] = data_loaded["soil_params"]["D"]
@@ -434,11 +433,22 @@ class BMI_CFE:
         self.soil_params["slop"] = data_loaded["soil_params"]["slop"]
         self.soil_params["smcmax"] = data_loaded["soil_params"]["smcmax"]
         self.soil_params["wltsmc"] = data_loaded["soil_params"]["wltsmc"]
+        self.soil_params["exponent_secondary"] = data_loaded["soil_params"][
+            "exponent_secondary"
+        ]
 
         # GROUNDWATER PARAMETERS
         self.max_gw_storage = data_loaded["max_gw_storage"]
         self.Cgw = data_loaded["Cgw"]
         self.expon = data_loaded["expon"]
+        if data_loaded["gw_scheme"] == "Linear":
+            if self.verbose:
+                print("GW scheme - Linear reservoir")
+            self.gw_is_exponential = False
+        elif data_loaded["gw_scheme"] == "Exponential":
+            self.gw_is_exponential = True
+            if self.verbose:
+                print("GW scheme - Exponential reservoir")
 
         # Schaake parameters
         self.refkdt = data_loaded["refkdt"]
@@ -464,6 +474,8 @@ class BMI_CFE:
         if "revap_factor" in data_loaded.keys():
             self.revap = True
             self.revap_factor = data_loaded["revap_factor"]
+            if self.verbose:
+                print("revap activated")
         else:
             self.revap = False
         if "stand_alone" in data_loaded.keys():
@@ -474,6 +486,12 @@ class BMI_CFE:
         if "unit_test" in data_loaded.keys():
             self.unit_test = data_loaded["unit_test"]
             self.compare_results_file = data_loaded["compare_results_file"]
+        if "allow_percolation_below_threshold" in data_loaded.keys():
+            self.allow_percolation_below_threshold = data_loaded[
+                "allow_percolation_below_threshold"
+            ]
+        else:
+            self.allow_percolation_below_threshold = False
 
         return
 
@@ -562,7 +580,7 @@ class BMI_CFE:
         self.cumQ_out = self.vol_out_giuh + self.vol_from_gw + self.vol_out_nash
         self.runoff_ratio = self.cumQ_out / self.volin
 
-        if verbose:
+        if self.verbose:
             print("\nGLOBAL MASS BALANCE")
             print("      initial volume: {:8.4f}".format(self.volstart))
             print("        volume input: {:8.4f}".format(self.volin))
@@ -978,6 +996,7 @@ class BMI_CFE:
         warm_up=True,
         warmup_offset=365 * 24 * 2,
         warmup_iteration=1,  # 2 years by default
+        verbose=False,
     ):
         self.load_forcing_file()
         self.load_unit_test_data()
