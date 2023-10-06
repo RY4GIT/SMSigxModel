@@ -16,3 +16,4 @@ dependencies:
   - pip:
       - numbakit-ode
       - salib
+      - eto
