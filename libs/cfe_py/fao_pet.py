@@ -1,40 +1,33 @@
-from omegaconf import DictConfig
-import logging
 from eto import ETo
 import pandas as pd
-from functools import cached_property
 import os
 import math
+import numpy as np
 
-log = logging.getLogger("models.dCFE")
 #
 # https://eto.readthedocs.io/en/latest/package_references.html
 # Only few user exsits, possibly swtich to https://github.com/pyet-org/pyet (only daily) or https://github.com/woodcrafty/PyETo
 
 
 class FAO_PET:
-    def __init__(self, cfg: DictConfig, basin_id, forcing) -> None:
+    def __init__(self, lat=np.nan, lon=np.nan, elevation=0, forcing=None) -> None:
         """
         :param cfg:
         """
-        self.cfg = cfg
 
         # Get forcing
         self.forcing = forcing
         self.input_forcing = self.prepare_input(forcing)
 
         # Get CAMELS basin attributes
-        basin_attrs = pd.read_csv(self.cfg.camels_attr_file)
-        basin_attrs["gauge_id"] = basin_attrs["gauge_id"].astype(str).str.zfill(8)
-        basin_idx = basin_attrs["gauge_id"] == basin_id
-        self.lon = basin_attrs["gauge_lon"][basin_idx].values[0]
-        self.lat = basin_attrs["gauge_lat"][basin_idx].values[0]
-        self.elevation = basin_attrs["elev_mean"][basin_idx].values[0]
+        self.lon = lon
+        self.lat = lat
+        self.elevation = elevation
 
     def calc_PET(self):
         PET = ETo(
             self.input_forcing,
-            freq="H",
+            freq="D",
             lon=self.lon,
             TZ_lon=self.lon,
             z_msl=self.elevation,
@@ -45,10 +38,7 @@ class FAO_PET:
         # lon: The longitude of the met station (dec deg) (only needed if calculating ETo hourly)
         # TZ_lon: The longitude of the center of the time zone (dec deg) (only needed if calculating ETo hourly).
         # freq (str) – The Pandas time frequency string of the input and output. The minimum frequency is hours (H) and the maximum is month (M).
-        PET = PET.fillna(0)
-        PET = (
-            PET / self.cfg.conversions.m_to_mm / self.cfg.conversions.hr_to_sec
-        )  # mm/hr to m/hr  to m/s
+        PET = PET.fillna(0)  # mm/d? TODO: checkunit
 
         return PET
 
@@ -61,35 +51,27 @@ class FAO_PET:
         df.set_index("time", inplace=True)
 
         # Calculate relative humidity for each row
-        df["RH_mean"] = df.apply(self.calculate_relative_humidity, axis=1)
+        # df["RH_mean"] = df.apply(self.calculate_relative_humidity, axis=1)
 
         # Actual vapor pressure
-        df["e_a"] = (
-            df.apply(self.calculate_actual_vapor_pressure_Pa, axis=1)
-            / self.cfg.conversions.to_kilo
-        )
+        # df["e_a"] = (
+        #     df.apply(self.calculate_actual_vapor_pressure_Pa, axis=1)
+        #     / self.cfg.conversions.to_kilo
+        # )
 
         # Mean find speed
-        df["U_z"] = (df["wind_u"] + df["wind_v"]) / 2
+        # df["U_z"] = (df["wind_u"] + df["wind_v"]) / 2
 
         # Unit conversion
-        df["R_s"] = (
-            df["shortwave_radiation"] * 0.0036
-        )  # self.cfg.conversions.day_to_sec / self.cfg.conversions.to_mega
-        df["P"] = df["pressure"] / self.cfg.conversions.to_kilo
-        df["T_mean"] = df["temperature"]
+        # df["R_s"] = (
+        #     df["shortwave_radiation"] * 0.0036
+        # )  # self.cfg.conversions.day_to_sec / self.cfg.conversions.to_mega
+        # df["P"] = df["pressure"] / self.cfg.conversions.to_kilo
+        # df["T_mean"] = df["temperature"]
 
-        input_forcing = df[["date", "R_s", "P", "T_mean", "e_a", "RH_mean", "U_z"]]
-
-        # {
-        #     'date': df.index,
-        #     'R_s': df["shortwave_radiation"] * self.cfg.conversions.day_to_sec / self.cfg.conversions.to_mega,     # (W/m2) -> (MJ/m2/day)
-        #     'P': df["pressure"] / self.cfg.conversions.to_kilo, # (Pa) -> (kPa)
-        #     'T_mean': df["temperature"], # (deg C) -> (deg C)
-        #     'e_a': df["Actual_Vapor_Pressure"] / self.cfg.conversions.to_kilo,  # (Pa) -> kPa?
-        #     'RH_mean': df["Relative_Humidity"], # (-)
-        #     'U_z': df["mean_wind_speed"], # (m/s) -> (m/s)
-        # }
+        input_forcing = (
+            df  # df[["date", "R_s", "P", "T_mean", "e_a", "RH_mean", "U_z"]]
+        )
 
         return input_forcing
 
