@@ -53,11 +53,15 @@ class FAO_PET:
         # Calculate relative humidity for each row
         # df["RH_mean"] = df.apply(self.calculate_relative_humidity, axis=1)
 
+        # Saturation vapor pressure
+        conversions_to_kilo = 1000
+        df["e_s"] = (
+            df.apply(self.calc_air_saturation_vapor_pressure_Pa, axis=1)
+            / conversions_to_kilo
+        )
+
         # Actual vapor pressure
-        # df["e_a"] = (
-        #     df.apply(self.calculate_actual_vapor_pressure_Pa, axis=1)
-        #     / self.cfg.conversions.to_kilo
-        # )
+        df["e_a"] = df["RH_mean"] * df["e_s"]
 
         # Mean find speed
         # df["U_z"] = (df["wind_u"] + df["wind_v"]) / 2
@@ -80,22 +84,22 @@ class FAO_PET:
     # https://www.fao.org/3/x0490e/x0490e07.htm
     # https://github.com/NOAA-OWP/evapotranspiration/blob/1e971ffe784ade3c7ab322ccce6f49f48e942e3d/src/pet.c
 
-    def calculate_relative_humidity(self, row):
-        air_sat_vap_press_Pa = self.calc_air_saturation_vapor_pressure_Pa(row)
-        actual_vapor_pressure_Pa = self.calculate_actual_vapor_pressure_Pa(row)
-        relative_humidity = actual_vapor_pressure_Pa / air_sat_vap_press_Pa
-        return relative_humidity
+    # def calculate_relative_humidity(self, row):
+    #     air_sat_vap_press_Pa = self.calc_air_saturation_vapor_pressure_Pa(row)
+    #     actual_vapor_pressure_Pa = self.calculate_actual_vapor_pressure_Pa(row)
+    #     relative_humidity = actual_vapor_pressure_Pa / air_sat_vap_press_Pa
+    #     return relative_humidity
 
     def calc_air_saturation_vapor_pressure_Pa(self, row):
-        air_temperature_C = row["temperature"]
+        air_temperature_C = row["T_min"]
         air_sat_vap_press_Pa = 611.0 * math.exp(
             17.27 * air_temperature_C / (237.3 + air_temperature_C)
         )
         return air_sat_vap_press_Pa
 
-    def calculate_actual_vapor_pressure_Pa(self, row):
-        # https://cran.r-project.org/web/packages/humidity/vignettes/humidity-measures.html#eq:1
-        q = row["specific_humidity"]  # Specific humidity
-        p = row["pressure"]  # Atmospheric pressure in pascals
-        actual_vapor_pressure_Pa = q * p / (0.622 + 0.378 * q)
-        return actual_vapor_pressure_Pa
+    # def calculate_actual_vapor_pressure_Pa(self, row):
+    #     # https://cran.r-project.org/web/packages/humidity/vignettes/humidity-measures.html#eq:1
+    #     q = row["specific_humidity"]  # Specific humidity
+    #     p = row["pressure"]  # Atmospheric pressure in pascals
+    #     actual_vapor_pressure_Pa = q * p / (0.622 + 0.378 * q)
+    #     return actual_vapor_pressure_Pa
