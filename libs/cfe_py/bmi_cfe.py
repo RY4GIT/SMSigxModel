@@ -193,10 +193,6 @@ class BMI_CFE:
         # Local values to be used in setting up soil reservoir
         # This seems to be the key component in the model
 
-        # trigger_z_m = 0.5                           # Added to calibration parameter
-
-        # field_capacity_atm_press_fraction = 0.33     # Added to calibration parameter
-
         self.D_noahMP = 2  # Soil depth used for threshold calculation (NoahMP grid cell vertical grid size)
         self.trigger_z_m = self.trigger_z_fact * self.D_noahMP
 
@@ -291,9 +287,7 @@ class BMI_CFE:
             "exponent_primary": 1,  # Controls percolation to GW, FIXED to 1 based on Equation 11
             "storage_threshold_primary_m": field_capacity_storage_threshold_m,  # Equation 4 (and probably 5?) (Ogden's document).
             "coeff_secondary": self.K_lf,  # Controls lateral flow
-            "exponent_secondary": self.soil_params[
-                "exponent_secondary"
-            ],  # Controls lateral flow, FIXED to 1 based on schematics in the Ogden's document
+            "exponent_secondary": 1,  # Controls lateral flow, FIXED to 1 based on schematics in the Ogden's document
             "storage_threshold_secondary_m": lateral_flow_threshold_storage_m,
         }  # Equation 4 (and probably 5?) (Ogden's document).
         self.soil_reservoir["storage_m"] = self.soil_reservoir[
@@ -302,11 +296,8 @@ class BMI_CFE:
         self.volstart += self.soil_reservoir["storage_m"]
         self.vol_soil_start = self.soil_reservoir["storage_m"]
 
-        # print(self.soil_reservoir['coeff_primary'])
-        # print(self.soil_reservoir['coeff_secondary'])
         # ________________________________________________
         # Schaake
-        # self.refkdt = 3.0       # Added to calibration parameters
         Ks_ref = 2.0e-06  # [m/s]
         self.Schaake_adjusted_magic_constant_by_soil_type = (
             self.refkdt * self.soil_params["satdk"] / Ks_ref
@@ -433,9 +424,6 @@ class BMI_CFE:
         self.soil_params["slop"] = data_loaded["soil_params"]["slop"]
         self.soil_params["smcmax"] = data_loaded["soil_params"]["smcmax"]
         self.soil_params["wltsmc"] = data_loaded["soil_params"]["wltsmc"]
-        self.soil_params["exponent_secondary"] = data_loaded["soil_params"][
-            "exponent_secondary"
-        ]
 
         # GROUNDWATER PARAMETERS
         self.max_gw_storage = data_loaded["max_gw_storage"]
@@ -456,13 +444,6 @@ class BMI_CFE:
 
         # Lateral flow parameters
         self.K_lf = data_loaded["K_lf"]
-        # self.K_lf = (
-        #     0.02
-        #     * self.lksatfac
-        #     * data_loaded["soil_params"]["satdk"]
-        #     * data_loaded["soil_params"]["D"]
-        #     * data_loaded["dd"]
-        # )  # Equation 11 in the Ogden's document
         self.K_nash = data_loaded["K_nash"]
         self.nash_storage = np.zeros(int(data_loaded["num_nash_storage"]))
 
@@ -471,13 +452,6 @@ class BMI_CFE:
 
         # ___________________________________________________
         # OPTIONAL CONFIGURATIONS
-        if "revap_factor" in data_loaded.keys():
-            self.revap = True
-            self.revap_factor = data_loaded["revap_factor"]
-            if self.verbose:
-                print("revap activated")
-        else:
-            self.revap = False
         if "stand_alone" in data_loaded.keys():
             self.stand_alone = data_loaded["stand_alone"]
         if "forcing_file" in data_loaded.keys():
@@ -486,12 +460,6 @@ class BMI_CFE:
         if "unit_test" in data_loaded.keys():
             self.unit_test = data_loaded["unit_test"]
             self.compare_results_file = data_loaded["compare_results_file"]
-        if "allow_percolation_below_threshold" in data_loaded.keys():
-            self.allow_percolation_below_threshold = data_loaded[
-                "allow_percolation_below_threshold"
-            ]
-        else:
-            self.allow_percolation_below_threshold = False
 
         return
 
