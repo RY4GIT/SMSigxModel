@@ -1,8 +1,13 @@
 # Data retrieval
 
+This directory holds data from three catchments: Mahurangi, Coweeta, and Little Washita. 
+
 ## Mahurangi
 We use the Mahurangi River Variability Experiment (MARVEX) datasets. The original observation data were obtained via personal communication. 
     Woods, R., R. Grayson, A. Western, M. Duncan, D. Wilson, et al. 2001. Experimental Design and Initial Results From the Mahurangi River Variability Experiment: MARVEX. Observations and Modelling of Land Surface Hydrological Processes: 201–213. doi: 10.1029/WS003p0201.
+
+## Coweeta
+Under construction. 
 
 ## Little Washita
 ### Rainfall, soil moisture, temperature data
@@ -24,7 +29,12 @@ Use the scripts in `.\0_data_preprocessing\script` directory to pre-process the 
 
 # Plot 
 ## Mahurangi
+![alt text](https://github.com/RY4GIT/SMSigxModel/blob/master/data/Mahurangi/plot/map.png "Mahurangi map")
 ![alt text](https://github.com/RY4GIT/SMSigxModel/blob/master/data/Mahurangi/plot/input_data.png "Mahurangi input data")
 
+## Coweeta
+Under construction
+
 ## Little Washita
+![alt text](https://github.com/RY4GIT/SMSigxModel/blob/master/data/LittleWashita/plot/map.png "Little Washita map")
 ![alt text](https://github.com/RY4GIT/SMSigxModel/blob/master/data/LittleWashita/plot/input_data.png "Little Washita input data")
