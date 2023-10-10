@@ -1,6 +1,11 @@
-# Data retrieval
+# Summary
+This directory holds data from three catchments: Mahurangi, Coweeta, and Little Washita. Each watershed has the following datasets
+- `example_config_cfe.json`: default configuration files
+- `forcing_xxxx.csv`: forcing dataset (precipitation, PET)
+- `test_xxxx.csv`: evaluation dataset (rainfall, soil moisture, flow, and total discharge are the actual values, otherwise set to zero). 
+- `seasonal_cycel_valleys.csv`: seasonal split points of timeseries
 
-This directory holds data from three catchments: Mahurangi, Coweeta, and Little Washita. 
+# Data retrieval
 
 ## Mahurangi
 We use the Mahurangi River Variability Experiment (MARVEX) datasets. The original observation data were obtained via personal communication. 

@@ -106,7 +106,7 @@ precip = retime(precip, newTime, 'linear');
 PET = retime(PET, newTime, 'linear');
 inputTT = synchronize(precip, PET);
 inputTT.Properties.VariableNames = {'precip_rate' 'PET'};
-writetimetable(inputTT, fullfile(out_path, 'mahurangi_1998_2001.csv'));
+writetimetable(inputTT, fullfile(out_path, 'forcing_hourly_1998_2001.csv'));
 
 % save validation file
 flow = retime(flow, newTime, 'linear');
@@ -124,19 +124,19 @@ valTT = synchronize(Timestep, precip, flow, sm_avg_tt, ...
                     zero_tt, zero_tt, zero_tt, zero_tt, discharge_cms);
 valTT.Properties.VariableNames = {'Time Step' 'Rainfall' 'Flow' 'Soil Moisture Content' ...
     'Direct Runoff' 'GIUH Runoff' 'Lateral Flow' 'Base Flow' 'Total Discharge'};
-writetimetable(valTT, fullfile(out_path, 'test_sm_basinavg.csv'));
+writetimetable(valTT, fullfile(out_path, 'test_hourly_1998_2001_sm_basinavg.csv'));
 
 valTT30 = synchronize(Timestep, precip, flow, sm_30cm_avg_tt, ...
                     zero_tt, zero_tt, zero_tt, zero_tt, discharge_cms);
 valTT30.Properties.VariableNames = {'Time Step' 'Rainfall' 'Flow' 'Soil Moisture Content' ...
     'Direct Runoff' 'GIUH Runoff' 'Lateral Flow' 'Base Flow' 'Total Discharge'};
-writetimetable(valTT30, fullfile(out_path, 'test_sm_30cmavg.csv'));
+writetimetable(valTT30, fullfile(out_path, 'test_hourly_1998_2001_sm_30cmavg.csv'));
 
 valTT60 = synchronize(Timestep, precip, flow, sm_60cm_avg_tt, ...
                     zero_tt, zero_tt, zero_tt, zero_tt, discharge_cms);
 valTT60.Properties.VariableNames = {'Time Step' 'Rainfall' 'Flow' 'Soil Moisture Content' ...
     'Direct Runoff' 'GIUH Runoff' 'Lateral Flow' 'Base Flow' 'Total Discharge'};
-writetimetable(valTT60, fullfile(out_path, 'test_sm_60cmavg.csv'));
+writetimetable(valTT60, fullfile(out_path, 'test_hourly_1998_2001_sm_60cmavg.csv'));
 
 % All SM data
 for i = 1:size(allsmup,2)
