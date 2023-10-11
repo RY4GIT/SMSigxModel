@@ -145,7 +145,7 @@ class BMI_CFE:
 
         # ________________________________________________
         # Time control
-        self.time_step_size = 3600
+        # self.time_step_size = 3600 * 24  # in second
         self.timestep_h = self.time_step_size / 3600.0
         self.timestep_d = self.timestep_h / 24.0
         self.current_time_step = 0
@@ -411,6 +411,7 @@ class BMI_CFE:
         # ___________________________________________________
         # MANDATORY CONFIGURATIONS
         self.forcing_file = data_loaded["forcing_file"]
+        self.time_step_size = data_loaded["time_step_size"]
         self.catchment_area_km2 = data_loaded["catchment_area_km2"]
 
         # SOIL PARAMETERS
@@ -548,7 +549,7 @@ class BMI_CFE:
         self.cumQ_out = self.vol_out_giuh + self.vol_from_gw + self.vol_out_nash
         self.runoff_ratio = self.cumQ_out / self.volin
 
-        if self.verbose:
+        if verbose:
             print("\nGLOBAL MASS BALANCE")
             print("      initial volume: {:8.4f}".format(self.volstart))
             print("        volume input: {:8.4f}".format(self.volin))
