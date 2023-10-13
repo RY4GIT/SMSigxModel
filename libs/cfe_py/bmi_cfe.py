@@ -193,7 +193,9 @@ class BMI_CFE:
         # Local values to be used in setting up soil reservoir
         # This seems to be the key component in the model
 
-        self.D_noahMP = 2  # Soil depth used for threshold calculation (NoahMP grid cell vertical grid size)
+        self.D_noahMP = self.soil_params[
+            "D"
+        ]  # 2  # Soil depth used for threshold calculation (NoahMP grid cell vertical grid size)
         self.trigger_z_m = self.trigger_z_fact * self.D_noahMP
 
         H_water_table_m = (
@@ -245,6 +247,7 @@ class BMI_CFE:
             "smcmax"
         ] * additional_term  # Equation 4 (and probably 5?) (Ogden's document).
 
+        print(field_capacity_storage_threshold_m)
         # ________________________________________________
         # lateral flow function parameters
         assumed_near_channel_water_table_slope = 0.01  # [L/L]
@@ -295,6 +298,9 @@ class BMI_CFE:
         ]  # Start from the maximum soil reservoir
         self.volstart += self.soil_reservoir["storage_m"]
         self.vol_soil_start = self.soil_reservoir["storage_m"]
+
+        print(self.soil_reservoir["coeff_primary"])
+        print(self.soil_reservoir["coeff_secondary"])
 
         # ________________________________________________
         # Schaake
@@ -420,7 +426,9 @@ class BMI_CFE:
         self.soil_params = {}
         self.soil_params["bb"] = data_loaded["soil_params"]["bb"]
         self.soil_params["D"] = data_loaded["soil_params"]["D"]
-        self.soil_params["satdk"] = data_loaded["soil_params"]["satdk"]
+        self.soil_params["satdk"] = data_loaded["soil_params"][
+            "satdk"
+        ]  # [m/s] regardless of timestep
         self.soil_params["satpsi"] = data_loaded["soil_params"]["satpsi"]
         self.soil_params["slop"] = data_loaded["soil_params"]["slop"]
         self.soil_params["smcmax"] = data_loaded["soil_params"]["smcmax"]
@@ -461,6 +469,13 @@ class BMI_CFE:
         if "unit_test" in data_loaded.keys():
             self.unit_test = data_loaded["unit_test"]
             self.compare_results_file = data_loaded["compare_results_file"]
+
+        if "allow_percolation_below_threshold" in data_loaded.keys():
+            self.allow_percolation_below_threshold = data_loaded[
+                "allow_percolation_below_threshold"
+            ]
+        else:
+            self.allow_percolation_below_threshold = 0
 
         return
 
@@ -959,7 +974,7 @@ class BMI_CFE:
     # ________________________________________________________
     def run_unit_test(
         self,
-        plot_lims=list(range(1, 52600)),  # 31062 for MH # 52600 for LW
+        plot_lims=list(range(1, 1000)),
         plot=False,
         print_fluxes=False,
         warm_up=True,
