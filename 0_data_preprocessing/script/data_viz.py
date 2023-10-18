@@ -1,5 +1,6 @@
 # %%
 import pandas as pd
+import os
 
 
 def plot_figure(forcing_file_path, data_file_path, output_file_path):
@@ -51,14 +52,21 @@ def plot_figure(forcing_file_path, data_file_path, output_file_path):
 
 
 # %%
-# Mahurangi
-forcing_file_path = rf"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\Mahurangi\mahurangi_1998_2001.csv"
-data_file_path = rf"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\Mahurangi\test_sm_basinavg.csv"
-output_file_path = rf"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\Mahurangi\plot\input_data.png"
+# # Mahurangi
+# forcing_file_path = rf"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\Mahurangi\mahurangi_1998_2001.csv"
+# data_file_path = rf"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\Mahurangi\test_sm_basinavg.csv"
+# output_file_path = rf"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\Mahurangi\plot\input_data.png"
+# plot_figure(forcing_file_path, data_file_path, output_file_path)
+
+## Coweeta
+data_dir = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\Coweeta"
+forcing_file_path = os.path.join(data_dir, "forcing_daily_2014_2018.csv")
+data_file_path = os.path.join(data_dir, "test_daily_2014_2018_sm_basinavg.csv")
+output_file_path = os.path.join(data_dir, "plot", "input_data.png")
 plot_figure(forcing_file_path, data_file_path, output_file_path)
 
-## Little Washita
-forcing_file_path = rf"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\LittleWashita\little_washita_2006_2012.csv"
-data_file_path = rf"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\LittleWashita\test_sm_basinavg.csv"
-output_file_path = rf"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\LittleWashita\plot\input_data.png"
-plot_figure(forcing_file_path, data_file_path, output_file_path)
+# ## Little Washita
+# forcing_file_path = rf"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\LittleWashita\little_washita_2006_2012.csv"
+# data_file_path = rf"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\LittleWashita\test_sm_basinavg.csv"
+# output_file_path = rf"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\LittleWashita\plot\input_data.png"
+# plot_figure(forcing_file_path, data_file_path, output_file_path)

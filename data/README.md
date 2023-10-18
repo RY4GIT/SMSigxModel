@@ -38,7 +38,7 @@ Use the scripts in `.\0_data_preprocessing\script` directory to pre-process the 
 ![alt text](https://github.com/RY4GIT/SMSigxModel/blob/master/data/Mahurangi/plot/input_data.png "Mahurangi input data")
 
 ## Coweeta
-Under construction
+![alt text](https://github.com/RY4GIT/SMSigxModel/blob/master/data/Coweeta/plot/input_data.png "Coweeta input data")
 
 ## Little Washita
 ![alt text](https://github.com/RY4GIT/SMSigxModel/blob/master/data/LittleWashita/plot/map.png "Little Washita map")
