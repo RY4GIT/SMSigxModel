@@ -27,7 +27,7 @@ params = {
     "forcing_file": "G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/data/Coweeta/forcing_daily_2014_2018.csv",
     "catchment_area_km2": 0.1210,
     "soil_params": {
-        "bb": 8.17,
+        "bb": 4.74,
         "satdk": 2.45e-06,
         "slop": 0.147,
         "satpsi": 0.263,
@@ -38,19 +38,19 @@ params = {
     "max_gw_storage": 50,
     "Cgw": 1,
     "expon": 1.75,
-    "K_lf": 0.5,
+    "K_lf": 0.005,
     "K_nash": 0.1,
     "num_nash_storage": 2,
     "giuh_ordinates": [0.5, 0.5],
     "trigger_z_fact": 0.5,
-    "alpha_fc": 0.33,
+    "alpha_fc": 0.18,
     "refkdt": 3,
     "stand_alone": 1,
     "unit_test": 1,
     "time_step_size": 86400,
-    "gw_scheme": "Exponential",
     "compare_results_file": "G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/data/Coweeta/test_daily_2014_2018_sm_basinavg.csv",
 }
+
 with open(input_json, "w") as outfile:
     json.dump(params, outfile, indent=4)
 
@@ -65,8 +65,8 @@ cfe_instance = BMI_CFE(cfg_file=input_json, verbose=False)
 cfe_instance.initialize()
 cfe_instance.run_unit_test(
     plot=True,
-    print_fluxes=False,
-    plot_lims=list(range(1, 1310)),
+    print_fluxes=True,
+    plot_lims=list(range(1, 1034)),
     warm_up=True,
     warmup_offset=350,
     warmup_iteration=10,

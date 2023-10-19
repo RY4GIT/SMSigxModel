@@ -211,8 +211,8 @@ class CFE:
         # Solve groundwater reservoir
 
         self.groundwater_reservoir_flux_calc(cfe_state, cfe_state.gw_reservoir)
-        cfe_state.flux_from_deep_gw_to_chan_m = np.minimum(
-            cfe_state.gw_primary_flux_m, cfe_state.gw_reservoir["storage_m"]
+        cfe_state.flux_from_deep_gw_to_chan_m = np.clip(
+            cfe_state.gw_primary_flux_m, 0, cfe_state.gw_reservoir["storage_m"]
         )
         cfe_state.gw_reservoir["storage_m"] -= cfe_state.flux_from_deep_gw_to_chan_m
         if cfe_state.gw_reservoir["storage_m"] < 0:
@@ -364,8 +364,10 @@ class CFE:
 
         # Initialization
         y0 = [reservoir["storage_m"]]
-        # TODO: add back
-        t = np.array([0, 0.05, 0.15, 0.3, 0.6, 1.0])
+        if cfe_state.time_step_size == 86400:
+            t = np.linspace(0, 1, 24 * 5)
+        elif cfe_state.time_step_size == 3600:
+            t = np.array(0, 1, 5)
 
         # Solve and ODE
         sol = odeint(
@@ -396,36 +398,31 @@ class CFE:
 
         lateral_flux = np.zeros(ys_avg.shape)
         perc_lat_switch = ys_avg - reservoir["storage_threshold_primary_m"] > 0
-        lateral_flux[perc_lat_switch] = reservoir["coeff_secondary"] * np.minimum(
-            (ys_avg[perc_lat_switch] - reservoir["storage_threshold_primary_m"])
+        lateral_flux = reservoir["coeff_secondary"] * np.clip(
+            (ys_avg - reservoir["storage_threshold_primary_m"])
             / (reservoir["storage_max_m"] - reservoir["storage_threshold_primary_m"]),
+            0,
             1,
         )
         lateral_flux_frac = lateral_flux * t_proportion
 
         perc_flux = np.zeros(ys_avg.shape)
-        perc_flux[perc_lat_switch] = reservoir["coeff_primary"] * np.minimum(
-            (ys_avg[perc_lat_switch] - reservoir["storage_threshold_primary_m"])
+        perc_flux = reservoir["coeff_primary"] * np.clip(
+            (ys_avg - reservoir["storage_threshold_primary_m"])
             / (reservoir["storage_max_m"] - reservoir["storage_threshold_primary_m"]),
+            0,
             1,
         )
         perc_flux_frac = perc_flux * t_proportion
 
         et_from_soil = np.zeros(ys_avg.shape)
-        ET_switch = (
-            ys_avg - cfe_state.soil_params["wltsmc"] * cfe_state.soil_params["D"] > 0
-        )
-        et_from_soil[
-            ET_switch
-        ] = cfe_state.reduced_potential_et_m_per_timestep * np.minimum(
-            (
-                ys_avg[ET_switch]
-                - cfe_state.soil_params["wltsmc"] * cfe_state.soil_params["D"]
-            )
+        et_from_soil = cfe_state.reduced_potential_et_m_per_timestep * np.clip(
+            (ys_avg - cfe_state.soil_params["wltsmc"] * cfe_state.soil_params["D"])
             / (
                 reservoir["storage_threshold_primary_m"]
                 - cfe_state.soil_params["wltsmc"] * cfe_state.soil_params["D"]
             ),
+            0,
             1,
         )
         et_from_soil_frac = et_from_soil * t_proportion
