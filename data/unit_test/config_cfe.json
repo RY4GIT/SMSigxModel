@@ -7,14 +7,14 @@
         "satdk": 0.000147,
         "satpsi": 0.3,
         "slop": 0.552437,
-        "smcmax": 0.38771,
+        "smcmax": 0.6,
         "wltsmc": 0.252464,
-        "D": 1
+        "D": 2
     },
     "gw_scheme": "Exponential",
     "max_gw_storage": 343.449845,
     "Cgw": 8.484384,
-    "expon": 1.821161,
+    "expon": 0.9,
     "K_nash": 0.0013,
     "refkdt": 3.620361,
     "trigger_z_fact": 0.75,

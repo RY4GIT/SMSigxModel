@@ -197,8 +197,8 @@ class BMI_CFE:
 
         # field_capacity_atm_press_fraction = 0.33     # Added to calibration parameter
 
-        self.D_noahMP = 2  # Soil depth used for threshold calculation (NoahMP grid cell vertical grid size)
-        self.trigger_z_m = self.trigger_z_fact * self.D_noahMP
+        # self.soil_params["D"] = 2  # Soil depth used for threshold calculation (NoahMP grid cell vertical grid size)
+        self.trigger_z_m = self.trigger_z_fact * self.soil_params["D"]
 
         H_water_table_m = (
             self.field_capacity_atm_press_fraction
@@ -216,11 +216,13 @@ class BMI_CFE:
 
         if Omega < 0:
             integral_lower_lim_m = 0
-            integral_upper_lim_m = self.D_noahMP - self.trigger_z_m + H_water_table_m
+            integral_upper_lim_m = (
+                self.soil_params["D"] - self.trigger_z_m + H_water_table_m
+            )
             additional_term = self.trigger_z_m - H_water_table_m
         else:
             integral_lower_lim_m = Omega
-            integral_upper_lim_m = Omega + self.D_noahMP
+            integral_upper_lim_m = Omega + self.soil_params["D"]
             additional_term = 0
 
         lower_lim = np.power(
@@ -273,7 +275,7 @@ class BMI_CFE:
             "exponent_secondary": 1.0,
             "storage_threshold_secondary_m": 0.0,
         }
-        self.gw_reservoir["storage_m"] = 1.0e-06  # 1.0e-06  # $self.gw_reservoir[
+        self.gw_reservoir["storage_m"] = self.Cgw  # 1.0e-06  # $self.gw_reservoir[
         # "storage_max_m"
         # ]  * 0.5 # Start from the half groundwater reservoir
         self.volstart += self.gw_reservoir["storage_m"]
@@ -1106,7 +1108,7 @@ class BMI_CFE:
         self.cfe_output_data["Influx to SM storage"] = output_smstorage_in
         self.cfe_output_data["Outflux from SM storage"] = output_smstorage_out
         self.cfe_output_data["Soil Moisture Content"] = [
-            number / self.D_noahMP for number in output_SM
+            number / self.soil_params["D"] for number in output_SM
         ]
 
         self.cfe_output_data["Nash storage"] = output_nashstorage
@@ -1273,41 +1275,41 @@ class BMI_CFE:
         plt.legend(loc="upper right")
         plt.show()
 
-    def record_output_fluxes(self, t, output_data):
-        output_data[t, "Direct Runoff"] = self.surface_runoff_depth_m
-        output_data[t, "GIUH Runoff"] = self.flux_giuh_runoff_m
-        output_data[t, "Lateral Flow"] = self.flux_nash_lateral_runoff_m
-        output_data[t, "Base Flow"] = self.flux_from_deep_gw_to_chan_m
-        output_data[t, "Flow"] = self.flux_Qout_m
-        output_data[t, "Total Discharge"] = self.total_discharge
-        output_data[t, "Soil Moisture Content"] = (
-            self.soil_reservoir["storage_m"] / self.D_noahMP
-        )
-        output_data[t, "GW storage"] = self.gw_reservoir["storage_m"]
-        output_data[t, "Influx to GW storage"] = self.flux_perc_m
-        output_data[t, "Outflux from GW storage"] = (
-            self.flux_from_deep_gw_to_chan_m + self.diff_perc
-        )
-        output_data[t, "GIUH storage"] = np.sum(self.runoff_queue_m_per_timestep)
-        output_data[t, "Influx to GIUH storage"] = (
-            self.surface_runoff_depth_m + self.diff_perc + self.diff_infilt
-        )
-        output_data[t, "Outflux from GIUH storage"] = self.flux_giuh_runoff_m
-        output_data[t, "Influx to Soil Moisture Content"] = self.infiltration_depth_m
-        output_data[t, "Outflux from Soil Moisture Content"] = (
-            self.flux_lat_m
-            + self.flux_perc_m
-            + self.actual_et_from_soil_m_per_timestep
-            + self.diff_infilt
-        )
-        output_data[t, "Nash storage"] = np.sum(self.nash_storage)
-        output_data[t, "Influx to Nash storage"] = self.flux_lat_m
-        output_data[t, "Outflux from Nash storage"] = self.flux_nash_lateral_runoff_m
+    # def record_output_fluxes(self, t, output_data):
+    #     output_data[t, "Direct Runoff"] = self.surface_runoff_depth_m
+    #     output_data[t, "GIUH Runoff"] = self.flux_giuh_runoff_m
+    #     output_data[t, "Lateral Flow"] = self.flux_nash_lateral_runoff_m
+    #     output_data[t, "Base Flow"] = self.flux_from_deep_gw_to_chan_m
+    #     output_data[t, "Flow"] = self.flux_Qout_m
+    #     output_data[t, "Total Discharge"] = self.total_discharge
+    #     output_data[t, "Soil Moisture Content"] = (
+    #         self.soil_reservoir["storage_m"] / self.soil_params["D"]
+    #     )
+    #     output_data[t, "GW storage"] = self.gw_reservoir["storage_m"]
+    #     output_data[t, "Influx to GW storage"] = self.flux_perc_m
+    #     output_data[t, "Outflux from GW storage"] = (
+    #         self.flux_from_deep_gw_to_chan_m + self.diff_perc
+    #     )
+    #     output_data[t, "GIUH storage"] = np.sum(self.runoff_queue_m_per_timestep)
+    #     output_data[t, "Influx to GIUH storage"] = (
+    #         self.surface_runoff_depth_m + self.diff_perc + self.diff_infilt
+    #     )
+    #     output_data[t, "Outflux from GIUH storage"] = self.flux_giuh_runoff_m
+    #     output_data[t, "Influx to Soil Moisture Content"] = self.infiltration_depth_m
+    #     output_data[t, "Outflux from Soil Moisture Content"] = (
+    #         self.flux_lat_m
+    #         + self.flux_perc_m
+    #         + self.actual_et_from_soil_m_per_timestep
+    #         + self.diff_infilt
+    #     )
+    #     output_data[t, "Nash storage"] = np.sum(self.nash_storage)
+    #     output_data[t, "Influx to Nash storage"] = self.flux_lat_m
+    #     output_data[t, "Outflux from Nash storage"] = self.flux_nash_lateral_runoff_m
 
-        return output_data
+    #     return output_data
 
-    def record_forcing(self, t, output_data):
-        output_data[t, "Time"] = self.current_time
-        output_data[t, "Time Step"] = self.current_time_step
-        output_data[t, "Rainfall"] = self.timestep_rainfall_input_m
-        return output_data
+    # def record_forcing(self, t, output_data):
+    #     output_data[t, "Time"] = self.current_time
+    #     output_data[t, "Time Step"] = self.current_time_step
+    #     output_data[t, "Rainfall"] = self.timestep_rainfall_input_m
+    #     return output_data
