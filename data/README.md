@@ -34,14 +34,11 @@ Use the scripts in `.\0_data_preprocessing\script` directory to pre-process the 
 
 # Plot 
 ## Mahurangi
-<img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/Mahurangi/plot/map.png" alt="Mahurangi map" width="200">
-<img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/Mahurangi/plot/input_data.png" alt="Mahurangi input data" width="200">
+<img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/Mahurangi/plot/map.png" alt="Mahurangi map" width="200"><img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/Mahurangi/plot/input_data.png" alt="Mahurangi input data" width="200">
 
 ## Coweeta
-<img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/Coweeta/plot/map.png" alt="Coweeta map" width="200">
-<img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/Coweeta/plot/input_data.png" alt="Coweeta input data" width="200">
+<img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/Coweeta/plot/map.png" alt="Coweeta map" width="200"><img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/Coweeta/plot/input_data.png" alt="Coweeta input data" width="200">
 
 ## Little Washita
-<img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/LittleWashita/plot/map.png" alt="Little Washita map" width="200">
-<img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/LittleWashita/plot/input_data.png" alt="Little Washita input data" width="200">
+<img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/LittleWashita/plot/map.png" alt="Little Washita map" width="200"><img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/LittleWashita/plot/input_data.png" alt="Little Washita input data" width="200">
 
