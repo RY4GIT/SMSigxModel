@@ -3,19 +3,23 @@ Equation # are from
 Ogden, B. F. L. (n.d.). Parameter Estimation for a Conceptual Functional Equivalen (CFE) Formulation of the National Water Model.
 """
 
+import time
 import numpy as np
 import pandas as pd
 from numba import int32, float32  # import the types
 from scipy.integrate import solve_ivp, odeint
+import sys
 from numba import jit
 
 # This function needs to be located outside of the class (global func)
 # Soil reservoir ODE for Zone 1
 import math
+import warnings
+import matplotlib.pyplot as plt
 
 
 @jit(nopython=True)
-def soil_moisture_flux_ode(
+def conceptual_reservoir_flux_calc(
     t,
     S,
     storage_threshold_primary_m,
@@ -85,7 +89,7 @@ def jac(
     infilt,
     wltsmc_m,
 ):
-    # The Jacobian matrix of the equation soil_moisture_flux_ode. Calculated as (dS/dt)/dS.
+    # The Jacobian matrix of the equation conceptual_reservoir_flux_calc. Calculated as (dS/dt)/dS.
     storage_diff = storage_max_m - storage_threshold_primary_m
 
     perc_lat_switch = np.multiply(S - storage_threshold_primary_m > 0, 1)
@@ -99,84 +103,6 @@ def jac(
         -1 * perc_lat_switch * (coeff_primary + coeff_secondary) * 1 / storage_diff
         - ET_switch * PET * 1 / storage_diff_paw
     )
-    return [dfdS]
-
-
-@jit(nopython=True)
-def soil_moisture_flux_ode2(
-    t,
-    S,
-    storage_threshold_primary_m,
-    storage_max_m,
-    coeff_primary,
-    coeff_secondary,
-    PET,
-    infilt,
-    wltsmc_m,
-):
-    """
-    Same as soil_moisture_flux_ode but allow percolation all the time
-    """
-
-    # Lateral flow is calculated based on the soil water storage above threshold
-    storage_ratio_lat = np.minimum(
-        (S - storage_threshold_primary_m)
-        / (storage_max_m - storage_threshold_primary_m),
-        1,
-    )
-    lat_switch = np.multiply(S - storage_threshold_primary_m > 0, 1)
-
-    # Percolation is calculated based on the soil moisture storage relative to max storage
-    # storage_ratio_perc = np.minimum(S / storage_max_m, 1)
-
-    # ET is calculated based on the soil water storage above wilting point
-    ## Energy-limited but water-non-limited
-    ET_switch = np.multiply(S - wltsmc_m > 0, 1)
-    storage_above_threshold_m_paw = S - wltsmc_m
-    storage_diff_paw = storage_threshold_primary_m - wltsmc_m
-    storage_ratio_paw = np.minimum(
-        storage_above_threshold_m_paw / storage_diff_paw, 1
-    )  # Equation 11 (Ogden's document)
-
-    # Calculate dSdt
-    dS = (
-        infilt
-        - 1 * lat_switch * coeff_secondary * storage_ratio_lat
-        - 1 * coeff_primary
-        - ET_switch * PET * storage_ratio_paw
-    )
-
-    return dS
-
-
-@jit(nopython=True)
-def jac2(
-    t,
-    S,
-    storage_threshold_primary_m,
-    storage_max_m,
-    coeff_primary,
-    coeff_secondary,
-    PET,
-    infilt,
-    wltsmc_m,
-):
-    # The Jacobian matrix of the equation soil_moisture_flux_ode. Calculated as (dS/dt)/dS.
-    storage_diff = storage_max_m - storage_threshold_primary_m
-
-    lat_switch = np.multiply(S - storage_threshold_primary_m > 0, 1)
-    ET_switch = np.multiply(
-        (S - wltsmc_m > 0) and (S - storage_threshold_primary_m < 0), 1
-    )
-
-    storage_diff_paw = storage_threshold_primary_m - wltsmc_m
-
-    dfdS = (
-        -1 * lat_switch * coeff_secondary * 1 / storage_diff
-        # - 1 * coeff_primary * 1 / storage_max_m
-        - ET_switch * PET * 1 / storage_diff_paw
-    )
-
     return [dfdS]
 
 
@@ -246,15 +172,11 @@ class CFE:
         cfe_state.actual_et_from_soil_m_per_timestep = 0
         self.soil_reservoir_flux_calc(cfe_state, cfe_state.soil_reservoir)
 
-        ### Mass balance ###
         cfe_state.flux_perc_m = cfe_state.primary_flux_m
         cfe_state.flux_lat_m = cfe_state.secondary_flux_m
         cfe_state.vol_et_from_soil += cfe_state.actual_et_from_soil_m_per_timestep
         cfe_state.vol_et_to_atm += cfe_state.actual_et_from_soil_m_per_timestep
         cfe_state.volout += cfe_state.actual_et_from_soil_m_per_timestep
-        cfe_state.reduced_potential_et_m_per_timestep -= (
-            cfe_state.actual_et_from_soil_m_per_timestep
-        )
 
         # ________________________________________________
         # Calculates groundwater storage deficit
@@ -289,9 +211,18 @@ class CFE:
         # Solve groundwater reservoir
 
         self.groundwater_reservoir_flux_calc(cfe_state, cfe_state.gw_reservoir)
+
+        if cfe_state.primary_flux_m > cfe_state.gw_reservoir["storage_m"]:
+            cfe_state.flux_from_deep_gw_to_chan_m = cfe_state.gw_reservoir["storage_m"]
+        else:
+            cfe_state.flux_from_deep_gw_to_chan_m = cfe_state.primary_flux_m
         cfe_state.gw_reservoir["storage_m"] -= cfe_state.flux_from_deep_gw_to_chan_m
         cfe_state.vol_from_gw += cfe_state.flux_from_deep_gw_to_chan_m
         cfe_state.volout += cfe_state.flux_from_deep_gw_to_chan_m
+
+        # ________________________________________________
+        if not self.is_fabs_less_than_epsilon(cfe_state.secondary_flux_m, 1.0e-09):
+            print("problem with nonzero flux point 1\n")
 
         # ________________________________________________
         # SUBROUTINE
@@ -314,7 +245,10 @@ class CFE:
             + cfe_state.flux_from_deep_gw_to_chan_m
         )
         cfe_state.total_discharge = (
-            cfe_state.flux_Qout_m * cfe_state.catchment_area_km2 * 1000000.0 / 3600.0
+            cfe_state.flux_Qout_m
+            * cfe_state.catchment_area_km2
+            * 1000000.0
+            / cfe_state.time_step_size
         )
 
         # ________________________________________________
@@ -434,54 +368,30 @@ class CFE:
 
         # Initialization
         y0 = [reservoir["storage_m"]]
-        if cfe_state.time_step_size == 86400:
-            t = np.linspace(0, 1, 24 * 5)
-        elif cfe_state.time_step_size == 3600:
-            t = np.array([0, 0.05, 0.15, 0.3, 0.6, 1.0])
+        t = np.array([0, 0.05, 0.15, 0.3, 0.6, 1.0])
 
-        if cfe_state.allow_percolation_below_threshold == 0:
-            sol = odeint(
-                soil_moisture_flux_ode,
-                y0,
-                t,
-                args=(
-                    reservoir["storage_threshold_primary_m"],
-                    reservoir["storage_max_m"],
-                    reservoir["coeff_primary"],
-                    reservoir["coeff_secondary"],
-                    cfe_state.reduced_potential_et_m_per_timestep,
-                    cfe_state.infiltration_depth_m,
-                    cfe_state.soil_params["wltsmc"]
-                    * cfe_state.soil_params["D"],  # wilting point in meter
-                ),
-                tfirst=True,
-                Dfun=jac,
-            )
-
-        elif cfe_state.allow_percolation_below_threshold == 1:
-            # Allow percolation below the lateral flow threshold
-            sol = odeint(
-                soil_moisture_flux_ode2,
-                y0,
-                t,
-                args=(
-                    reservoir["storage_threshold_primary_m"],
-                    reservoir["storage_max_m"],
-                    reservoir["coeff_primary"],
-                    reservoir["coeff_secondary"],
-                    cfe_state.reduced_potential_et_m_per_timestep,
-                    cfe_state.infiltration_depth_m,
-                    cfe_state.soil_params["wltsmc"]
-                    * cfe_state.soil_params["D"],  # wilting point in meter
-                ),
-                tfirst=True,
-                Dfun=jac2,
-            )
+        # Solve and ODE
+        sol = odeint(
+            conceptual_reservoir_flux_calc,
+            y0,
+            t,
+            args=(
+                reservoir["storage_threshold_primary_m"],
+                reservoir["storage_max_m"],
+                reservoir["coeff_primary"],
+                reservoir["coeff_secondary"],
+                cfe_state.reduced_potential_et_m_per_timestep,
+                cfe_state.infiltration_depth_m,
+                cfe_state.soil_params["wltsmc"]
+                * cfe_state.soil_params["D"],  # wilting point in meter
+            ),
+            tfirst=True,
+            Dfun=jac,
+        )
 
         # Finalize results
         ts_concat = t
         ys_concat = np.concatenate(sol, axis=0)
-        ys_concat[ys_concat < 0] = 0.0
 
         # Calculate fluxes
         t_proportion = np.diff(ts_concat)
@@ -496,25 +406,13 @@ class CFE:
         )
         lateral_flux_frac = lateral_flux * t_proportion
 
-        if cfe_state.allow_percolation_below_threshold == 0:
-            perc_flux = np.zeros(ys_avg.shape)
-            perc_flux[perc_lat_switch] = reservoir["coeff_primary"] * np.minimum(
-                (ys_avg[perc_lat_switch] - reservoir["storage_threshold_primary_m"])
-                / (
-                    reservoir["storage_max_m"]
-                    - reservoir["storage_threshold_primary_m"]
-                ),
-                1,
-            )
-            perc_flux_frac = perc_flux * t_proportion
-        elif cfe_state.allow_percolation_below_threshold == 1:
-            perc_flux = np.repeat(
-                cfe_state.soil_reservoir["coeff_primary"], ys_avg.shape
-            )
-            # perc_flux = reservoir["coeff_primary"] * np.minimum(
-            #     (ys_avg / reservoir["storage_max_m"]), 1
-            # )
-            perc_flux_frac = perc_flux * t_proportion
+        perc_flux = np.zeros(ys_avg.shape)
+        perc_flux[perc_lat_switch] = reservoir["coeff_primary"] * np.minimum(
+            (ys_avg[perc_lat_switch] - reservoir["storage_threshold_primary_m"])
+            / (reservoir["storage_max_m"] - reservoir["storage_threshold_primary_m"]),
+            1,
+        )
+        perc_flux_frac = perc_flux * t_proportion
 
         et_from_soil = np.zeros(ys_avg.shape)
         ET_switch = (
@@ -540,8 +438,7 @@ class CFE:
 
         # Scale fluxes
         sum_outflux = lateral_flux_frac + perc_flux_frac + et_from_soil_frac
-        if sum_outflux.all() == 0:
-            # If there is no flux exchange (increasing storage, rather than discharge)
+        if sum_outflux.any() == 0:
             flux_scale = 0
             if cfe_state.infiltration_depth_m > 0:
                 # To account for mass balance error by ODE
@@ -549,10 +446,10 @@ class CFE:
             else:
                 final_storage_m = y0[0]
         else:
-            final_storage_m = np.max(ys_concat[-1], 0)
             flux_scale = (
-                (ys_concat[0] - final_storage_m) + np.sum(infilt_to_soil_frac)
+                (ys_concat[0] - ys_concat[-1]) + np.sum(infilt_to_soil_frac)
             ) / np.sum(sum_outflux)
+            final_storage_m = ys_concat[-1]
 
         scaled_lateral_flux = lateral_flux_frac * flux_scale
         scaled_perc_flux = perc_flux_frac * flux_scale
@@ -564,11 +461,6 @@ class CFE:
         cfe_state.actual_et_from_soil_m_per_timestep = math.fsum(scaled_et_flux)
         reservoir["storage_m"] = final_storage_m
 
-        if cfe_state.verbose:
-            print(
-                f"Percolation: {cfe_state.primary_flux_m} ({cfe_state.primary_flux_m/np.sum(sum_outflux)*100}percent)"
-            )
-
         """
         # Comment out because this section raises Runtime error, as dS_soil_reservoir is extremely small
         # dS based on Soil reservoir
@@ -579,7 +471,7 @@ class CFE:
             warnings.warn(f'Mass balance error is more than 1%. \n dS({ys_concat[-1]-ys_concat[0]}) = I({cfe_state.infiltration_depth_m}) - Perc({cfe_state.primary_flux_m}) - Lat({cfe_state.secondary_flux_m}) - AET({cfe_state.actual_et_from_soil_m_per_timestep})')
         """
 
-    # __________________________________________________________________________________________________________
+        # __________________________________________________________________________________________________________
 
     ########## SINGLE OUTLET EXPONENTIAL RESERVOIR ###############
     ##########                -or-                 ###############
@@ -604,25 +496,58 @@ class CFE:
                 )
                 - 1
             )  # NWM do not subtracts 1 from the formulation
-            primary_flux_m = reservoir["coeff_primary"] * flux_exponential
-            secondary_flux_m = 0.0
-            cfe_state.flux_from_deep_gw_to_chan_m = np.minimum(
-                reservoir["storage_m"], primary_flux_m
-            )
-
+            cfe_state.primary_flux_m = reservoir["coeff_primary"] * flux_exponential
+            cfe_state.secondary_flux_m = 0.0
             return
 
-        if reservoir["is_exponential"] == False:
+        else:
             # linear/nonlinear conceptual reservoir with one/two outlets
-            primary_flux_m = reservoir["coeff_primary"] * np.power(
-                reservoir["storage_m"] / reservoir["storage_max_m"],
-                reservoir["exponent_primary"],
-            )
-            # print(primary_flux_m)
 
-            cfe_state.flux_from_deep_gw_to_chan_m = np.minimum(
-                reservoir["storage_m"], primary_flux_m
+            cfe_state.primary_flux_m = 0.0
+
+            storage_above_threshold_m = (
+                reservoir["storage_m"] - reservoir["storage_threshold_primary_m"]
+            )  # Equation 11 (Ogden's document).
+            # print('storage above threshold: %s' % (storage_above_threshold_m))
+            if storage_above_threshold_m > 0.0:
+                storage_diff = (
+                    reservoir["storage_max_m"]
+                    - reservoir["storage_threshold_primary_m"]
+                )  # Equation 11 (Ogden's document).
+                storage_ratio = (
+                    storage_above_threshold_m / storage_diff
+                )  # Equation 11 (Ogden's document).
+                storage_power = np.power(storage_ratio, reservoir["exponent_primary"])
+
+                cfe_state.primary_flux_m = reservoir["coeff_primary"] * storage_power
+
+                if cfe_state.primary_flux_m > storage_above_threshold_m:
+                    cfe_state.primary_flux_m = storage_above_threshold_m
+
+            cfe_state.secondary_flux_m = 0.0
+
+            storage_above_threshold_m = (
+                reservoir["storage_m"] - reservoir["storage_threshold_secondary_m"]
             )
+
+            if storage_above_threshold_m > 0.0:
+                storage_diff = (
+                    reservoir["storage_max_m"]
+                    - reservoir["storage_threshold_secondary_m"]
+                )  # Equation 12 (Ogden's document).
+                storage_ratio = storage_above_threshold_m / storage_diff
+                storage_power = np.power(storage_ratio, reservoir["exponent_secondary"])
+
+                cfe_state.secondary_flux_m = (
+                    reservoir["coeff_secondary"] * storage_power
+                )
+                if cfe_state.secondary_flux_m > (
+                    storage_above_threshold_m - cfe_state.primary_flux_m
+                ):
+                    cfe_state.secondary_flux_m = (
+                        storage_above_threshold_m - cfe_state.primary_flux_m
+                    )
+                    # print('all excess water went to primary flux')
 
             return
 

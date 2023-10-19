@@ -145,7 +145,7 @@ class BMI_CFE:
 
         # ________________________________________________
         # Time control
-        # self.time_step_size = 3600 * 24  # in second
+        # self.time_step_size = 3600
         self.timestep_h = self.time_step_size / 3600.0
         self.timestep_d = self.timestep_h / 24.0
         self.current_time_step = 0
@@ -193,9 +193,11 @@ class BMI_CFE:
         # Local values to be used in setting up soil reservoir
         # This seems to be the key component in the model
 
-        self.D_noahMP = self.soil_params[
-            "D"
-        ]  # 2  # Soil depth used for threshold calculation (NoahMP grid cell vertical grid size)
+        # trigger_z_m = 0.5                           # Added to calibration parameter
+
+        # field_capacity_atm_press_fraction = 0.33     # Added to calibration parameter
+
+        self.D_noahMP = 2  # Soil depth used for threshold calculation (NoahMP grid cell vertical grid size)
         self.trigger_z_m = self.trigger_z_fact * self.D_noahMP
 
         H_water_table_m = (
@@ -247,7 +249,6 @@ class BMI_CFE:
             "smcmax"
         ] * additional_term  # Equation 4 (and probably 5?) (Ogden's document).
 
-        print(field_capacity_storage_threshold_m)
         # ________________________________________________
         # lateral flow function parameters
         assumed_near_channel_water_table_slope = 0.01  # [L/L]
@@ -261,7 +262,7 @@ class BMI_CFE:
         # ________________________________________________
         # Subsurface reservoirs
         self.gw_reservoir = {
-            "is_exponential": self.gw_is_exponential,
+            "is_exponential": True,
             "storage_max_m": self.max_gw_storage,
             # GW primary reservoir params
             "coeff_primary": self.Cgw,
@@ -272,7 +273,7 @@ class BMI_CFE:
             "exponent_secondary": 1.0,
             "storage_threshold_secondary_m": 0.0,
         }
-        self.gw_reservoir["storage_m"] = self.Cgw  # 1.0e-06  # $self.gw_reservoir[
+        self.gw_reservoir["storage_m"] = 1.0e-06  # 1.0e-06  # $self.gw_reservoir[
         # "storage_max_m"
         # ]  * 0.5 # Start from the half groundwater reservoir
         self.volstart += self.gw_reservoir["storage_m"]
@@ -299,11 +300,11 @@ class BMI_CFE:
         self.volstart += self.soil_reservoir["storage_m"]
         self.vol_soil_start = self.soil_reservoir["storage_m"]
 
-        print(self.soil_reservoir["coeff_primary"])
-        print(self.soil_reservoir["coeff_secondary"])
-
+        # print(self.soil_reservoir['coeff_primary'])
+        # print(self.soil_reservoir['coeff_secondary'])
         # ________________________________________________
         # Schaake
+        # self.refkdt = 3.0       # Added to calibration parameters
         Ks_ref = 2.0e-06  # [m/s]
         self.Schaake_adjusted_magic_constant_by_soil_type = (
             self.refkdt * self.soil_params["satdk"] / Ks_ref
@@ -342,11 +343,11 @@ class BMI_CFE:
     # __________________________________________________________________________________________________________
     # __________________________________________________________________________________________________________
     # BMI: Model Control Function
-    def update_until(self, until):
+    def update_until(self, until, verbose=True):
         for i in range(self.current_time_step, until):
             self.cfe_model.run_cfe(self)
             self.scale_output()
-            if self.verbose:
+            if verbose:
                 print("total discharge: {}".format(self.total_discharge))
                 print("at time: {}".format(self.current_time))
 
@@ -377,7 +378,6 @@ class BMI_CFE:
         self.vol_et_to_atm = 0
         self.vol_et_from_soil = 0
         self.vol_et_from_rain = 0
-        self.vol_et_from_gw = 0
 
         # Partitioning
         self.vol_sch_runoff = 0
@@ -426,37 +426,38 @@ class BMI_CFE:
         self.soil_params = {}
         self.soil_params["bb"] = data_loaded["soil_params"]["bb"]
         self.soil_params["D"] = data_loaded["soil_params"]["D"]
-        self.soil_params["satdk"] = data_loaded["soil_params"][
-            "satdk"
-        ]  # [m/s] regardless of timestep
+        # self.soil_params["D"]
+        # Deleted soil_params['depth']. Not used in the model. Duplicate with D
+        # As T-shirt module does not exist, self.soil_params['mult'] is technically not used yet.
+        # self.soil_params['mult']        = data_loaded['soil_params']['mult']
+        self.soil_params["satdk"] = data_loaded["soil_params"]["satdk"]
         self.soil_params["satpsi"] = data_loaded["soil_params"]["satpsi"]
         self.soil_params["slop"] = data_loaded["soil_params"]["slop"]
         self.soil_params["smcmax"] = data_loaded["soil_params"]["smcmax"]
         self.soil_params["wltsmc"] = data_loaded["soil_params"]["wltsmc"]
+        # self.soil_params['exponent_secondary'] = data_loaded['soil_params']['exponent_secondary'] # FIXED to 1 based on schematics in the Ogden's document
 
         # GROUNDWATER PARAMETERS
         self.max_gw_storage = data_loaded["max_gw_storage"]
         self.Cgw = data_loaded["Cgw"]
         self.expon = data_loaded["expon"]
-        if data_loaded["gw_scheme"] == "Linear":
-            if self.verbose:
-                print("GW scheme - Linear reservoir")
-            self.gw_is_exponential = False
-        elif data_loaded["gw_scheme"] == "Exponential":
-            self.gw_is_exponential = True
-            if self.verbose:
-                print("GW scheme - Exponential reservoir")
 
         # Schaake parameters
         self.refkdt = data_loaded["refkdt"]
         # self.lksatfac = data_loaded["lksatfac"]
 
-        # Lateral flow parameters
+        #
         self.K_lf = data_loaded["K_lf"]
+        # self.K_lf = (
+        #     0.02
+        #     * self.lksatfac
+        #     * data_loaded["soil_params"]["satdk"]
+        #     * data_loaded["soil_params"]["D"]
+        #     * data_loaded["dd"]
+        # )  # Equation 11 in the Ogden's document
         self.K_nash = data_loaded["K_nash"]
         self.nash_storage = np.zeros(int(data_loaded["num_nash_storage"]))
-
-        # Surface runoff parameter
+        # self.nash_storage = np.array(data_loaded["nash_storage"])
         self.giuh_ordinates = np.array(data_loaded["giuh_ordinates"])
 
         # ___________________________________________________
@@ -469,13 +470,6 @@ class BMI_CFE:
         if "unit_test" in data_loaded.keys():
             self.unit_test = data_loaded["unit_test"]
             self.compare_results_file = data_loaded["compare_results_file"]
-
-        if "allow_percolation_below_threshold" in data_loaded.keys():
-            self.allow_percolation_below_threshold = data_loaded[
-                "allow_percolation_below_threshold"
-            ]
-        else:
-            self.allow_percolation_below_threshold = 0
 
         return
 
@@ -495,7 +489,6 @@ class BMI_CFE:
         self.vol_et_to_atm = 0
         self.vol_et_from_soil = 0
         self.vol_et_from_rain = 0
-        self.vol_et_from_gw = 0
 
         # Partitioning
         self.vol_sch_runoff = 0
@@ -594,7 +587,6 @@ class BMI_CFE:
             print("      volume AET: {:8.4f}".format(self.vol_et_to_atm))
             print("ET from rainfall: {:8.4f}".format(self.vol_et_from_rain))
             print("    ET from soil: {:8.4f}".format(self.vol_et_from_soil))
-            print("    ET from gw: {:8.4f}".format(self.vol_et_from_gw))
 
             print("\nSCHAAKE MASS BALANCE")
             print("    volume input: {:8.4f}".format(self.volin))
@@ -630,12 +622,6 @@ class BMI_CFE:
             print("init gw. storage: {:8.4f}".format(self.vol_in_gw_start))
             print("       vol to gw: {:8.4f}".format(self.vol_to_gw))
             print("     vol from gw: {:8.4f}".format(self.vol_from_gw))
-            print(
-                "       Q from gw: {:8.4f}".format(
-                    self.vol_from_gw - self.vol_et_from_gw
-                )
-            )
-            print("       E from gw: {:8.4f}".format(self.vol_et_from_gw))
             print("final gw.storage: {:8.4f}".format(self.vol_in_gw_end))
             print("    gw. residual: {:6.4e}".format(self.gw_residual))
 
@@ -974,13 +960,12 @@ class BMI_CFE:
     # ________________________________________________________
     def run_unit_test(
         self,
-        plot_lims=list(range(1, 1000)),
+        plot_lims=list(range(1, 52600)),  # 31062 for MH # 52600 for LW
         plot=False,
         print_fluxes=False,
         warm_up=True,
         warmup_offset=365 * 24 * 2,
         warmup_iteration=1,  # 2 years by default
-        verbose=False,
     ):
         self.load_forcing_file()
         self.load_unit_test_data()
@@ -1226,7 +1211,7 @@ class BMI_CFE:
                 self.unit_test_data[output_type][plot_lims], "--", label="Observed"
             )
             ax = plt.gca()
-            if (i == 1) or (i == 2):
+            if i == 1:
                 plt.yscale("log")
                 ax.set_title(
                     output_type + " (log scale)", loc="left", fontweight="bold"
