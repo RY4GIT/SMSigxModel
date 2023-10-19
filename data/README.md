@@ -8,11 +8,18 @@ This directory holds data from three catchments: Mahurangi, Coweeta, and Little 
 # Data retrieval
 
 ## Mahurangi
-We use the Mahurangi River Variability Experiment (MARVEX) datasets. The original observation data were obtained via personal communication. 
+We used the Mahurangi River Variability Experiment (MARVEX) datasets. The original observation data were obtained via personal communication. 
+
     Woods, R., R. Grayson, A. Western, M. Duncan, D. Wilson, et al. 4001. Experimental Design and Initial Results From the Mahurangi River Variability Experiment: MARVEX. Observations and Modelling of Land Surface Hydrological Processes: 201–213. doi: 10.1029/WS003p0201.
 
-## Coweeta
-Under construction. 
+## Coweeta (Watershed 2)
+### Rainfall, soil moisture, temperature data
+Downloaded [the CHOSEN ( the Comprehensive Hydrologic Observatory SEnsor Network)](https://doi.org/10.5281/zenodo.4060384)  dataset (Zhang et al., 2021). 
+    
+    Zhang, L., E. Moges, J.W. Kirchner, E. Coda, T. Liu, et al. 2021. CHOSEN: A synthesis of hydrometeorological data from intensively monitored catchments and comparative analysis of hydrologic extremes. Hydrol. Process. 35(11): e14429.
+
+### Streamflow data
+The data were obtained via personal communication. 
 
 ## Little Washita
 ### Rainfall, soil moisture, temperature data
