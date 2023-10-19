@@ -211,18 +211,14 @@ class CFE:
         # Solve groundwater reservoir
 
         self.groundwater_reservoir_flux_calc(cfe_state, cfe_state.gw_reservoir)
-
-        if cfe_state.primary_flux_m > cfe_state.gw_reservoir["storage_m"]:
-            cfe_state.flux_from_deep_gw_to_chan_m = cfe_state.gw_reservoir["storage_m"]
-        else:
-            cfe_state.flux_from_deep_gw_to_chan_m = cfe_state.primary_flux_m
+        cfe_state.flux_from_deep_gw_to_chan_m = np.minimum(
+            cfe_state.gw_primary_flux_m, cfe_state.gw_reservoir["storage_m"]
+        )
         cfe_state.gw_reservoir["storage_m"] -= cfe_state.flux_from_deep_gw_to_chan_m
+        if cfe_state.gw_reservoir["storage_m"] < 0:
+            print(cfe_state.gw_reservoir["storage_m"])
         cfe_state.vol_from_gw += cfe_state.flux_from_deep_gw_to_chan_m
         cfe_state.volout += cfe_state.flux_from_deep_gw_to_chan_m
-
-        # ________________________________________________
-        if not self.is_fabs_less_than_epsilon(cfe_state.secondary_flux_m, 1.0e-09):
-            print("problem with nonzero flux point 1\n")
 
         # ________________________________________________
         # SUBROUTINE
@@ -497,58 +493,58 @@ class CFE:
                 )
                 - 1
             )  # NWM do not subtracts 1 from the formulation
-            cfe_state.primary_flux_m = reservoir["coeff_primary"] * flux_exponential
+            cfe_state.gw_primary_flux_m = reservoir["coeff_primary"] * flux_exponential
             cfe_state.secondary_flux_m = 0.0
             return
 
-        else:
-            # linear/nonlinear conceptual reservoir with one/two outlets
+            # else:
+            #     # linear/nonlinear conceptual reservoir with one/two outlets
 
-            cfe_state.primary_flux_m = 0.0
+            #     cfe_state.primary_flux_m = 0.0
 
-            storage_above_threshold_m = (
-                reservoir["storage_m"] - reservoir["storage_threshold_primary_m"]
-            )  # Equation 11 (Ogden's document).
-            # print('storage above threshold: %s' % (storage_above_threshold_m))
-            if storage_above_threshold_m > 0.0:
-                storage_diff = (
-                    reservoir["storage_max_m"]
-                    - reservoir["storage_threshold_primary_m"]
-                )  # Equation 11 (Ogden's document).
-                storage_ratio = (
-                    storage_above_threshold_m / storage_diff
-                )  # Equation 11 (Ogden's document).
-                storage_power = np.power(storage_ratio, reservoir["exponent_primary"])
+            #     storage_above_threshold_m = (
+            #         reservoir["storage_m"] - reservoir["storage_threshold_primary_m"]
+            #     )  # Equation 11 (Ogden's document).
+            #     # print('storage above threshold: %s' % (storage_above_threshold_m))
+            #     if storage_above_threshold_m > 0.0:
+            #         storage_diff = (
+            #             reservoir["storage_max_m"]
+            #             - reservoir["storage_threshold_primary_m"]
+            #         )  # Equation 11 (Ogden's document).
+            #         storage_ratio = (
+            #             storage_above_threshold_m / storage_diff
+            #         )  # Equation 11 (Ogden's document).
+            #         storage_power = np.power(storage_ratio, reservoir["exponent_primary"])
 
-                cfe_state.primary_flux_m = reservoir["coeff_primary"] * storage_power
+            #         cfe_state.primary_flux_m = reservoir["coeff_primary"] * storage_power
 
-                if cfe_state.primary_flux_m > storage_above_threshold_m:
-                    cfe_state.primary_flux_m = storage_above_threshold_m
+            #         if cfe_state.primary_flux_m > storage_above_threshold_m:
+            #             cfe_state.primary_flux_m = storage_above_threshold_m
 
-            cfe_state.secondary_flux_m = 0.0
+            #     cfe_state.secondary_flux_m = 0.0
 
-            storage_above_threshold_m = (
-                reservoir["storage_m"] - reservoir["storage_threshold_secondary_m"]
-            )
+            #     storage_above_threshold_m = (
+            #         reservoir["storage_m"] - reservoir["storage_threshold_secondary_m"]
+            #     )
 
-            if storage_above_threshold_m > 0.0:
-                storage_diff = (
-                    reservoir["storage_max_m"]
-                    - reservoir["storage_threshold_secondary_m"]
-                )  # Equation 12 (Ogden's document).
-                storage_ratio = storage_above_threshold_m / storage_diff
-                storage_power = np.power(storage_ratio, reservoir["exponent_secondary"])
+            #     if storage_above_threshold_m > 0.0:
+            #         storage_diff = (
+            #             reservoir["storage_max_m"]
+            #             - reservoir["storage_threshold_secondary_m"]
+            #         )  # Equation 12 (Ogden's document).
+            #         storage_ratio = storage_above_threshold_m / storage_diff
+            #         storage_power = np.power(storage_ratio, reservoir["exponent_secondary"])
 
-                cfe_state.secondary_flux_m = (
-                    reservoir["coeff_secondary"] * storage_power
-                )
-                if cfe_state.secondary_flux_m > (
-                    storage_above_threshold_m - cfe_state.primary_flux_m
-                ):
-                    cfe_state.secondary_flux_m = (
-                        storage_above_threshold_m - cfe_state.primary_flux_m
-                    )
-                    # print('all excess water went to primary flux')
+            #         cfe_state.secondary_flux_m = (
+            #             reservoir["coeff_secondary"] * storage_power
+            #         )
+            #         if cfe_state.secondary_flux_m > (
+            #             storage_above_threshold_m - cfe_state.primary_flux_m
+            #         ):
+            #             cfe_state.secondary_flux_m = (
+            #                 storage_above_threshold_m - cfe_state.primary_flux_m
+            #             )
+            #             # print('all excess water went to primary flux')
 
             return
 
