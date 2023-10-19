@@ -3,7 +3,9 @@ import pandas as pd
 import os
 
 
-def plot_figure(forcing_file_path, data_file_path, output_file_path):
+def plot_figure(
+    forcing_file_path, data_file_path, output_file_path, time_resolution="hr"
+):
     _forcing_data = pd.read_csv(forcing_file_path)
     _forcing_data["time"] = pd.to_datetime(_forcing_data["time"])
     _forcing_data.set_index("time", inplace=True)
@@ -29,16 +31,16 @@ def plot_figure(forcing_file_path, data_file_path, output_file_path):
 
     # Plot the approximated data in each subplot
     sync_data["Rainfall"].plot(ax=axes[0])
-    axes[0].set_ylabel("Rainfall [m/hr]")
+    axes[0].set_ylabel(f"Rainfall [m/{time_resolution}]")
 
     ax02 = axes[0].twinx()
     sync_data["Flow"].plot(ax=ax02, color="orange")
-    ax02.set_ylabel("Flow [m/hr]")
+    ax02.set_ylabel(f"Flow [m/{time_resolution}]")
     ax02.invert_yaxis()
 
     ax1 = axes[1]
     sync_data["PET"].plot(ax=ax1)
-    ax1.set_ylabel("PET [m/hr]")
+    ax1.set_ylabel(f"PET [m/{time_resolution}]")
 
     ax2 = axes[2]
     sync_data["Soil Moisture Content"].plot(ax=ax2)
@@ -63,7 +65,7 @@ data_dir = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\Coweeta
 forcing_file_path = os.path.join(data_dir, "forcing_daily_2014_2018.csv")
 data_file_path = os.path.join(data_dir, "test_daily_2014_2018_sm_basinavg.csv")
 output_file_path = os.path.join(data_dir, "plot", "input_data.png")
-plot_figure(forcing_file_path, data_file_path, output_file_path)
+plot_figure(forcing_file_path, data_file_path, output_file_path, time_resolution="day")
 
 # ## Little Washita
 # forcing_file_path = rf"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\LittleWashita\little_washita_2006_2012.csv"
