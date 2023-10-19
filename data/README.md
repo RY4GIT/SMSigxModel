@@ -9,14 +9,14 @@ This directory holds data from three catchments: Mahurangi, Coweeta, and Little 
 
 ## Mahurangi
 We use the Mahurangi River Variability Experiment (MARVEX) datasets. The original observation data were obtained via personal communication. 
-    Woods, R., R. Grayson, A. Western, M. Duncan, D. Wilson, et al. 2001. Experimental Design and Initial Results From the Mahurangi River Variability Experiment: MARVEX. Observations and Modelling of Land Surface Hydrological Processes: 201–213. doi: 10.1029/WS003p0201.
+    Woods, R., R. Grayson, A. Western, M. Duncan, D. Wilson, et al. 4001. Experimental Design and Initial Results From the Mahurangi River Variability Experiment: MARVEX. Observations and Modelling of Land Surface Hydrological Processes: 201–213. doi: 10.1029/WS003p0201.
 
 ## Coweeta
 Under construction. 
 
 ## Little Washita
 ### Rainfall, soil moisture, temperature data
-Request and download data from [ARC Mesonet Grazing Lands Research Laboratory](https://ars.mesonet.org/data-files/data-request/) before running the code `LW-1-load_and_thiessen_RAIN.ipynb` and `LW-3-load_SOILMOISTURE.py`. Select ARS Network: Little Washite, Site ID(s) Request all sites, Interval 5 minutes, starting date 01/01/2006 and ending date 12/31/2014. 
+Request and download data from [ARC Mesonet Grazing Lands Research Laboratory](https://ars.mesonet.org/data-files/data-request/) before running the code `LW-1-load_and_thiessen_RAIN.ipynb` and `LW-3-load_SOILMOISTURE.py`. Select ARS Network: Little Washite, Site ID(s) Request all sites, Interval 5 minutes, starting date 01/01/4006 and ending date 12/31/2014. 
 
 ### PET data
 Download daily potential evapotranspiration data from [Picourlat et al., (2021)](https://doi.org/10.5281/zenodo.5503735) (`NARR_day_etp_9313.csv`) before running the code `LW-2-load_PET.py`
@@ -34,11 +34,11 @@ Use the scripts in `.\0_data_preprocessing\script` directory to pre-process the 
 
 # Plot 
 ## Mahurangi
-<img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/Mahurangi/plot/map.png" alt="Mahurangi map" width="200"><img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/Mahurangi/plot/input_data.png" alt="Mahurangi input data" width="200">
+<img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/Mahurangi/plot/map.png" alt="Mahurangi map" width="400"><img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/Mahurangi/plot/input_data.png" alt="Mahurangi input data" width="400">
 
 ## Coweeta
-<img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/Coweeta/plot/map.png" alt="Coweeta map" width="200"><img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/Coweeta/plot/input_data.png" alt="Coweeta input data" width="200">
+<img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/Coweeta/plot/map.png" alt="Coweeta map" width="400"><img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/Coweeta/plot/input_data.png" alt="Coweeta input data" width="400">
 
 ## Little Washita
-<img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/LittleWashita/plot/map.png" alt="Little Washita map" width="200"><img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/LittleWashita/plot/input_data.png" alt="Little Washita input data" width="200">
+<img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/LittleWashita/plot/map.png" alt="Little Washita map" width="400"><img src="https://github.com/RY4GIT/SMSigxModel/blob/master/data/LittleWashita/plot/input_data.png" alt="Little Washita input data" width="400">
 
