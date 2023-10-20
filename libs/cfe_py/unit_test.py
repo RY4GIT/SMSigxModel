@@ -41,7 +41,7 @@ params = {
     "K_lf": 0.005,
     "K_nash": 0.1,
     "num_nash_storage": 2,
-    "giuh_ordinates": [0.5, 0.5],
+    "giuh_ordinates": [1.0],
     "trigger_z_fact": 0.5,
     "alpha_fc": 0.18,
     "refkdt": 3,

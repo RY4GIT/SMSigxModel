@@ -275,9 +275,9 @@ class BMI_CFE:
             "exponent_secondary": 1.0,
             "storage_threshold_secondary_m": 0.0,
         }
-        self.gw_reservoir["storage_m"] = self.Cgw  # 1.0e-06  # $self.gw_reservoir[
-        # "storage_max_m"
-        # ]  * 0.5 # Start from the half groundwater reservoir
+        self.gw_reservoir["storage_m"] = (
+            self.gw_reservoir["storage_max_m"] * 0.1
+        )  # Start from the half groundwater reservoir
         self.volstart += self.gw_reservoir["storage_m"]
         self.vol_in_gw_start = self.gw_reservoir["storage_m"]
 
@@ -968,6 +968,7 @@ class BMI_CFE:
         warm_up=True,
         warmup_offset=365 * 24 * 2,
         warmup_iteration=1,  # 2 years by default
+        verbose=True,
     ):
         self.load_forcing_file()
         self.load_unit_test_data()
@@ -1000,7 +1001,8 @@ class BMI_CFE:
                     / previous_gw_storage
                 )
                 if diff < 1.0e-02:
-                    print(f"GW converged <1% after warm-up iteration {i}")
+                    if print_fluxes:
+                        print(f"GW converged <1% after warm-up iteration {i}")
                     break
 
                 previous_gw_storage = self.gw_reservoir["storage_m"]

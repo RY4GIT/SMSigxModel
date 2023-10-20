@@ -57,7 +57,6 @@ class CFEmodel:
         cfe_cfg["soil_params"]["slop"] = vector["slop"]
         cfe_cfg["soil_params"]["smcmax"] = vector["smcmax"]
         cfe_cfg["soil_params"]["wltsmc"] = vector["wltsmc"]
-        cfe_cfg["soil_params"]["D"] = vector["D"]
         cfe_cfg["max_gw_storage"] = vector["max_gw_storage"]
         cfe_cfg["Cgw"] = vector["Cgw"]
         cfe_cfg["expon"] = vector["expon"]
@@ -92,12 +91,10 @@ class CFEmodel:
         if self.eval_variable == "Flow":
             sim = self.cfe_instance.cfe_output_data["Flow"]
         elif self.eval_variable == "Soil Moisture Content":
-            if self.config["DATA"]["site"] == "Mahurangi":
-                D = self.cfe_instance.soil_params["D"]
-            elif self.config["DATA"]["site"] == "LittleWashita":
-                # Little Washita soil water storage is scaled to represent large infiltration & ET. Actual SM storage only exist in a small layer
-                D = self.cfe_instance.D_noahMP
-            sim = self.cfe_instance.cfe_output_data["SM storage"] / D
+            sim = (
+                self.cfe_instance.cfe_output_data["SM storage"]
+                / self.cfe_instance.soil_params["D"]
+            )
         return sim
 
     def return_runoff(self):

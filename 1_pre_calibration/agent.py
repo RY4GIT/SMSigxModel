@@ -92,7 +92,6 @@ class Spotpy_Agent:
                 "partrigger_z_fact",
                 "paralpha_fc",
                 "parK_lf",
-                "parD",
                 "parnum_nash_storage",
             ]
         ].to_csv(os.path.join(self.out_dir, "DDS_allresults.csv"))
