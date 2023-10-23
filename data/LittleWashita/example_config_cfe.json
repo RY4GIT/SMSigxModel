@@ -31,5 +31,6 @@
     ],
     "stand_alone": 1,
     "unit_test": 1,
+    "time_step_size": 3600, 
     "compare_results_file": "G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/data/LittleWashita/test_hourly_2006_2012_sm_basinavg.csv"
 }
