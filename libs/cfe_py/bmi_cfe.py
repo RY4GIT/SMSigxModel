@@ -317,6 +317,7 @@ class BMI_CFE:
         # ________________________________________________
         # Nash cascade
         self.K_nash = self.K_nash
+        self.vol_in_nash_start = 0
 
         # ----------- The output is area normalized, this is needed to un-normalize it
         #                         mm->m                             km2 -> m2          hour->s
@@ -405,6 +406,7 @@ class BMI_CFE:
         self.vol_to_gw_end = 0
 
         # Nash
+        self.vol_in_nash_start = 0
         self.vol_in_nash = 0
         self.vol_in_nash_end = 0
         self.vol_out_nash = 0
@@ -515,6 +517,7 @@ class BMI_CFE:
         self.vol_to_gw_end = 0
 
         # Nash
+        self.vol_in_nash_start = np.sum(self.nash_storage)
         self.vol_in_nash = 0
         self.vol_out_nash = 0
 
@@ -547,7 +550,12 @@ class BMI_CFE:
             - self.vol_soil_to_gw
             - self.vol_et_from_soil
         )
-        self.nash_residual = self.vol_in_nash - self.vol_out_nash - self.vol_in_nash_end
+        self.nash_residual = (
+            self.vol_in_nash_start
+            + self.vol_in_nash
+            - self.vol_out_nash
+            - self.vol_in_nash_end
+        )
         self.gw_residual = (
             self.vol_in_gw_start
             + self.vol_to_gw
@@ -615,6 +623,7 @@ class BMI_CFE:
             print("vol. soil resid.: {:6.4e}".format(self.soil_residual))
 
             print("\nNASH CASCADE CONCEPTUAL RESERVOIR MASS BALANCE")
+            print("  init. nash vol: {:8.4f}".format(self.vol_in_nash_start))
             print("    vol. to nash: {:8.4f}".format(self.vol_in_nash))
             print("  vol. from nash: {:8.4f}".format(self.vol_out_nash))
             print(" final vol. nash: {:8.4f}".format(self.vol_in_nash_end))
