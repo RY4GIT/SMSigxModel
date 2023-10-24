@@ -1,0 +1,22 @@
+{
+    "num_vars": 2,
+    "names": [
+        "bb",
+        "satdk"
+    ],
+    "bounds": [
+        [
+            2.0,
+            8.0
+        ],
+        [
+            1e-06,
+            0.0001
+        ]
+    ],
+    "groups": [
+        "bb",
+        "satdk"
+    ],
+    "sample_scaled": true
+}

@@ -8,7 +8,7 @@
         "satpsi": 0.263,
         "smcmax": 0.5,
         "wltsmc": 0.35,
-        "D": 2
+        "D": 0.6
     },
     "max_gw_storage": 50,
     "Cgw": 1,
