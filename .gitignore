@@ -11,6 +11,9 @@
 .idea
 .vscode
 
+**/trash/*
+**/results/*
+
 0_data_preprocessing/raw_data/*
 0_data_preprocessing/script/auth.ini
 1_pre_calibration/results/*
