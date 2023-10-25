@@ -22,7 +22,7 @@ def main():
     start = time.perf_counter()
 
     config = configparser.ConfigParser()
-    config.read("1_sensitivity_analysis/config.ini")
+    config.read("2_sensitivity_analysis/config.ini")
 
     print(f"### Start {config['SALib']['method']} sensitivity analysis ###")
 

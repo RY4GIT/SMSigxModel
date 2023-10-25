@@ -19,6 +19,8 @@ from bmi_cfe import BMI_CFE
 import shutil
 import random
 
+from evaluator import Evaluator
+
 
 def duplicate_file(source_path):
     i = random.randint(1, 9999)
@@ -111,11 +113,11 @@ class CFEmodel:
         sim_synced = df[self.eval_variable + "_x"]
         obs_synced = df[self.eval_variable + "_y"]
 
-        # Calculate objective metrics
-        if self.like_measure == "NashSutcliffe":
-            like = spotpy.objectivefunctions.nashsutcliffe(
-                evaluation=obs_synced, simulation=sim_synced
-            )
+        evaluator = Evaluator(
+            config=self.config, observation=obs_synced, simulation=sim_synced
+        )
+
+        like = evaluator.evaluate()
 
         return like
 
