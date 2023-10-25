@@ -86,7 +86,7 @@ class CFEmodel:
         sim = self.to_datetime(
             df=self.cfe_instance.cfe_output_data[["Time", self.eval_variable]],
             time_column="Time",
-            format="%Y-%m-%d %H:%M:%S",
+            format="%Y-%m-%d",
         )
         obs = self.to_datetime(
             df=self.cfe_instance.unit_test_data[["Time", self.eval_variable]],
@@ -114,7 +114,10 @@ class CFEmodel:
         obs_synced = df[self.eval_variable + "_y"]
 
         evaluator = Evaluator(
-            config=self.config, observation=obs_synced, simulation=sim_synced
+            config=self.config,
+            observation=obs_synced,
+            simulation=sim_synced,
+            time_index=pd.to_datetime(df["Time"]).values,
         )
 
         like = evaluator.evaluate()

@@ -11,10 +11,13 @@ import spotpy
 
 
 class Evaluator:
-    def __init__(self, config=None, simulation=None, observation=None) -> None:
+    def __init__(
+        self, config=None, simulation=None, observation=None, time_index=None
+    ) -> None:
         self.config = config
         self.observation = observation
         self.simulation = simulation
+        self.time_index = time_index
 
         self.like_measure = self.config["SALib"]["like_measure"]
 
@@ -27,7 +30,7 @@ class Evaluator:
         elif self.like_measure == "KGE":
             like = self.calc_KGE()
         elif "SeasonTrans" in self.like_measure:
-            season_trans = self.calc_SeasonTrans(self.soilmoisture_var_name)
+            season_trans = self.calc_SeasonTrans()
 
             if self.like_measure == "SeasonTrans of Soil dry2wet_start":
                 like = season_trans[0]
@@ -55,7 +58,7 @@ class Evaluator:
     def calc_SeasonTrans(self):
         # Calculate metrics for observed timeseries
         sig_obs = SMSig(
-            ts_time=self.observation.index.to_numpy(),
+            ts_time=self.time_index,
             ts_value=self.observation.to_numpy(),
             plot_results=False,
             plot_label="obs",
@@ -66,7 +69,7 @@ class Evaluator:
 
         # Calculate metrics for SIMULATED timeseries
         sig_sim = SMSig(
-            ts_time=self.simulation.index.to_numpy(),
+            ts_time=self.time_index,
             ts_value=self.simulation.to_numpy(),
             plot_results=False,
             plot_label="sim",

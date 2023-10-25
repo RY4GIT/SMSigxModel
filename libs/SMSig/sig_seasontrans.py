@@ -47,15 +47,12 @@ class SMSig:
         self.plot_label = plot_label
         self.verbose = verbose
 
-        # Aggregate the timeseries of data into daily
-        dti = pd.to_datetime(ts_time)
-        tt = pd.Series(ts_value, index=dti)
-        tt_avg = tt.resample("D").mean()
+        tt = pd.Series(ts_value, index=pd.to_datetime(ts_time))
 
         # Define variables
-        self.tt = tt_avg  # Timetable
-        self.ts_time_datetime = tt_avg.index.to_numpy()  # Timestamp array in datetime
-        self.ts_value = tt_avg.to_numpy()  # Soil moisture value array
+        self.tt = tt  # Timetable
+        self.ts_time_datetime = tt.index.to_numpy()  # Timestamp array in datetime
+        self.ts_value = tt.to_numpy()  # Soil moisture value array
 
         # Convert timestamp in seconds
         ts_timestamp_ns = self.ts_time_datetime - np.full(
@@ -66,7 +63,8 @@ class SMSig:
         # Define a vairable
         self.ts_time_d = ts_timestamp_d.astype("int")  # Timestamp array in dates
 
-        self.movmean()
+        # Skip movmean as the data is already daily
+        # self.movmean()
 
         # self.timestep = hourly # TODO: make it flexible later
         # TODO: Moving average for 7days or 30days
