@@ -99,8 +99,6 @@ class SMSig:
         self.t_valley = t_valley
 
         # initialization
-        P0_d2w = [np.min(self.tt.values), 0.0001, 50, 150]
-        P0_w2d = [np.max(self.tt.values), -0.0001, 50, 150]
         trans_type = ["dry2wet", "wet2dry"]
 
         seasontrans_date = np.empty((len(self.t_valley), 4))
@@ -171,13 +169,33 @@ class SMSig:
                     x = np.arange(start=1, step=1, stop=len(seasonsm_value) + 1)
                     y = seasonsm_value
                     if trans_type[trans] == "dry2wet":
-                        P0 = P0_d2w
+                        P0 = [
+                            np.nanmin(self.tt.values),
+                            0.001,
+                            50,
+                            len(seasonsm_value) - 30,
+                        ]
                         Plb = (-2, 0, 0, 30)
-                        Pub = (1, 0.1, 150, 200)
+                        Pub = (
+                            np.nanmax(self.tt.values),
+                            0.1,
+                            len(seasonsm_value),
+                            len(seasonsm_value) + 60,
+                        )
                     elif trans_type[trans] == "wet2dry":
-                        P0 = P0_w2d
-                        Plb = (0, -0.1, 0, 30)
-                        Pub = (2, 0, 150, 200)
+                        P0 = [
+                            np.nanmax(self.tt.values) / 2,
+                            -0.001,
+                            50,
+                            len(seasonsm_value) - 30,
+                        ]
+                        Plb = (-0.1, -0.1, 0, 30)
+                        Pub = (
+                            np.nanmax(self.tt.values),
+                            0,
+                            len(seasonsm_value),
+                            len(seasonsm_value) + 60,
+                        )
 
                     popt, pcov = curve_fit(
                         piecewise_linear, x, y, p0=P0, bounds=(Plb, Pub)

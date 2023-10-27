@@ -105,16 +105,17 @@ class Agent_SALib_CFE:
         try:
             self.model.run()
             Y_i = self.model.evaluate()
+
             if np.isnan(Y_i):
                 # Some parameters never impact soil moisture content: in this case replace Y_i with "perfect score"
                 if self.config["SALib"]["eval_variable"] == "Soil Moisture Content":
-                    print("SM")
                     if (self.config["SALib"]["like_measure"] == "KGE") or (
                         self.config["SALib"]["like_measure"] == "NashSutcliffe"
                     ):
                         return 1
                     elif "SeasonTrans" in self.config["SALib"]["like_measure"]:
                         return 0
+            
             return Y_i
 
         except Exception as e:
