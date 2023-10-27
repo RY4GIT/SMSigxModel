@@ -119,7 +119,6 @@ class CFEmodel:
         )
 
         like = evaluator.evaluate()
-
         return like
 
     def to_datetime(self, df, time_column, format):
