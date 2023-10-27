@@ -3,8 +3,8 @@ bb,0.01,21.94,1
 satdk,0,0.017424,1
 satpsi,0.069,0.78,1
 slop,0,1,1
-smcmax,0.45,1,1
-wltsmc,0,0.45,1
+smcmax,0.29,1,1
+wltsmc,0,0.29,1
 max_gw_storage,0.01,0.25,1
 Cgw,1e-06,1e-02,1
 expon,1,8,1

@@ -59,12 +59,10 @@ class CFEmodel:
 
         for i, param_name in enumerate(problem["names"]):
             if param_name in [
-                "depth",
                 "bb",
-                "mult",
                 "satdk",
-                "satpsi",
                 "slop",
+                "satpsi",
                 "smcmax",
                 "wltsmc",
                 "D",
