@@ -13,6 +13,7 @@ dependencies:
   - tqdm
   - requests
   - netcdf4
+  - adjusttext
   - pip:
       - numbakit-ode
       - salib
