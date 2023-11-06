@@ -311,7 +311,7 @@ class BMI_CFE:
         self.Schaake_adjusted_magic_constant_by_soil_type = (
             self.refkdt * self.soil_params["satdk"] / Ks_ref
         )  # Schaake partitioning function 2  (Ogden's document)
-        print(self.Schaake_adjusted_magic_constant_by_soil_type)
+        # print(self.Schaake_adjusted_magic_constant_by_soil_type)
         self.Schaake_output_runoff_m = 0
         self.infiltration_depth_m = 0
 

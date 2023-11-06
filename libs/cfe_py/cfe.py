@@ -215,8 +215,8 @@ class CFE:
             cfe_state.gw_primary_flux_m, 0, cfe_state.gw_reservoir["storage_m"]
         )
         cfe_state.gw_reservoir["storage_m"] -= cfe_state.flux_from_deep_gw_to_chan_m
-        if cfe_state.gw_reservoir["storage_m"] < 0:
-            print(cfe_state.gw_reservoir["storage_m"])
+        # if cfe_state.gw_reservoir["storage_m"] < 0:
+        #     print(cfe_state.gw_reservoir["storage_m"])
         cfe_state.vol_from_gw += cfe_state.flux_from_deep_gw_to_chan_m
         cfe_state.volout += cfe_state.flux_from_deep_gw_to_chan_m
 

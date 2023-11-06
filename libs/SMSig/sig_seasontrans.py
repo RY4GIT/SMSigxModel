@@ -197,7 +197,7 @@ class SMSig:
                         ]
                         Plb = (-1, -0.1, 0, 30)
                         Pub = (
-                            max_sm * 2,
+                            1,
                             0,
                             len(seasonsm_value),
                             len(seasonsm_value) + 60,
