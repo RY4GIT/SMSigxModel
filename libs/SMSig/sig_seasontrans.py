@@ -63,8 +63,7 @@ class SMSig:
         # Define a vairable
         self.ts_time_d = ts_timestamp_d.astype("int")  # Timestamp array in dates
 
-        # Skip movmean as the data is already daily
-        # self.movmean()
+        self.movmean()
 
         # self.timestep = hourly # TODO: make it flexible later
         # TODO: Moving average for 7days or 30days
@@ -122,15 +121,20 @@ class SMSig:
                 if trans_type[trans] == "dry2wet":
                     trans_start0 = self.t_valley[i]
                     trans_end0 = trans_start0 + datetime.timedelta(days=300)
+                    buffer_start = 30
+                    buffer_end = 0
                 elif trans_type[trans] == "wet2dry":
                     trans_start0 = self.t_valley[i] + datetime.timedelta(days=365 / 2)
-                    trans_end0 = self.t_valley[i + 1] + datetime.timedelta(days=50)
+                    trans_end0 = self.t_valley[i + 1] + datetime.timedelta(days=0)
+                    buffer_start = 30
+                    buffer_end = 15
                 # print(trans_start0, trans_end0)
 
                 # Crop the season with 1 month buffer
-                mask = (self.tt.index >= trans_start0 - datetime.timedelta(days=30)) & (
-                    self.tt.index <= trans_end0 + datetime.timedelta(days=30)
-                )
+                mask = (
+                    self.tt.index
+                    >= trans_start0 - datetime.timedelta(days=buffer_start)
+                ) & (self.tt.index <= trans_end0 + datetime.timedelta(days=buffer_end))
                 seasonsm = self.tt.loc[mask]
                 seasonsm_value = seasonsm.to_numpy()
 
@@ -186,14 +190,14 @@ class SMSig:
                         )
                     elif trans_type[trans] == "wet2dry":
                         P0 = [
-                            max_sm / 2,
-                            -0.001,
+                            max_sm,
+                            -0.0001,
                             50,
                             len(seasonsm_value) - 30,
                         ]
                         Plb = (-1, -0.1, 0, 30)
                         Pub = (
-                            max_sm,
+                            max_sm * 2,
                             0,
                             len(seasonsm_value),
                             len(seasonsm_value) + 60,
