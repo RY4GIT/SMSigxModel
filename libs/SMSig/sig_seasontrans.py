@@ -167,31 +167,33 @@ class SMSig:
                     # print('data is good')
 
                     x = np.arange(start=1, step=1, stop=len(seasonsm_value) + 1)
+                    min_sm = np.nanmin(self.tt.values)
+                    max_sm = np.nanmax(np.nanmax(self.tt.values))
                     y = seasonsm_value
                     if trans_type[trans] == "dry2wet":
                         P0 = [
-                            np.nanmin(self.tt.values),
+                            min_sm,
                             0.001,
                             50,
                             len(seasonsm_value) - 30,
                         ]
-                        Plb = (-2, 0, 0, 30)
+                        Plb = (min_sm - 1, 0, 0, 30)
                         Pub = (
-                            np.nanmax(self.tt.values),
+                            1,
                             0.1,
                             len(seasonsm_value),
                             len(seasonsm_value) + 60,
                         )
                     elif trans_type[trans] == "wet2dry":
                         P0 = [
-                            np.nanmax(self.tt.values) / 2,
+                            max_sm / 2,
                             -0.001,
                             50,
                             len(seasonsm_value) - 30,
                         ]
-                        Plb = (-0.1, -0.1, 0, 30)
+                        Plb = (-1, -0.1, 0, 30)
                         Pub = (
-                            np.nanmax(self.tt.values),
+                            max_sm,
                             0,
                             len(seasonsm_value),
                             len(seasonsm_value) + 60,

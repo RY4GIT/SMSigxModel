@@ -115,7 +115,7 @@ class Agent_SALib_CFE:
                         return 1
                     elif "SeasonTrans" in self.config["SALib"]["like_measure"]:
                         return 0
-            
+
             return Y_i
 
         except Exception as e:
