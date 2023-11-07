@@ -1011,12 +1011,14 @@ class BMI_CFE:
                         abs(previous_gw_storage - self.gw_reservoir["storage_m"])
                         / previous_gw_storage
                     )
+                elif (previous_gw_storage ==0) and (self.gw_reservoir["storage_m"]==0):
+                    diff = 0
                 else:
                     diff = 9999
 
                 if diff < 1.0e-02:
-                    # if print_fluxes:
-                    print(f"GW converged <1% after warm-up iteration {i}")
+                    if print_fluxes:
+                        print(f"GW converged <1% after warm-up iteration {i}")
                     break
 
                 previous_gw_storage = self.gw_reservoir["storage_m"].copy()

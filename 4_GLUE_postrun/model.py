@@ -31,6 +31,8 @@ class CFEmodel:
     def __init__(self, config=None):
         # Configs
         self.config = config
+        self.warmup_offset = int(config["spotpy"]["warmup_offset"])
+        self.warmup_iteration = int(config["spotpy"]["warmup_iteration"])
 
     def initialize(self, nth_run=0, behavioral_params_set=None):
         """Initialize CFE model for the n-th GLUE run"""
@@ -62,7 +64,13 @@ class CFEmodel:
 
     def run(self):
         """Run CFE model and return the synchronized timeseries of data & outputs"""
-        self.cfe_instance.run_unit_test(plot=False, warm_up=True)
+        self.cfe_instance.run_unit_test(
+            plot=False,
+            print_fluxes=False,
+            warm_up=True,
+            warmup_offset=self.warmup_offset,
+            warmup_iteration=self.warmup_iteration,
+        )
 
         # Returns the synchronized timeseries for the variables of interest
         obs = to_datetime(
