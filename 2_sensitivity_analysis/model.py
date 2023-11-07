@@ -45,6 +45,8 @@ class CFEmodel:
         self.config = config
         self.like_measure = config["SALib"]["like_measure"]
         self.eval_variable = config["SALib"]["eval_variable"]
+        self.warmup_offset = int(config["CFE"]["warmup_offset"])
+        self.warmup_iteration = int(config["CFE"]["warmup_iteration"])
 
         # Copy the CFE config file for sensitivty analysis
         destination_path = duplicate_file(
@@ -78,7 +80,13 @@ class CFEmodel:
         self.cfe_instance.initialize()
 
     def run(self):
-        self.cfe_instance.run_unit_test(plot=False, print_fluxes=False, warm_up=True)
+        self.cfe_instance.run_unit_test(
+            plot=False,
+            print_fluxes=False,
+            warm_up=True,
+            warmup_offset=self.warmup_offset,
+            warmup_iteration=self.warmup_iteration,
+        )
 
     def evaluate(self):
         sim = self.to_datetime(

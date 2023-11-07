@@ -1006,16 +1006,20 @@ class BMI_CFE:
                         )
                     self.cfe_model.run_cfe(self)
 
-                diff = (
-                    abs(previous_gw_storage - self.gw_reservoir["storage_m"])
-                    / previous_gw_storage
-                )
+                if previous_gw_storage != 0:
+                    diff = (
+                        abs(previous_gw_storage - self.gw_reservoir["storage_m"])
+                        / previous_gw_storage
+                    )
+                else:
+                    diff = 9999
+
                 if diff < 1.0e-02:
-                    if print_fluxes:
-                        print(f"GW converged <1% after warm-up iteration {i}")
+                    # if print_fluxes:
+                    print(f"GW converged <1% after warm-up iteration {i}")
                     break
 
-                previous_gw_storage = self.gw_reservoir["storage_m"]
+                previous_gw_storage = self.gw_reservoir["storage_m"].copy()
 
             # Reset the volume tracking after warm-up. Leave resevoirs (the GW and soil reservoir etc.) as the current state
             self.reset_volume_tracking_after_warmup()
