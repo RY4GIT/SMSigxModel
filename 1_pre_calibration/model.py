@@ -53,19 +53,19 @@ class CFEmodel:
 
         cfe_cfg["soil_params"]["bb"] = vector["bb"]
         cfe_cfg["soil_params"]["satdk"] = vector["satdk"]
-        cfe_cfg["soil_params"]["satpsi"] = vector["satpsi"]
         cfe_cfg["soil_params"]["slop"] = vector["slop"]
         cfe_cfg["soil_params"]["smcmax"] = vector["smcmax"]
         cfe_cfg["soil_params"]["wltsmc"] = vector["wltsmc"]
         cfe_cfg["max_gw_storage"] = vector["max_gw_storage"]
-        cfe_cfg["Cgw"] = vector["Cgw"]
-        cfe_cfg["expon"] = vector["expon"]
-        cfe_cfg["K_nash"] = vector["K_nash"]
-        cfe_cfg["refkdt"] = vector["refkdt"]
-        cfe_cfg["trigger_z_fact"] = vector["trigger_z_fact"]
-        cfe_cfg["alpha_fc"] = vector["alpha_fc"]
-        cfe_cfg["K_lf"] = vector["K_lf"]
-        cfe_cfg["num_nash_storage"] = int(vector["num_nash_storage"])
+        # cfe_cfg["soil_params"]["satpsi"] = vector["satpsi"]
+        # cfe_cfg["Cgw"] = vector["Cgw"]
+        # cfe_cfg["expon"] = vector["expon"]
+        # cfe_cfg["K_nash"] = vector["K_nash"]
+        # cfe_cfg["refkdt"] = vector["refkdt"]
+        # cfe_cfg["trigger_z_fact"] = vector["trigger_z_fact"]
+        # cfe_cfg["alpha_fc"] = vector["alpha_fc"]
+        # cfe_cfg["K_lf"] = vector["K_lf"]
+        # cfe_cfg["num_nash_storage"] = int(vector["num_nash_storage"])
 
         with open(self.cfe_instance.cfg_file, "w") as out_file:
             json.dump(cfe_cfg, out_file, indent=4)
