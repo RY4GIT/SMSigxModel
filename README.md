@@ -1,4 +1,4 @@
-# SMSigxModel
+# Summary
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) ![versions](https://img.shields.io/pypi/pyversions/hydra-core.svg) [![CodeStyle](https://img.shields.io/badge/code%20style-Black-black)]()  
 This project explores the application of soil moisture signature ([Branger et al., 2019](https://doi.org/10.1002/hyp.13645); [Araki et al., 2020](https://onlinelibrary.wiley.com/doi/full/10.1002/hyp.14553)) to enhance streamflow and soil moisture prediction within a rainfall-runoff model.
 
@@ -22,6 +22,11 @@ Formats dataset for the three watersheds (Mahurangi, Coweeta WS02, and Little Wa
 
 ### 1_pre_calibration
 Conducts a DDS optimization. This step helps you find the best parameter values and ranges for a watershed, that can be used for subsequent analysis.
+
+To run:
+```bash
+python .\1_pre_calibration\__main__.py
+```
 
 - ```config.ini```
     - The main config file. Copy `example_config.ini` and change it to your desired setting
@@ -84,6 +89,12 @@ Executes post-analysis and visualizes the results from 4_GLUE_postrun. Follow th
   - `Total Discharge`: streamflow discharge in [m3/s] (`Flow` multiplied by area and time conversion)
 
 ## Resources
+
+#### Calibration 
+Spotpy documentation: https://spotpy.readthedocs.io/en/latest/
+
+    Houska, T., Kraft, P., Chamorro-Chavez, A. and Breuer, L.: SPOTting Model Parameters Using a Ready-Made Python Package, PLoS ONE, 10(12), e0145180, doi:10.1371/journal.pone.0145180, 2015
+
 
 #### Sensitivity analysis 
 SALib documentation: https://salib.readthedocs.io/en/latest/
