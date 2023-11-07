@@ -2,7 +2,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) ![versions](https://img.shields.io/pypi/pyversions/hydra-core.svg) [![CodeStyle](https://img.shields.io/badge/code%20style-Black-black)]()  
 This project explores the application of soil moisture signature ([Branger et al., 2019](https://doi.org/10.1002/hyp.13645); [Araki et al., 2020](https://onlinelibrary.wiley.com/doi/full/10.1002/hyp.14553)) to enhance streamflow and soil moisture prediction within a rainfall-runoff model.
 
-This code is currently in development and does not guarantee to run yet. 
+This code is currently in development and does not guarantee to run yet.
 
 ## Installation
 Use conda to create your own env based on our ```environment.yml``` file
@@ -13,54 +13,62 @@ conda activate CFE
 ```
 
 ## Running this code
-Each directory houses a package designed to run each experiment step. These packages utilize the `__main__.py` functions, and they come with configuration files (typically named `config.ini`) along with some additional configuration files.
+Each directory houses a package designed to run each experiment step. These packages utilize the `__main__.py` functions, and they come with configuration files (typically named `config.ini`) along with some additional configuration files (typically named `config_xxx.csv`).
 
 The primary branch is set up to run the Mahurangi test case. If you wish to use a different case, adjust the configuration files accordingly.
 
 ### 0_data_preprocessing
-Formats Mahurangi & Little Washita data. Formatted datasets are saved in the `data` folder. If you only plan to run experiments #1 through #4, this step isn't required.
+Formats dataset for the three watersheds (Mahurangi, Coweeta WS02, and Little Washita). Formatted datasets are saved in the `data` folder. If you only plan to run experiments #1 through #4, this step isn't required.
 
-### 1_sensitivity_analysis
-Conducts a Morris sensitivity analysis.
+### 1_pre_calibration
+Conducts a DDS optimization. This step helps you find the best parameter values and ranges for a watershed, that can be used for subsequent analysis.
+
+- ```config.ini```
+    - The main config file. Copy `example_config.ini` and change it to your desired setting
+- ```config_spotpy.csv```
+    - The configuration file that defines the calibrated parameters and their bounds
+
+### 2_sensitivity_analysis
+Conducts a Morris sensitivity analysis. This step helps you screen parameters to be used in the GLUE analysis. This step is not dependent on the `1_pre_calibration`; If you are only interested in the sensitivity analysis, start from this step.  
 
 To run:
 ```bash
-python .\1_sensitivity_analysis\__main__.py
+python .\2_sensitivity_analysis\__main__.py
 ```
 
 - ```config.ini```
     - The main config file. Copy `example_config.ini` and change it to your desired setting
 - ```config_SALib.csv```
-    - The configuration file that defines the calibrated parameter and its bounds
+    - The configuration file that defines the calibrated parameters and their bounds
 
-### 2_GLUE_prerun
-Runs the rainfall-runoff model with various randomly-generated parameters in preparation for the next step. This step is not dependent on the `1_sensitivity_analysis`; If you are only interested in the GLUE experiments, start from this step.  
+### 3_GLUE_prerun
+Runs the rainfall-runoff model with various randomly-generated parameters in preparation for the next step. This step is not dependent on the `1_pre_calibration` nor `2_sensitivity_analysis`; If you are only interested in the GLUE experiments, start from this step.  
 
 To run:
 ```bash
-python .\2_GLUE_prerun\__main__.py
+python .\3_GLUE_prerun\__main__.py
 ```
 
 - ```config.ini```
     - The main config file. Copy `example_config_xxx.ini` and change it to your desired setting
 - ```config_GLUE.csv```
-    - The configuration file that defines the calibrated parameter and its bounds
+    - The configuration file that defines the calibrated parameters and their bounds
 
-### 3_GLUE_postrun 
-Analyzes the output from `2_GLUE_prerun` using GLUE.
+### 4_GLUE_postrun 
+Analyzes the output from `3_GLUE_prerun` using GLUE.
 
 To run:
 ```bash
-python .\3_GLUE_postrun\__main__.py
+python .\4_GLUE_postrun\__main__.py
 ```
 
 - ```config.ini```
     - The main config file. Copy `example_config_xxx.ini` and change it to your desired setting
-- ```.3_GLUE_postrun\config_criteria\GLUE_criteria_{criteria_id}.json```
+- ```.4_GLUE_postrun\config_criteria\GLUE_criteria_{criteria_id}.json```
     - The configuration file that defines the criteria of GLUE behavioral threshold. The `criteria_id` in the filename corresponding to `config["GLUE"]["criteria_id"]`
 
-### 4_post_analysis
-Executes post-analysis and visualizes the results from 3_GLUE_postrun. Follow the Jupyter Notebooks in numerical order for this step.
+### 5_post_analysis
+Executes post-analysis and visualizes the results from 4_GLUE_postrun. Follow the Jupyter Notebooks in numerical order for this step.
 
 ## Data
 - Input data requirements

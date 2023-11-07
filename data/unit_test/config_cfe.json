@@ -3,12 +3,12 @@
     "catchment_area_km2": 0.121,
     "soil_params": {
         "bb": 5,
-        "satdk": 0.0001,
+        "satdk": 3.67e-05,
         "satpsi": 0.141,
         "slop": 0.13742288100015995,
         "smcmax": 0.998,
         "wltsmc": 0.000142,
-        "D": 0.6
+        "D": 2
     },
     "max_gw_storage": 0.1964128583705216,
     "Cgw": 2.89e-05,
