@@ -114,7 +114,7 @@ class Agent_GLUE_CFE(object):
         """Join and save results from all runs to dataframe"""
 
         # Store run ID
-        self.run_id = [result[0] for result in all_results]
+        self.run_id = [result[0] for result in all_results if result is not None]
 
         # # Store prior parameters
         # self._pri_paras = [result[1] for result in all_results]
@@ -128,7 +128,8 @@ class Agent_GLUE_CFE(object):
         param_names = all_results[0][1][0]
         param_values = []
         for result in all_results:
-            param_values.append(result[1][1])
+            if result is not None:
+                param_values.append(result[1][1])
 
         self.prior_params = pd.DataFrame(param_values, columns=param_names)
         self.prior_params["run_id"] = self.run_id
@@ -143,7 +144,9 @@ class Agent_GLUE_CFE(object):
         )
 
         # Store Evaluation metrics (whole period)
-        self.eval_metrics = pd.concat([result[2] for result in all_results])
+        self.eval_metrics = pd.concat(
+            [result[2] for result in all_results if result is not None]
+        )
         self.eval_metrics.to_csv(
             os.path.join(self.out_path, "evaluation_metrics.csv"),
             sep=",",
@@ -154,7 +157,9 @@ class Agent_GLUE_CFE(object):
         )
 
         # Store Evaluation metrics (monthly)
-        self.eval_metrics_mo = pd.concat([result[3] for result in all_results])
+        self.eval_metrics_mo = pd.concat(
+            [result[3] for result in all_results if result is not None]
+        )
         self.eval_metrics_mo.to_csv(
             os.path.join(self.out_path, "evaluation_metrics_monthly.csv"),
             sep=",",

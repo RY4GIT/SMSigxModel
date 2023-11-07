@@ -1011,7 +1011,9 @@ class BMI_CFE:
                         abs(previous_gw_storage - self.gw_reservoir["storage_m"])
                         / previous_gw_storage
                     )
-                elif (previous_gw_storage ==0) and (self.gw_reservoir["storage_m"]==0):
+                elif (previous_gw_storage == 0) and (
+                    self.gw_reservoir["storage_m"] == 0
+                ):
                     diff = 0
                 else:
                     diff = 9999

@@ -64,4 +64,4 @@ def main(config_path):
 
 
 if __name__ == "__main__":
-    main(config_path="2_GLUE_prerun/config.ini")
+    main(config_path="3_GLUE_prerun/config.ini")
