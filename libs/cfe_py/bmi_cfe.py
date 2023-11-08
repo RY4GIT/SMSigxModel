@@ -1045,8 +1045,8 @@ class BMI_CFE:
                         )
                     break
 
-                previous_gw_storage = self.gw_reservoir["storage_m"].copy()
-                previous_sm_storage = self.soil_reservoir["storage_m"].copy()
+                previous_gw_storage = self.gw_reservoir["storage_m"]
+                previous_sm_storage = self.soil_reservoir["storage_m"]
 
             # Reset the volume tracking after warm-up. Leave resevoirs (the GW and soil reservoir etc.) as the current state
             self.reset_volume_tracking_after_warmup()
