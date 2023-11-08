@@ -386,12 +386,11 @@ class CFE:
             ),
             tfirst=True,
             Dfun=jac,
-            full_output=1,
         )
 
         # Finalize results
         ts_concat = t
-        ys_concat = np.concatenate(sol[0], axis=0)
+        ys_concat = np.concatenate(sol, axis=0)
 
         # Calculate fluxes
         t_proportion = np.diff(ts_concat)
