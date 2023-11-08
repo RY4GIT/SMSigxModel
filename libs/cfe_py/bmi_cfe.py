@@ -976,8 +976,8 @@ class BMI_CFE:
         plot=False,
         print_fluxes=False,
         warm_up=True,
-        warmup_offset=365 * 24 * 2,
-        warmup_iteration=1,  # 2 years by default
+        warmup_offset=365,
+        warmup_iteration=10,  # 2 years by default
         verbose=True,
     ):
         self.load_forcing_file()
@@ -986,9 +986,10 @@ class BMI_CFE:
         #################### Warmup ####################
         if warm_up:
             # Read forcing data for warmup
-            self.forcing_data_warmup = self.forcing_data.iloc[0:warmup_offset].copy()
+            self.forcing_data_warmup = self.forcing_data.iloc[:warmup_offset].copy()
 
             previous_gw_storage = 1
+            previous_sm_storage = 1
 
             # Repeat warm-up period for 'warmup_iteration' times
             for i in range(0, warmup_iteration):
@@ -1006,24 +1007,46 @@ class BMI_CFE:
                         )
                     self.cfe_model.run_cfe(self)
 
+                ## Check GW convergence
                 if previous_gw_storage != 0:
-                    diff = (
+                    # print("GW nonzero")
+                    diff_gw = (
                         abs(previous_gw_storage - self.gw_reservoir["storage_m"])
                         / previous_gw_storage
                     )
                 elif (previous_gw_storage == 0) and (
                     self.gw_reservoir["storage_m"] == 0
                 ):
-                    diff = 0
+                    # print("GW was zero and the last state was zero too")
+                    diff_gw = 0
                 else:
-                    diff = 9999
+                    # print("GW was zero in the last state")
+                    diff_gw = 9999
 
-                if diff < 1.0e-02:
+                if previous_sm_storage != 0:
+                    # print("SM nonzero")
+                    diff_sm = (
+                        abs(previous_sm_storage - self.soil_reservoir["storage_m"])
+                        / previous_sm_storage
+                    )
+                elif (previous_sm_storage == 0) and (
+                    self.soil_reservoir["storage_m"] == 0
+                ):
+                    # print("SM was zero and the last state was zero too")
+                    diff_sm = 0
+                else:
+                    # print("SM was zero in the last state")
+                    diff_sm = 9999
+
+                if (diff_gw < 1.0e-02) and (diff_sm < 1.0e-02):
                     if print_fluxes:
-                        print(f"GW converged <1% after warm-up iteration {i}")
+                        print(
+                            f"GW & SM converged <1% after warm-up iteration {i}; diff_gw: {diff_gw:.7f}; diff_sm: {diff_sm:.7f}"
+                        )
                     break
 
                 previous_gw_storage = self.gw_reservoir["storage_m"].copy()
+                previous_sm_storage = self.soil_reservoir["storage_m"].copy()
 
             # Reset the volume tracking after warm-up. Leave resevoirs (the GW and soil reservoir etc.) as the current state
             self.reset_volume_tracking_after_warmup()
