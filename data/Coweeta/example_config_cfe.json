@@ -1,5 +1,5 @@
 {
-    "forcing_file": "G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/data/Coweeta/forcing_daily_2014_2018.csv",
+    "forcing_file": "G:/Araki/SMSigxModel/data/Coweeta/forcing_daily_2014_2018.csv",
     "catchment_area_km2": 0.1210,
     "soil_params": {
         "bb": 4.74,
@@ -10,20 +10,21 @@
         "wltsmc": 0.35,
         "D": 0.6
     },
-    "max_gw_storage": 0.19,
-    "Cgw": 0.0000289,
-    "expon": 8,
-    "K_lf": 0.7900613627981135, 
-    "K_nash": 0.0013,
+    "max_gw_storage": 0.1964128583705216,
+    "Cgw": 0.001,
+    "expon": 3,
+    "K_lf": 0.9784460486586726, 
+    "K_nash": 0.00001,
     "num_nash_storage":2,
     "giuh_ordinates": [
-        1.0
+        0.5,
+        0.5
     ],
-    "trigger_z_fact": 0.5,
+    "trigger_z_fact": 0.570054772877,
     "alpha_fc": 0.33,
     "refkdt": 3,
     "stand_alone": 1,
     "unit_test": 1,
     "time_step_size": 86400,
-    "compare_results_file": "G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/data/Coweeta/test_daily_2014_2018_sm_basinavg.csv"
+    "compare_results_file": "G:/Araki/SMSigxModel/data/Coweeta/test_daily_2014_2018_sm_basinavg.csv"
 }
