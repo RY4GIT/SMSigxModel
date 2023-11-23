@@ -1,30 +1,30 @@
 {
-    "forcing_file": "G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/data/Mahurangi/forcing_daily_1998_2001.csv",
-    "catchment_area_km2": 46.65,
+    "forcing_file": "G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/data/Coweeta/forcing_daily_2014_2018.csv",
+    "catchment_area_km2": 0.121,
     "soil_params": {
-        "bb": 19.080695550153287,
-        "satdk": 0.01008170270316948,
-        "slop": 0.8654737986118407,
-        "smcmax": 0.5326760673265668,
-        "wltsmc": 0.2777108539408838,
-        "satpsi": 0.263,
-        "D": 1
+        "bb": 3.2079604777790642,
+        "satdk": 0.001937923227788561,
+        "satpsi": 0.141,
+        "slop": 0.008716394514218791,
+        "smcmax": 1.0,
+        "wltsmc": 0.000142,
+        "D": 0.6
     },
-    "max_gw_storage": 0.06556912678112185,
-    "Cgw": 0.0016914714204583781,
-    "expon": 3.0132285987222893,
-    "K_nash": 0.5251687040317584,
-    "refkdt": 3.731966760008156,
-    "trigger_z_fact": 0.4589119685226617,
-    "K_lf": 1.0,
-    "num_nash_storage": 2,
+    "max_gw_storage": 0.19,
+    "Cgw": 0.001,
+    "expon": 3.0,
+    "K_nash": 1e-05,
+    "refkdt": 1.1560090173921909,
+    "trigger_z_fact": 0.570054772877,
     "alpha_fc": 0.33,
+    "K_lf": 0.9784460486586726,
+    "num_nash_storage": 2,
     "giuh_ordinates": [
         0.5,
         0.5
     ],
-    "time_step_size": 86400,
     "stand_alone": 1,
     "unit_test": 1,
-    "compare_results_file": "G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/data/Mahurangi/test_daily_1998_2001_sm_basinavg.csv"
+    "time_step_size": 86400,
+    "compare_results_file": "G:/Shared drives/Ryoko and Hilary/SMSigxModel/analysis/data/Coweeta/test_daily_2014_2018_sm_basinavg.csv"
 }
