@@ -126,7 +126,7 @@ class SMSig:
                 elif trans_type[trans] == "wet2dry":
                     trans_start0 = self.t_valley[i] + datetime.timedelta(days=365 / 2)
                     trans_end0 = self.t_valley[i + 1] + datetime.timedelta(days=0)
-                    buffer_start = 30
+                    buffer_start = 60
                     buffer_end = 15
                 # print(trans_start0, trans_end0)
 
