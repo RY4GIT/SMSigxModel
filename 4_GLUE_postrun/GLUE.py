@@ -94,7 +94,7 @@ class GLUE(object):
         # Get the behavioral run attributes and save
 
         # Get evaluation metrics from only behavioral runs
-        self.posterior_eval_metrics = self.prior_eval_metrics.iloc[
+        self.posterior_eval_metrics = self.prior_eval_metrics.loc[
             self.behavioral_run_ids
         ].copy()
         self.posterior_eval_metrics_mo = self.prior_eval_metrics_monthly[
@@ -111,7 +111,7 @@ class GLUE(object):
         )
 
         # Get only behavioral parameters
-        self.posterior_params = self.prior_params.iloc[self.behavioral_run_ids].copy()
+        self.posterior_params = self.prior_params.loc[self.behavioral_run_ids].copy()
 
         # Get the bahvioral parmaeter sets as a list
         behavioral_params = [
