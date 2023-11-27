@@ -22,6 +22,7 @@ class Agent_GLUE_CFE_PostRun(object):
     def evaluate(self):
         # Get the behavioral parameter sets using GLUE
         behavioral_param_sets = self.GLUE.apply_criteria()
+        self.n_behavioral_run = len(behavioral_param_sets)
 
         # Plot figures
         if self.plot_figures:
@@ -34,7 +35,7 @@ class Agent_GLUE_CFE_PostRun(object):
     def reproduce_a_behavioral_run(self, behavioral_params_set):
         # Preparations
         nth_run, behavioral_params_set = behavioral_params_set
-        print(f"Processing {nth_run}/{self.nrun-1}")
+        print(f"Processing {nth_run}/{self.n_behavioral_run-1}")
 
         # Run CFE
         cfe_instance = CFEmodel(config=self.config)

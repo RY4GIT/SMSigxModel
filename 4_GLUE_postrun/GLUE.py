@@ -224,6 +224,7 @@ class GLUE(object):
     #########################
 
     def plot_parameter_distribution(self):
+        print("Plotting parameter distribution")
         nparas = len(self.prior_params.columns)
 
         # Setup figure
@@ -253,6 +254,7 @@ class GLUE(object):
         plt.close(f)
 
     def plot_parameter_dotty(self):
+        print("Plotting dotty plot")
         nparas = len(self.prior_params.columns)
         eval_metrics = [
             col
@@ -281,6 +283,7 @@ class GLUE(object):
             plt.close(f)
 
     def plot_parameter_interaction_dotty(self):
+        print("Plotting parameter interaction")
         # List of parameters of interest
         param_interest = self.posterior_params.columns.to_list()
 
@@ -312,6 +315,7 @@ class GLUE(object):
         plt.close(f)
 
     def plot_uncertainty_bounds(self, observed_Q, observed_SM):
+        print("Plotting uncertainty bounds")
         settings = {
             "Flow": {
                 "df_simrange": self.quantile_Q,

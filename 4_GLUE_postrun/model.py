@@ -31,8 +31,8 @@ class CFEmodel:
     def __init__(self, config=None):
         # Configs
         self.config = config
-        self.warmup_offset = int(config["spotpy"]["warmup_offset"])
-        self.warmup_iteration = int(config["spotpy"]["warmup_iteration"])
+        self.warmup_offset = int(config["CFE"]["warmup_offset"])
+        self.warmup_iteration = int(config["CFE"]["warmup_iteration"])
 
     def initialize(self, nth_run=0, behavioral_params_set=None):
         """Initialize CFE model for the n-th GLUE run"""
