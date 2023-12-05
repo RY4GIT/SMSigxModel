@@ -42,6 +42,7 @@ class Criteria(object):
                             }
                         }
                     )
+                    i += 1
 
             else:
                 self.full_criteria.update(
@@ -54,4 +55,4 @@ class Criteria(object):
                     }
                 )
 
-            i = +1
+            i += 1
