@@ -121,7 +121,7 @@ class SMSig:
                 if trans_type[trans] == "dry2wet":
                     trans_start0 = self.t_valley[i]
                     trans_end0 = trans_start0 + datetime.timedelta(days=300)
-                    buffer_start = 30
+                    buffer_start = 15
                     buffer_end = 0
                 elif trans_type[trans] == "wet2dry":
                     trans_start0 = self.t_valley[i] + datetime.timedelta(days=365 / 2)
@@ -177,14 +177,14 @@ class SMSig:
                     if trans_type[trans] == "dry2wet":
                         P0 = [
                             min_sm,
-                            0.001,
+                            0.1,
                             50,
                             len(seasonsm_value) - 30,
                         ]
-                        Plb = (min_sm - 1, 0, 0, 30)
+                        Plb = (min_sm - 1, 0, 0, 15)
                         Pub = (
                             1,
-                            0.1,
+                            3.0,
                             len(seasonsm_value),
                             len(seasonsm_value) + 60,
                         )
@@ -231,9 +231,9 @@ class SMSig:
                     start_dates.append(trans_start_result)
                     end_dates.append(trans_end_result)
                     seasontrans_date[i, 2 * trans] = trans_start_result.to_julian_date()
-                    seasontrans_date[
-                        i, 1 + 2 * trans
-                    ] = trans_end_result.to_julian_date()
+                    seasontrans_date[i, 1 + 2 * trans] = (
+                        trans_end_result.to_julian_date()
+                    )
 
                 if self.plot_results:
                     n_plot += 1
