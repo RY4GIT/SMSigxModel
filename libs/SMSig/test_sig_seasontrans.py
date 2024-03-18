@@ -6,8 +6,11 @@ import os
 import sys
 import pandas as pd
 import matplotlib.pyplot as plt
+import json
+import numpy as np
+from datetime import datetime, timedelta
 
-sys.path.append("../cfe_py/")
+sys.path.append(f"./libs/cfe_py/")
 from bmi_cfe import BMI_CFE
 
 from sig_seasontrans import SMSig
@@ -31,7 +34,7 @@ def to_datetime(df, time_column, format="%Y-%m-%d %H:%M:%S"):
 
 # %%
 _data = pd.read_csv(
-    r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\LittleWashita\test_sm_basinavg.csv"
+    r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\LittleWashita\test_hourly_2006_2012_sm_basinavg.csv"
 )
 _data = to_datetime(_data, "Time")
 data = _data["Soil Moisture Content"]
@@ -41,14 +44,12 @@ data.head()
 # %%
 # Evaluate using seasonal soil moisture signature
 sig_obs = SMSig(
-    ts_time=data.index.to_numpy(),
-    ts_value=data.to_numpy(),
+    t=data.index.to_numpy(),
+    sm=data.to_numpy(),
     plot_results=True,
-    plot_label="obs",
     verbose=True,
 )
-# sig_obs.detrend() # TODO:debug
-sig_obs.movmean()
+
 # t_valley = sig_obs.calc_sinecurve()
 # print(t_valley)
 
@@ -61,8 +62,13 @@ t_valley_manual_input = pd.to_datetime(_t_valley_manual_input[0])
 t_valley_manual_input
 
 # %%
-season_trans_obs, start_dates_obs, end_dates_obs = sig_obs.calc_seasontrans(
-    t_valley=t_valley_manual_input
+
+# Load the configuration
+_parameter_config = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\LittleWashita\seasonal_transition_config.json"
+with open(_parameter_config, "r") as config_file:
+    config = json.load(config_file)
+season_trans_obs = sig_obs.calc_seasontrans(
+    t_valley=t_valley_manual_input, parameter_config=config
 )
 
 # %%
@@ -108,6 +114,20 @@ ax3.plot(
     color=obs_color,
 )
 # ax3.plot(sig_sim.tt.index, (sig_sim.tt.values-min(sig_sim.tt.values))/(max(sig_sim.tt.values)-min(sig_sim.tt.values)), alpha=1, label=sim_label, color=sim_color)
+
+
+def julian_to_datetime(jd):
+    try:
+        return datetime(1, 1, 1) + timedelta(days=jd - 1721425)
+    except Exception as e:
+        # Return np.nan if there's an error
+        return np.nan
+
+
+stard_dates_jd = np.concatenate([season_trans_obs[:, 0], season_trans_obs[:, 2]])
+start_dates_obs = [julian_to_datetime(jd) for jd in stard_dates_jd]
+end_dates_jd = np.concatenate([season_trans_obs[:1], season_trans_obs[:3]])
+end_dates_obs = [julian_to_datetime(jd) for jd in stard_dates_jd]
 for i in range(len(start_dates_obs)):
     ax3.axvline(
         x=start_dates_obs[i], color=obs_color, label=None, alpha=0.5, linestyle="-"
@@ -131,51 +151,45 @@ ax3.legend()
 # Save the results
 
 
-# %% [markdown]
-# ### Mahurangi
+# # %% [markdown]
+# # ### Mahurangi
 
-# %%
-_data = pd.read_csv(
-    r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\Mahurangi\test_sm_basinavg.csv"
-)
-_data = to_datetime(_data, "Time", format=r"%m/%d/%Y %H:%M")
-data = _data["Soil Moisture Content"]
+# # %%
+# _data = pd.read_csv(
+#     r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\Mahurangi\test_hourly_1998_2001_sm_basinavg.csv"
+# )
+# _data = to_datetime(_data, "Time", format=r"%m/%d/%Y %H:%M")
+# data = _data["Soil Moisture Content"]
 
-data.head()
+# data.head()
 
-# %%
-# Evaluate using seasonal soil moisture signature
-sig_obs = SMSig(
-    ts_time=data.index.to_numpy(),
-    ts_value=data.to_numpy(),
-    plot_results=True,
-    plot_label="obs",
-    verbose=True,
-)
-# sig_obs.detrend() # TODO:debug
-sig_obs.movmean()
-t_valley = sig_obs.calc_sinecurve()
-print(t_valley)
+# # %%
+# # Evaluate using seasonal soil moisture signature
+# sig_obs = SMSig(
+#     t=data.index.to_numpy(),
+#     sm=data.to_numpy(),
+#     plot_results=True,
+#     verbose=True,
+# )
+# t_valley = sig_obs.calc_sinecurve()
+# print(t_valley)
 
-# %%
-_t_valley_manual_input = pd.read_csv(
-    r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\Mahurangi\seasonal_cycel_valleys.csv",
-    header=None,
-)
-t_valley_manual_input = pd.to_datetime(_t_valley_manual_input[0])
-t_valley_manual_input
+# # %%
+# _t_valley_manual_input = pd.read_csv(
+#     r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\Mahurangi\seasonal_cycel_valleys.csv",
+#     header=None,
+# )
+# t_valley_manual_input = pd.to_datetime(_t_valley_manual_input[0])
+# t_valley_manual_input
 
-# %%
-sig_obs = SMSig(
-    ts_time=data.index.to_numpy(),
-    ts_value=data.to_numpy(),
-    plot_results=True,
-    plot_label="obs",
-    verbose=True,
-)
-# sig_obs.detrend() # TODO:debug
-sig_obs.movmean()
-sig_obs.calc_seasontrans(t_valley=t_valley_manual_input)
+# # %%
+# sig_obs = SMSig(
+#     t=data.index.to_numpy(),
+#     sm=data.to_numpy(),
+#     plot_results=True,
+#     verbose=True,
+# )
+# sig_obs.calc_seasontrans(t_valley=t_valley_manual_input)
 
-# %% [markdown]
-#
+# # %% [markdown]
+# #
