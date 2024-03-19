@@ -29,12 +29,14 @@ def to_datetime(df, time_column, format="%Y-%m-%d %H:%M:%S"):
     return df.set_index(time_column)
 
 
-# %% [markdown]
-# ### Little Washita
-
 # %%
+
+home_dir = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis"
+data_dir = "data"
+site = "Coweeta"
+
 _data = pd.read_csv(
-    r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\LittleWashita\test_hourly_2006_2012_sm_basinavg.csv"
+    r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\Coweeta\test_daily_2014_2018_sm_basinavg.csv"
 )
 _data = to_datetime(_data, "Time")
 data = _data["Soil Moisture Content"]
@@ -54,21 +56,21 @@ sig_obs = SMSig(
 # print(t_valley)
 
 # %%
-_t_valley_manual_input = pd.read_csv(
-    r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\LittleWashita\seasonal_cycel_valleys.csv",
-    header=None,
+seasonal_cycle = pd.read_csv(
+    os.path.join(home_dir, data_dir, site, "seasonal_cycle.csv"),
+    parse_dates=["valley", "peak"],
 )
-t_valley_manual_input = pd.to_datetime(_t_valley_manual_input[0])
-t_valley_manual_input
+seasonal_cycle
+
 
 # %%
 
 # Load the configuration
-_parameter_config = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\LittleWashita\seasonal_transition_config.json"
+_parameter_config = r"G:\Shared drives\Ryoko and Hilary\SMSigxModel\analysis\data\Coweeta\seasonal_transition_config.json"
 with open(_parameter_config, "r") as config_file:
     config = json.load(config_file)
 season_trans_obs = sig_obs.calc_seasontrans(
-    t_valley=t_valley_manual_input, parameter_config=config
+    seasonal_cycle=seasonal_cycle, parameter_config=config
 )
 
 # %%
@@ -193,3 +195,5 @@ ax3.legend()
 
 # # %% [markdown]
 # #
+
+# %%
