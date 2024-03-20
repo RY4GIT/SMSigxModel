@@ -3,16 +3,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import datetime
 from scipy.optimize import curve_fit
+import math
 
 
 def piecewise_linear(x, P0, P1, P2, P3):
     y0 = np.where(x - P2 > 0, P0 + P1 * x, P0 + P1 * P2)
     return np.where(x - (P2 + P3) > 0, P0 + P1 * (P2 + P3), y0)
-
-
-def sine_func(x, A, phi, k):
-    w = 2 * np.pi / 365
-    return A * np.sin(w * x - phi) + k
 
 
 def datetime_to_timestamp(t):
@@ -64,26 +60,15 @@ class SMSig:
 
     def get_dates_to_crop_timeseries(self, transition_type, n_year):
 
-        buffer_start = self.current_config["buffer_start_days"]
-        buffer_end = self.current_config["buffer_end_days"]
-
-        # Get the base start/end days
-        if transition_type == "dry2wet":
-            start_date = self.seasonal_cycle["valley"][n_year] - datetime.timedelta(
-                days=buffer_start
-            )
-            end_date = self.seasonal_cycle["peak"][n_year] + datetime.timedelta(
-                days=buffer_end
-            )
-
-        elif transition_type == "wet2dry":
-            start_date = self.seasonal_cycle["peak"][n_year] - datetime.timedelta(
-                days=buffer_start
-            )
-            end_date = self.seasonal_cycle["valley"][n_year + 1] + datetime.timedelta(
-                days=buffer_end
-            )
-
+        try:
+            subset = self.seasonal_cycle[
+                self.seasonal_cycle["transition"] == transition_type
+            ].copy()
+            start_date = subset["start_date"].values[n_year]
+            end_date = subset["end_date"].values[n_year]
+        except:
+            start_date = None
+            end_date = None
         return start_date, end_date
 
     def crop_timeseries(self, start_date, end_date):
@@ -177,8 +162,14 @@ class SMSig:
             ]
 
     def calc_seasontrans(self, seasonal_cycle, parameter_config):
-        self.seasonal_cycle = seasonal_cycle  # (year - by - (peak, valley))
-        n_years = len(seasonal_cycle)
+
+        # __________________________________
+        # Initialization
+
+        self.seasonal_cycle = (
+            seasonal_cycle  # (year - by - (transition_type, start_date, end_date))
+        )
+        n_years = math.ceil(len(seasonal_cycle) / 2)
         self.config = parameter_config
 
         # initialization
@@ -189,29 +180,34 @@ class SMSig:
 
         if self.plot_results:
             fig, axs = plt.subplots(
-                n_years - 1,
+                n_years,
                 2,
-                figsize=(8, 4 * (n_years - 1)),
+                figsize=(8, 4 * (n_years)),
             )
 
+        # __________________________________
         ## Main execusion
+        # Loop for seasonal types
         for j, season_type in enumerate(season_types):
             self.current_season_type = season_type
             self.current_config = self.config["transitions"][season_type]
             # Loop for water years
-            for i in range(n_years - 1):
+            for i in range(n_years):
                 if self.verbose:
                     print(
-                        f"Processing {self.seasonal_cycle['valley'][i].year}:{self.current_season_type}"
+                        f"Processing {self.seasonal_cycle['start_date'][i].year}:{self.current_season_type}"
                     )
 
                 # __________________________________
                 # Crop the timeseries
-                _start_date, _end_date = self.get_dates_to_crop_timeseries(
+                start_date, end_date = self.get_dates_to_crop_timeseries(
                     self.current_season_type, i
                 )
-
-                seasonsm_tt = self.crop_timeseries(_start_date, _end_date)
+                if start_date is None and end_date is None:
+                    # If both are None, then continue with the next iteration or part of the code.
+                    print("Check seasonal_cycle.csv")
+                    continue
+                seasonsm_tt = self.crop_timeseries(start_date, end_date)
 
                 # __________________________________
                 # Actual signature calculation
@@ -219,80 +215,21 @@ class SMSig:
                     ax = axs[i, j]
                 else:
                     ax = None
-                popt = self.fit_model_to_seasonaltransition(seasonsm_tt, ax=ax)
 
-                # __________________________________
-                # Get signatures in Julian dates
-                trans_start_result = seasonsm_tt.index[0] + datetime.timedelta(
-                    days=popt[2]
-                )
-                trans_end_result = seasonsm_tt.index[0] + datetime.timedelta(
-                    days=popt[2] + popt[3]
-                )
+                try:
+                    popt = self.fit_model_to_seasonaltransition(seasonsm_tt, ax=ax)
 
-                seasontrans_date[i, 2 * j] = trans_start_result.to_julian_date()
-                seasontrans_date[i, 1 + 2 * j] = trans_end_result.to_julian_date()
+                    # __________________________________
+                    # Get signatures in Julian dates
+                    trans_start_result = seasonsm_tt.index[0] + datetime.timedelta(
+                        days=popt[2]
+                    )
+                    trans_end_result = seasonsm_tt.index[0] + datetime.timedelta(
+                        days=popt[2] + popt[3]
+                    )
+                    seasontrans_date[i, 2 * j] = trans_start_result.to_julian_date()
+                    seasontrans_date[i, 1 + 2 * j] = trans_end_result.to_julian_date()
+                except:
+                    None
 
         return seasontrans_date  # Output in julian date
-
-    # Old functions from Matlab code
-    # def calc_sinecurve(self):
-    #     # https://scipy-lectures.org/intro/scipy/auto_examples/plot_curve_fit.html
-    #     # Get the sine curve information from insitu data
-    #     params, _ = optimize.curve_fit(
-    #         sine_func, xdata=self.t_date, ydata=self.sm, p0=[1, 0, 0.5]
-    #     )
-    #     phi = params[1]
-
-    #     # Get the transition valley
-    #     # note that phi sign is opposite from MATLAB code
-    #     sine_n = int(np.round(len(self.t_date) / 365))
-    #     sine_start0 = np.floor(self.t_date[0] / 365 - phi / 2 / np.pi)
-    #     sine_start_v = 365 / 2 / np.pi * (2 * sine_start0 * np.pi + np.pi / 2 + phi)
-    #     valley = np.arange(
-    #         start=sine_start_v, step=365, stop=sine_start_v + 365 * (sine_n + 1)
-    #     )
-    #     seasonal_cycle = (
-    #         np.full((len(valley),), np.datetime64("1970-01-01T00:00:00Z"))
-    #         + np.full((len(valley),), np.timedelta64(1, "D")) * valley
-    #     )
-    #     seasonal_cycle = pd.Series(seasonal_cycle)
-
-    #     # Plot and confirm
-    #     if self.plot_results:
-    #         plt.figure(figsize=(6, 4))
-    #         plt.scatter(self.t_date, self.sm, label="Data")
-    #         plt.plot(
-    #             self.t_date,
-    #             sine_func(self.t_date, params[0], params[1], params[2]),
-    #             label="Fitted function",
-    #             color="k",
-    #         )
-    #         plt.scatter(
-    #             valley, sine_func(valley, params[0], params[1], params[2]), color="k"
-    #         )
-    #         plt.legend(loc="best")
-    #         plt.show()
-
-    #     # return the dates
-    #     return seasonal_cycle
-
-    # def detrend(self):
-    #     # detrend the sm using moving average using 1-year window
-    #     windowsize = 365  # 1wk just for now
-    #     halfwindow = int(np.rint(windowsize / 2))
-    #     y = np.convolve(self.sm, np.ones(windowsize) / (windowsize), mode="same")
-
-    #     # repeat the first and last observations to prevent data loss
-    #     y[0:halfwindow] = y[halfwindow]
-    #     y[len(y) - halfwindow : -1] = y[len(y) - halfwindow]
-    #     y[-1] = y[len(y) - halfwindow]
-
-    #     # Subtract moving average from the original series to detrend the data
-    #     # Additive decomposition
-    #     ts_dtr0 = self.sm - y
-
-    #     # Add 0.5 to avoid negative SM value (do not trust the absolute value of SM anymore
-    #     ts_dtr = ts_dtr0 + 0.5
-
-    #     self.sm = ts_dtr
