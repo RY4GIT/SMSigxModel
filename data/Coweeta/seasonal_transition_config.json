@@ -1,0 +1,22 @@
+{
+    "transitions": {
+        "dry2wet": {
+            "bounds": {
+                "transition_duration": [0, 300]
+            },
+            "initial_params":{
+                "P3": 30,
+                "P4": 30
+            }
+        },
+        "wet2dry": {
+            "bounds": {
+                "transition_duration": [0, 300]
+            },
+            "initial_params":{
+                "P3": 30,
+                "P4": 30
+            }
+        }
+    }
+}

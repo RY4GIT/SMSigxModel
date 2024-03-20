@@ -1,0 +1,26 @@
+{
+    "transitions": {
+        "dry2wet": {
+            "buffer_start_days": 30,
+            "buffer_end_days": 30,
+            "bounds": {
+                "transition_duration": [0, 300]
+            },
+            "initial_params":{
+                "P3": 50,
+                "P4": 60
+            }
+        },
+        "wet2dry": {
+            "buffer_start_days": 10,
+            "buffer_end_days": 25,
+            "bounds": {
+                "transition_duration": [0, 300]
+            },
+            "initial_params":{
+                "P3": 50,
+                "P4": 60
+            }
+        }
+    }
+}
