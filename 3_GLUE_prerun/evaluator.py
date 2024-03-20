@@ -7,7 +7,7 @@ from sig_seasontrans import SMSig
 import numpy as np
 import pandas as pd
 from statistics import median
-
+import json
 import spotpy
 
 
@@ -46,13 +46,26 @@ class Evaluator:
             "KGE on Soil": self.calc_KGE(self.soilmoisture_var_name),
         }
 
-        season_trans = self.calc_SeasonTrans(self.soilmoisture_var_name)
+        diff_season_trans = self.calc_SeasonTrans(self.soilmoisture_var_name)
+        abs_diff_SeasonTransDate = abs(np.nanmean(diff_season_trans, axis=0))
         metrics.update(
             {
-                "SeasonTrans of Soil dry2wet_start": season_trans[0],
-                "SeasonTrans of Soil dry2wet_end": season_trans[1],
-                "SeasonTrans of Soil wet2dry_start": season_trans[2],
-                "SeasonTrans of Soil wet2dry_end": season_trans[3],
+                "SeasonTrans of Soil dry2wet_start": abs_diff_SeasonTransDate[0],
+                "SeasonTrans of Soil dry2wet_end": abs_diff_SeasonTransDate[1],
+                "SeasonTrans of Soil wet2dry_start": abs_diff_SeasonTransDate[2],
+                "SeasonTrans of Soil wet2dry_end": abs_diff_SeasonTransDate[3],
+                "SeasonTrans of Soil dry2wet_start_raw": [
+                    diff_season_trans[:, 0].tolist()
+                ],
+                "SeasonTrans of Soil dry2wet_end_raw": [
+                    diff_season_trans[:, 1].tolist()
+                ],
+                "SeasonTrans of Soil wet2dry_start_raw": [
+                    diff_season_trans[:, 2].tolist()
+                ],
+                "SeasonTrans of Soil wet2dry_end_raw": [
+                    diff_season_trans[:, 3].tolist()
+                ],
             }
         )
 
@@ -109,37 +122,50 @@ class Evaluator:
     def calc_SeasonTrans(self, variable):
         # Calculate metrics for observed timeseries
         sig_obs = SMSig(
-            ts_time=self.observation.index.to_numpy(),
-            ts_value=self.observation[variable].to_numpy(),
+            t=self.observation.index.to_numpy(),
+            sm=self.observation[variable].to_numpy(),
             plot_results=False,
-            plot_label="obs",
+            verbose=False,
         )
 
-        t_valley = self.get_t_valley()
-        season_trans_obs, _, _ = sig_obs.calc_seasontrans(t_valley=t_valley)
+        seasonal_cycle = self.get_seasonal_cycle()
+        parameter_config = self.get_SeasonTrans_config()
+        season_trans_obs = sig_obs.calc_seasontrans(
+            seasonal_cycle=seasonal_cycle, parameter_config=parameter_config
+        )
 
         # Calculate metrics for SIMULATED timeseries
         sig_sim = SMSig(
-            ts_time=self.simulation.index.to_numpy(),
-            ts_value=self.simulation[variable].to_numpy(),
+            t=self.simulation.index.to_numpy(),
+            sm=self.simulation[variable].to_numpy(),
             plot_results=False,
-            plot_label="sim",
+            verbose=False,
         )
-        season_trans_sim, _, _ = sig_sim.calc_seasontrans(t_valley=t_valley)
+        season_trans_sim = sig_sim.calc_seasontrans(
+            seasonal_cycle=seasonal_cycle, parameter_config=parameter_config
+        )
 
         # Get the deviations in seasonal transition dates between simulated and observed timeseries
         diff = season_trans_sim - season_trans_obs
-        abs_diff_SeasonTransDate = abs(np.nanmean(diff, axis=0))
 
-        return abs_diff_SeasonTransDate
+        return diff
 
-    def get_t_valley(self):
-        data_directory = os.path.dirname(self.config["PATHS"]["cfe_config"])
-        _t_valley_manual_input = pd.read_csv(
-            os.path.join(data_directory, "seasonal_cycel_valleys.csv"), header=None
+    def get_seasonal_cycle(self):
+        data_dir = os.path.dirname(self.config["PATHS"]["cfe_config"])
+        seasonal_cycle = pd.read_csv(
+            os.path.join(data_dir, "seasonal_cycle.csv"),
+            parse_dates=["valley", "peak"],
         )
-        t_valley_manual_input = pd.to_datetime(_t_valley_manual_input[0])
-        return t_valley_manual_input
+        return seasonal_cycle
+
+    def get_SeasonTrans_config(self):
+        config_path = os.path.join(
+            os.path.dirname(self.config["PATHS"]["cfe_config"]),
+            "seasonal_transition_config.json",
+        )
+        with open(config_path, "r") as config_file:
+            config = json.load(config_file)
+        return config
 
     def df_to_monthly_timestep(self, df):
         df_monthly = df.resample("M").sum().copy()

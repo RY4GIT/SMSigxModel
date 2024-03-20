@@ -1,7 +1,7 @@
 {
     "transitions": {
         "dry2wet": {
-            "buffer_start_days": 30,
+            "buffer_start_days": 40,
             "buffer_end_days": 30,
             "bounds": {
                 "transition_duration": [0, 300]
@@ -12,7 +12,7 @@
             }
         },
         "wet2dry": {
-            "buffer_start_days": 30,
+            "buffer_start_days": 50,
             "buffer_end_days": 25,
             "bounds": {
                 "transition_duration": [0, 300]

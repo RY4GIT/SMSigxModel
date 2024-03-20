@@ -296,9 +296,9 @@ class BMI_CFE:
             "exponent_secondary": 1,  # Controls lateral flow, FIXED to 1 based on schematics in the Ogden's document
             "storage_threshold_secondary_m": lateral_flow_threshold_storage_m,
         }  # Equation 4 (and probably 5?) (Ogden's document).
-        self.soil_reservoir["storage_m"] = self.soil_reservoir[
-            "storage_max_m"
-        ]  # Start from the maximum soil reservoir
+        self.soil_reservoir["storage_m"] = (
+            self.soil_reservoir["storage_max_m"] * 0.3
+        )  # Start from the half soil reservoir
         self.volstart += self.soil_reservoir["storage_m"]
         self.vol_soil_start = self.soil_reservoir["storage_m"]
 
@@ -1106,9 +1106,9 @@ class BMI_CFE:
             output_SM[t] = self.soil_reservoir["storage_m"]
 
             output_gwstorage[t] = self.gw_reservoir["storage_m"]
-            output_gwstorage_in[
-                t
-            ] = self.flux_perc_m  # this is percolation minus runoff
+            output_gwstorage_in[t] = (
+                self.flux_perc_m
+            )  # this is percolation minus runoff
             output_gwstorage_out[t] = self.flux_from_deep_gw_to_chan_m + self.diff_perc
 
             output_giuhstorage[t] = np.sum(self.runoff_queue_m_per_timestep)
