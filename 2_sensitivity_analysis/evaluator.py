@@ -6,7 +6,7 @@ from sig_seasontrans import SMSig
 
 import numpy as np
 import pandas as pd
-
+import json
 import spotpy
 
 
@@ -58,23 +58,28 @@ class Evaluator:
     def calc_SeasonTrans(self):
         # Calculate metrics for observed timeseries
         sig_obs = SMSig(
-            ts_time=self.time_index,
-            ts_value=self.observation.to_numpy(),
+            t=self.time_index,
+            sm=self.observation.to_numpy(),
             plot_results=False,
-            plot_label="obs",
+            verbose=False,
         )
 
-        t_valley = self.get_t_valley()
-        season_trans_obs, _, _ = sig_obs.calc_seasontrans(t_valley=t_valley)
+        seasonal_cycle = self.get_seasonal_cycle()
+        parameter_config = self.get_SeasonTrans_config()
+        season_trans_obs = sig_obs.calc_seasontrans(
+            seasonal_cycle=seasonal_cycle, parameter_config=parameter_config
+        )
 
         # Calculate metrics for SIMULATED timeseries
         sig_sim = SMSig(
-            ts_time=self.time_index,
-            ts_value=self.simulation.to_numpy(),
+            t=self.time_index,
+            sm=self.simulation.to_numpy(),
             plot_results=False,
-            plot_label="sim",
+            verbose=False,
         )
-        season_trans_sim, _, _ = sig_sim.calc_seasontrans(t_valley=t_valley)
+        season_trans_sim = sig_sim.calc_seasontrans(
+            seasonal_cycle=seasonal_cycle, parameter_config=parameter_config
+        )
 
         # Get the deviations in seasonal transition dates between simulated and observed timeseries
         diff = season_trans_sim - season_trans_obs
@@ -82,10 +87,19 @@ class Evaluator:
 
         return abs_diff_SeasonTransDate
 
-    def get_t_valley(self):
-        data_directory = os.path.dirname(self.config["PATHS"]["cfe_config"])
-        _t_valley_manual_input = pd.read_csv(
-            os.path.join(data_directory, "seasonal_cycel_valleys.csv"), header=None
+    def get_seasonal_cycle(self):
+        data_dir = os.path.dirname(self.config["PATHS"]["cfe_config"])
+        seasonal_cycle = pd.read_csv(
+            os.path.join(data_dir, "seasonal_cycle.csv"),
+            parse_dates=["start_date", "end_date"],
         )
-        t_valley_manual_input = pd.to_datetime(_t_valley_manual_input[0])
-        return t_valley_manual_input
+        return seasonal_cycle
+
+    def get_SeasonTrans_config(self):
+        config_path = os.path.join(
+            os.path.dirname(self.config["PATHS"]["cfe_config"]),
+            "seasonal_transition_config.json",
+        )
+        with open(config_path, "r") as config_file:
+            config = json.load(config_file)
+        return config
