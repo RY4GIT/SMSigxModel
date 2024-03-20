@@ -154,7 +154,7 @@ class Evaluator:
         data_dir = os.path.dirname(self.config["PATHS"]["cfe_config"])
         seasonal_cycle = pd.read_csv(
             os.path.join(data_dir, "seasonal_cycle.csv"),
-            parse_dates=["valley", "peak"],
+            parse_dates=["start_date", "end_date"],
         )
         return seasonal_cycle
 
