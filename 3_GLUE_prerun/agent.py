@@ -116,15 +116,7 @@ class Agent_GLUE_CFE(object):
         # Store run ID
         self.run_id = [result[0] for result in all_results if result is not None]
 
-        # # Store prior parameters
-        # self._pri_paras = [result[1] for result in all_results]
-        # param_names = [param[1] for param in self._pri_paras[0]]
-        # param_values = np.array(
-        #     [
-        #         [param_set[i][0] for i in range(len(param_names))]
-        #         for param_set in self._pri_paras
-        #     ]
-        # )
+        # Store prior parmaeters
         param_names = all_results[0][1][0]
         param_values = []
         for result in all_results:

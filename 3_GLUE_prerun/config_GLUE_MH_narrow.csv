@@ -1,7 +1,8 @@
 name,lower_bound,upper_bound,calibrate
-bb,3.5915,21.94,1
+bb,3.59,21.94,1
 satdk,1.28e-06,1.14e-02,1
-slop,1.47e-05,1,1
-smcmax,0.3601,0.7692,1
-wltsmc,0.20,0.35,1
-max_gw_storage,0.1188,0.1782,1
+slop,1.47e-05,0.488,1
+smcmax,0.360,0.769,1
+wltsmc,0.200,0.350,1
+max_gw_storage,0.119,0.178,1
+expon,1.79,8.00,1

@@ -5,3 +5,4 @@ slop,0,1,1
 smcmax,0.29,1,1
 wltsmc,0,0.29,1
 max_gw_storage,0.01,0.25,1
+expon,1,8,1
