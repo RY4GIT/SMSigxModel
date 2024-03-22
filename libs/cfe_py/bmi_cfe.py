@@ -297,9 +297,9 @@ class BMI_CFE:
             "storage_threshold_secondary_m": lateral_flow_threshold_storage_m,
         }  # Equation 4 (and probably 5?) (Ogden's document).
         # Set initial soil moisture condition
-        self.soil_reservoir["storage_m"] = (
-            self.soil_reservoir["storage_max_m"] * 0.2
-        )  # Start from the half soil reservoir
+        self.soil_reservoir["storage_m"] = self.soil_reservoir[
+            "storage_max_m"
+        ]  # Start from the maximum soil reservoir
         self.volstart += self.soil_reservoir["storage_m"]
         self.vol_soil_start = self.soil_reservoir["storage_m"]
 
