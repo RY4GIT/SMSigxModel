@@ -1056,6 +1056,10 @@ class BMI_CFE:
         output_time = [0] * len(self.unit_test_data)
         output_ts = [0] * len(self.unit_test_data)
         output_rainfall = [0] * len(self.unit_test_data)
+        output_rainfall_to_surface = [0] * len(self.unit_test_data)
+        output_et_from_rain = [0] * len(self.unit_test_data)
+        output_et_from_soil = [0] * len(self.unit_test_data)
+
         output_directrunoff = [0] * len(self.unit_test_data)
         output_GIUHrunoff = [0] * len(self.unit_test_data)
         output_lateralflow = [0] * len(self.unit_test_data)
@@ -1098,6 +1102,11 @@ class BMI_CFE:
             self.cfe_model.run_cfe(self)
 
             ### Record output ###
+
+            output_rainfall_to_surface[t] = self.timestep_rainfall_input_m
+            output_et_from_rain[t] = self.actual_et_from_rain_m_per_timestep
+            output_et_from_soil[t] = self.actual_et_from_soil_m_per_timestep
+
             output_directrunoff[t] = self.surface_runoff_depth_m
             output_GIUHrunoff[t] = self.flux_giuh_runoff_m
             output_lateralflow[t] = self.flux_nash_lateral_runoff_m
@@ -1133,6 +1142,11 @@ class BMI_CFE:
         self.cfe_output_data["Time"] = output_time
         self.cfe_output_data["Time Step"] = output_ts
         self.cfe_output_data["Rainfall"] = output_rainfall
+
+        self.cfe_output_data["Rainfall landsurface"] = output_rainfall_to_surface
+        self.cfe_output_data["ET from rain"] = output_et_from_rain
+        self.cfe_output_data["ET from soil"] = output_et_from_soil
+
         self.cfe_output_data["Direct Runoff"] = output_directrunoff
         self.cfe_output_data["GIUH Runoff"] = output_GIUHrunoff
         self.cfe_output_data["Lateral Flow"] = output_lateralflow
