@@ -26,6 +26,15 @@ def main():
 
     print(f"### Start {config['SALib']['method']} sensitivity analysis ###")
 
+    # Prepare temporary file location
+    source_path = config["PATHS"]["cfe_config"]
+    directory = os.path.join(
+        os.path.dirname(source_path),
+        "temporary_parameter_files_for_sensitivity_analysis",
+    )
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
     # Implementation
     salib_experiment = Agent_SALib_CFE(config=config)
     sampled_param_sets = salib_experiment.sample()

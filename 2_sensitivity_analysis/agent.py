@@ -107,6 +107,7 @@ class Agent_SALib_CFE:
             Y_i = self.model.evaluate()
 
             if np.isnan(Y_i):
+                print("stop")
                 # Some parameters never impact soil moisture content: in this case replace Y_i with "perfect score"
                 if self.config["SALib"]["eval_variable"] == "Soil Moisture Content":
                     if (self.config["SALib"]["like_measure"] == "KGE") or (
@@ -152,6 +153,12 @@ class Agent_SALib_CFE:
         # Render the results returned from MP
 
         self.Y = np.array(results, dtype=float)
+        if np.isnan(self.Y).all():
+            raise ValueError(
+                "The Y array contains only NaN values. Stopping execution."
+            )
+        else:
+            None
 
         # Analyze
         print("### Results ###")

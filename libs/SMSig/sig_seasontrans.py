@@ -205,7 +205,9 @@ class SMSig:
                 )
                 if start_date is None and end_date is None:
                     # If both are None, then continue with the next iteration or part of the code.
-                    print("Check seasonal_cycle.csv")
+                    print(
+                        f"Check seasonal_cycle.csv: No data for {self.current_season_type}, {i}-th year"
+                    )
                     continue
                 seasonsm_tt = self.crop_timeseries(start_date, end_date)
 

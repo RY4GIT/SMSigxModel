@@ -29,8 +29,6 @@ def duplicate_file(source_path):
         os.path.dirname(source_path),
         "temporary_parameter_files_for_sensitivity_analysis",
     )
-    if not os.path.exists(directory):
-        os.makedirs(directory)
     destination_path = os.path.join(directory, f"cfe_config_{i}.json")
 
     # Copy the source file to the new location
