@@ -116,6 +116,9 @@ class Agent_SALib_CFE:
                         return 1
                     elif "SeasonTrans" in self.config["SALib"]["like_measure"]:
                         return 0
+                elif self.config["SALib"]["eval_variable"] == "Flow":
+                    # Or simply errors in the calculation (ODE)
+                    return -1
 
             return Y_i
 

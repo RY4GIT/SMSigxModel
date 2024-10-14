@@ -304,9 +304,9 @@ class CFE:
         # shift all the entries in preperation for the next timestep
 
         for i in range(1, cfe_state.num_giuh_ordinates):
-            cfe_state.runoff_queue_m_per_timestep[
-                i - 1
-            ] = cfe_state.runoff_queue_m_per_timestep[i]
+            cfe_state.runoff_queue_m_per_timestep[i - 1] = (
+                cfe_state.runoff_queue_m_per_timestep[i]
+            )
 
         cfe_state.runoff_queue_m_per_timestep[-1] = 0
 
@@ -386,6 +386,8 @@ class CFE:
             ),
             tfirst=True,
             Dfun=jac,
+            rtol=None,
+            atol=None,
         )
 
         # Finalize results
