@@ -11,18 +11,18 @@
         "D": 2.0
     },
     "max_gw_storage": 0.1964128583705216,
-    "Cgw": 0.005000309528,
+    "Cgw": 2.25e-03,
     "expon": 3,
-    "K_lf": 0.501435, 
-    "K_nash": 0.336305361976,
+    "K_lf": 0.501, 
+    "K_nash": 0.336,
     "num_nash_storage":2,
     "giuh_ordinates": [
         0.5,
         0.5
     ],
-    "trigger_z_fact": 0.392506628754,
+    "trigger_z_fact": 0.393,
     "alpha_fc": 0.33,
-    "refkdt": 3.64460867734,
+    "refkdt": 3.64,
     "stand_alone": 1,
     "unit_test": 1,
     "time_step_size": 86400,
