@@ -84,17 +84,29 @@ class Spotpy_Agent:
                 "parsmcmax",
                 "parwltsmc",
                 "parmax_gw_storage",
-                "parsatpsi",
-                "parCgw",
                 "parexpon",
-                "parK_nash",
-                "parrefkdt",
-                "partrigger_z_fact",
-                "paralpha_fc",
-                "parK_lf",
-                "parD",
             ]
         ].to_csv(os.path.join(self.out_dir, "DDS_allresults.csv"))
+        # df[
+        #     [
+        #         "like1",
+        #         "parbb",
+        #         "parsatdk",
+        #         "parslop",
+        #         "parsmcmax",
+        #         "parwltsmc",
+        #         "parmax_gw_storage",
+        #         "parsatpsi",
+        #         "parCgw",
+        #         "parexpon",
+        #         "parK_nash",
+        #         "parrefkdt",
+        #         "partrigger_z_fact",
+        #         "paralpha_fc",
+        #         "parK_lf",
+        #         "parD",
+        #     ]
+        # ].to_csv(os.path.join(self.out_dir, "DDS_allresults.csv"))
 
     def finalize(self):
         self.get_the_best_run(self.results)
