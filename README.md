@@ -1,8 +1,10 @@
 # Summary
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) ![versions](https://img.shields.io/pypi/pyversions/hydra-core.svg) [![CodeStyle](https://img.shields.io/badge/code%20style-Black-black)]()  
-This project explores the application of soil moisture signature ([Branger et al., 2019](https://doi.org/10.1002/hyp.13645); [Araki et al., 2020](https://onlinelibrary.wiley.com/doi/full/10.1002/hyp.14553)) to enhance streamflow and soil moisture prediction within a rainfall-runoff model.
+This repository hosts code to generate results for [Araki et al., (2025)](https://doi.org/10.1111/1752-1688.70002). 
 
-This code is currently in development and does not guarantee to run yet.
+    Araki, R., Ogden, F. L., & McMillan, H. K. (2025). Testing Soil Moisture Performance Measures in the Conceptual-Functional Equivalent to the WRF-Hydro National Water Model. Journal of the American Water Resources Association, 61(1), e70002. https://doi.org/10.1111/1752-1688.70002
+    
+This project explores the application of soil moisture signature ([Branger et al., 2019](https://doi.org/10.1002/hyp.13645); [Araki et al., 2020](https://onlinelibrary.wiley.com/doi/full/10.1002/hyp.14553)) to enhance streamflow and soil moisture prediction within a rainfall-runoff model.
 
 ## Installation
 Use conda to create your own env based on our ```environment.yml``` file
@@ -121,4 +123,4 @@ to discuss what you would like to change.
 Please make sure to update tests as appropriate.
 
 ## Citation
-To cite this code, email the author raraki8159 at sdsu dot edu
+    Araki, R., Ogden, F. L., & McMillan, H. K. (2025). Testing Soil Moisture Performance Measures in the Conceptual-Functional Equivalent to the WRF-Hydro National Water Model. Journal of the American Water Resources Association, 61(1), e70002. https://doi.org/10.1111/1752-1688.70002
